@@ -18,6 +18,29 @@ def clamp(x, min_value, max_value):
 
 
 @triton.jit
+def tanh(x, output_dtype: tl.constexpr = None):
+    if output_dtype is None:
+        output_dtype = x.dtype
+
+    x = x.to(tl.float32)
+    x = tl.inline_asm_elementwise("tanh.approx.f32 $0, $1;", "=f,f", [x], dtype=tl.float32, is_pure=True, pack=1)
+    x = x.to(output_dtype)
+
+    return x
+
+
+@triton.jit
+def tanh_backward(y):
+    dtype = y.dtype
+
+    y = y.to(tl.float32)
+    y = 1 - y * y
+    y = y.to(dtype)
+
+    return y
+
+
+@triton.jit
 def sigmoid(x, output_dtype: tl.constexpr = None):
     if output_dtype is None:
         output_dtype = x.dtype
@@ -36,29 +59,6 @@ def sigmoid_backward(y):
 
     y = y.to(tl.float32)
     y = y * (1 - y)
-    y = y.to(dtype)
-
-    return y
-
-
-@triton.jit
-def tanh(x, output_dtype: tl.constexpr = None):
-    if output_dtype is None:
-        output_dtype = x.dtype
-
-    x = x.to(tl.float32)
-    x = tl.inline_asm_elementwise("tanh.approx.f32 $0, $1;", "=f,f", [x], dtype=tl.float32, is_pure=True, pack=1)
-    x = x.to(output_dtype)
-
-    return x
-
-
-@triton.jit
-def tanh_backward(y):
-    dtype = y.dtype
-
-    y = y.to(tl.float32)
-    y = 1 - y * y
     y = y.to(dtype)
 
     return y

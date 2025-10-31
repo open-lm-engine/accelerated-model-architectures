@@ -10,7 +10,6 @@ import torch
 
 from .counters import increment_counter
 from .enums import KernelBackend
-from .utils import is_triton_available
 
 
 def ctx_needs_gradients(ctx) -> bool:
