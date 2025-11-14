@@ -189,14 +189,14 @@ def rnn(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
+    assert input.dim() == 3 + (cu_seqlens is not None)
+
     if cu_seqlens is None:
         assert max_seqlen is None
-        assert input.dim() == 4
-
         B, _, Nx, H = input.size()
     else:
         assert max_seqlen is not None
-        assert input.dim() == 3
+        assert cu_seqlens.dim() == 1
 
         _, Nx, H = input.size()
         B = cu_seqlens.size(0) - 1
@@ -204,7 +204,6 @@ def rnn(
     Nw = weight.size(0)
     N = max(Nx, Nw)
 
-    assert weight.dim() == 3
     assert weight.size() == (Nw, H, H)
     assert N % Nx == 0
     assert N % Nw == 0
@@ -215,7 +214,7 @@ def rnn(
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
 
-    output = _RNN.run(
+    input = _RNN.run(
         input=input,
         weight=weight,
         input_state=input_state,
@@ -225,6 +224,6 @@ def rnn(
         kernel_backend=kernel_backend,
     )
 
-    output_state = output[:, -1] if cu_seqlens is None else output[cu_seqlens[1:] - 1]
+    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
-    return output, output_state
+    return input, input_state
