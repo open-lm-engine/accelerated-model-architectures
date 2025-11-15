@@ -189,7 +189,7 @@ def rnn(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
-    assert input.dim() == 3 + (cu_seqlens is not None)
+    assert input.dim() == 3 + (cu_seqlens is None)
 
     if cu_seqlens is None:
         assert max_seqlen is None

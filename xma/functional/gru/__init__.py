@@ -286,7 +286,7 @@ def gru(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
-    assert all([i.dim() == (3 + (cu_seqlens is not None)) for i in (input, forget_input, reset_input)])
+    assert all([i.dim() == (3 + (cu_seqlens is None)) for i in (input, forget_input, reset_input)])
 
     if cu_seqlens is None:
         assert max_seqlen is None
