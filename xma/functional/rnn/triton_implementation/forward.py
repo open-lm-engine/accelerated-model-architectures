@@ -116,11 +116,11 @@ def rnn_forward_triton(
     max_seqlen: int | None,
 ) -> None:
     if cu_seqlens is None:
-        B, S, Nx, H = input.size()
+        B, S, Nx, H = x.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
-        _, Nx, H = input.size()
+        _, Nx, H = x.size()
 
     Nw = W.size(0)
     N = max(Nx, Nw)
