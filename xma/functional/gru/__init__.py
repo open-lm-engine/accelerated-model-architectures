@@ -87,20 +87,16 @@ class _GRU(CustomOp):
 
         for s in range(S):
             if cu_seqlens is None:
-                input_state = input_state[..., None, :]
+                new_state = input_state[..., None, :]
 
-                forget_gate = input_state @ Wf + forget_input[:, s, :, None, :]
-                reset_gate = input_state @ Wr + reset_input[:, s, :, None, :]
+                forget_gate = new_state @ Wf + forget_input[:, s, :, None, :]
+                reset_gate = new_state @ Wr + reset_input[:, s, :, None, :]
 
                 forget_gate = sigmoid(forget_gate)
                 reset_gate = sigmoid(reset_gate)
 
                 # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
-                possible_new_state = (input_state * reset_gate) @ W + input[:, s, :, None, :]
-                possible_new_state = tanh(possible_new_state)
-
-                new_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
-                new_state = clip_gradients(new_state, gradient_clipping)
+                possible_new_state = (new_state * reset_gate) @ W + input[:, s, :, None, :]
             else:
                 start = cu_seqlens[:-1]
                 end = cu_seqlens[1:]
@@ -123,11 +119,12 @@ class _GRU(CustomOp):
                 possible_new_state = (new_state * reset_gate) @ weight.unsqueeze(0) + input[
                     offset_unfinished, :, None, :
                 ]
-                possible_new_state = tanh(possible_new_state)
 
-                new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
-                new_state = clip_gradients(new_state, gradient_clipping)
-                new_state = new_state.squeeze(-2)
+            possible_new_state = tanh(possible_new_state)
+            new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
+
+            new_state = clip_gradients(new_state, gradient_clipping)
+            new_state = new_state.squeeze(-2)
 
             if cu_seqlens is None:
                 output[:, s] = new_state
