@@ -53,7 +53,7 @@ def gru_backward_triton_kernel(
     max_seqlen_ptr,
     B,
     S,
-    H,
+    H: tl.constexpr,
     gradient_clipping,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,

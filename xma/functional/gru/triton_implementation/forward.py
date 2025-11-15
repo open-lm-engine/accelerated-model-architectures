@@ -44,7 +44,7 @@ def gru_forward_triton_kernel(
     max_seqlen_ptr,
     B,
     S,
-    H,
+    H: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
