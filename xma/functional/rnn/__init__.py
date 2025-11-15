@@ -50,23 +50,19 @@ class _RNN(CustomOp):
         Gx = N // Nx
         Gw = N // Nw
 
-        input = input.repeat_interleave(Gx, dim=-2)
-        weight = weight.repeat_interleave(Gw, dim=0)
-
-        W = weight[None, ...]
-
-        if input_state is None:
-            input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+        x = input.repeat_interleave(Gx, dim=-2)
+        W = weight.repeat_interleave(Gw, dim=0)[None, ...]
+        h = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if input_state is None else input_state
 
         if cu_seqlens is not None:
-            input_state = input_state.clone()
+            h = h.clone()
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
 
         for s in range(S):
             if cu_seqlens is None:
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                new_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
+                new_state = h[..., None, :] @ W + x[:, s, :, None, :]
             else:
                 offset = start + s
                 unfinished = offset < end
@@ -74,7 +70,7 @@ class _RNN(CustomOp):
 
                 # don't update the finished sequences
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                new_state = input_state[unfinished, :, None, :] @ W + input[offset_unfinished, :, None, :]
+                new_state = h[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
 
             new_state = tanh(new_state)
             new_state = new_state.squeeze(-2)
@@ -82,10 +78,10 @@ class _RNN(CustomOp):
 
             if cu_seqlens is None:
                 output[:, s] = new_state
-                input_state = new_state
+                h = new_state
             else:
                 output[offset_unfinished] = new_state
-                input_state[unfinished] = new_state
+                h[unfinished] = new_state
 
         return output
 
