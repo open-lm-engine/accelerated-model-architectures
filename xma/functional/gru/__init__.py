@@ -98,9 +98,6 @@ class _GRU(CustomOp):
                 # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
                 possible_new_state = (new_state * reset_gate) @ W + input[:, s, :, None, :]
             else:
-                start = cu_seqlens[:-1]
-                end = cu_seqlens[1:]
-
                 offset = start + s
                 unfinished = offset < end
 
