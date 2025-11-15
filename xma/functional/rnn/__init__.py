@@ -38,7 +38,7 @@ class _RNN(CustomOp):
         output_shape = list(input_shape)
         output_shape[-2] = N
 
-        output = torch.empty(*output_shape, device=input.device, dtype=input.dtype)
+        output = torch.empty(output_shape, device=input.device, dtype=input.dtype)
 
         if cu_seqlens is None:
             B, S, _, H = input.size()
@@ -65,7 +65,7 @@ class _RNN(CustomOp):
 
         for s in range(S):
             if cu_seqlens is None:
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 new_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
             else:
                 offset = start + s
@@ -73,7 +73,7 @@ class _RNN(CustomOp):
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 new_state = input_state[unfinished, :, None, :] @ W + input[offset_unfinished, :, None, :]
 
             new_state = tanh(new_state)

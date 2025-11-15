@@ -33,59 +33,80 @@ class _GRU(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        output = torch.empty_like(input)
+        input_shape = input.size()
+
+        Nx = input_shape[-2]
+        Nxf = forget_input.size(-2)
+        Nxr = reset_input.size(-2)
+
+        Nw = weight.size(0)
+        Nwf = forget_input.size(0)
+        Nwr = reset_weight.size(0)
+
+        N = max(Nx, Nxf, Nxr, Nw, Nwf, Nwr)
+
+        output_shape = list(input_shape)
+        output_shape[-2] = N
+
+        output = torch.empty(output_shape, device=input.device, dtype=input.dtype)
 
         if cu_seqlens is None:
-            assert max_seqlen is None
-            B, S, N, H = input.size()
-
-            if input_state is None:
-                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
-
-            # input -> (B, S, N, H)
-            # weight -> (N, H, H)
-            # input_state -> (B, N, H)
-
-            for s in range(S):
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                forget_gate = input_state.unsqueeze(-2) @ forget_weight.unsqueeze(0) + forget_input[:, s].unsqueeze(-2)
-                forget_gate = sigmoid(forget_gate)
-
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                reset_gate = input_state.unsqueeze(-2) @ reset_weight.unsqueeze(0) + reset_input[:, s].unsqueeze(-2)
-                reset_gate = sigmoid(reset_gate)
-
-                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
-                possible_new_state = (input_state.unsqueeze(-2) * reset_gate) @ weight.unsqueeze(0) + input[
-                    :, s
-                ].unsqueeze(-2)
-                possible_new_state = tanh(possible_new_state)
-
-                input_state = forget_gate * input_state.unsqueeze(-2) + (1 - forget_gate) * possible_new_state
-                input_state = input_state.squeeze(-2)
-
-                if gradient_clipping is not None:
-                    input_state = clip_gradients(input_state, gradient_clipping)
-
-                output[:, s] = input_state
+            B, S, _, H = input.size()
         else:
-            assert max_seqlen is not None
-            B = cu_seqlens.numel() - 1
-            _, N, H = input.size()
+            _, _, H = input.size()
+            B = cu_seqlens.size(0) - 1
+            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
 
-            if input_state is None:
-                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
-            else:
-                input_state = input_state.clone()
+        Gx = N // Nx
+        Gxf = N // Nxf
+        Gxr = N // Nxr
 
-            # input -> (cu_seqlens[-1], N, H)
-            # weight -> (N, H, H)
-            # input_state -> (B, N, H)
+        Gw = N // Nw
+        Gwf = N // Nwf
+        Gwr = N // Nwr
 
+        input = input.repeat_interleave(Gx, dim=-2)
+        forget_input = forget_input.repeat_interleave(Gxf, dim=-2)
+        reset_input = reset_input.repeat_interleave(Gxr, dim=-2)
+
+        weight = weight.repeat_interleave(Gw, dim=0)
+        forget_weight = forget_weight.repeat_interleave(Gwf, dim=-2)
+        reset_weight = reset_weight.repeat_interleave(Gwr, dim=-2)
+
+        W = weight[None, ...]
+        Wf = forget_weight[None, ...]
+        Wr = reset_weight[None, ...]
+
+        if input_state is None:
+            input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+
+        if cu_seqlens is not None:
+            input_state = input_state.clone()
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
 
-            for s in range(max_seqlen):
+        for s in range(S):
+            if cu_seqlens is None:
+                input_state = input_state[..., None, :]
+
+                forget_gate = input_state @ Wf + forget_input[:, s, :, None, :]
+                reset_gate = input_state @ Wr + reset_input[:, s, :, None, :]
+
+                forget_gate = sigmoid(forget_gate)
+                reset_gate = sigmoid(reset_gate)
+
+                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
+                possible_new_state = (input_state * reset_gate) @ W + input[:, s, :, None, :]
+                possible_new_state = tanh(possible_new_state)
+
+                input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
+                input_state = clip_gradients(input_state, gradient_clipping)
+
+                output[:, s] = input_state
+            else:
+                start = cu_seqlens[:-1]
+                end = cu_seqlens[1:]
+
                 offset = start + s
                 unfinished = offset < end
 
@@ -108,10 +129,7 @@ class _GRU(CustomOp):
                 possible_new_state = tanh(possible_new_state)
 
                 new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
-
-                if gradient_clipping is not None:
-                    new_state = clip_gradients(new_state, gradient_clipping)
-
+                new_state = clip_gradients(new_state, gradient_clipping)
                 new_state = new_state.squeeze(-2)
 
                 output[offset_unfinished] = new_state
@@ -267,11 +285,32 @@ def gru(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
-    assert input.dim() in [3, 4]
-    assert weight.dim() == 3
+    assert all([i.dim() == (3 + (cu_seqlens is not None)) for i in (input, forget_input, reset_input)])
 
-    N, H = input.size()[-2:]
-    assert weight.size() == (N, H, H)
+    if cu_seqlens is None:
+        assert max_seqlen is None
+        B, _, Nx, H = input.size()
+    else:
+        assert max_seqlen is not None
+        assert cu_seqlens.dim() == 1
+
+        _, Nx, H = input.size()
+        B = cu_seqlens.size(0) - 1
+
+    Nxf = forget_input.size(-2)
+    Nxr = reset_input.size(-2)
+
+    Nw = weight.size(0)
+    Nwf = forget_weight.size(0)
+    Nwr = reset_weight.size(0)
+
+    N = max(Nx, Nxf, Nxr, Nw, Nwf, Nwr)
+
+    assert weight.size() == (Nw, H, H)
+    assert all([N % i == 0 for i in (Nx, Nxf, Nxr, Nw, Nwf, Nwr)])
+
+    if input_state is not None:
+        assert input_state.size() == (B, N, H)
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
@@ -290,6 +329,6 @@ def gru(
         kernel_backend=kernel_backend,
     )
 
-    output_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
+    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
-    return input, output_state
+    return input, input_state
