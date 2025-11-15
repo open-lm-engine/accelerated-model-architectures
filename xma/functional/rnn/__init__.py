@@ -62,7 +62,7 @@ class _RNN(CustomOp):
         for s in range(S):
             if cu_seqlens is None:
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                new_state = h[..., None, :] @ W + x[:, s, :, None, :]
+                h1 = h[..., None, :] @ W + x[:, s, :, None, :]
             else:
                 offset = start + s
                 unfinished = offset < end
@@ -70,18 +70,18 @@ class _RNN(CustomOp):
 
                 # don't update the finished sequences
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                new_state = h[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
+                h1 = h[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
 
-            new_state = tanh(new_state)
-            new_state = new_state.squeeze(-2)
-            new_state = clip_gradients(new_state, gradient_clipping)
+            h1 = tanh(h1)
+            h1 = h1.squeeze(-2)
+            h1 = clip_gradients(h1, gradient_clipping)
 
             if cu_seqlens is None:
-                output[:, s] = new_state
-                h = new_state
+                output[:, s] = h1
+                h = h1
             else:
-                output[offset_unfinished] = new_state
-                h[unfinished] = new_state
+                output[offset_unfinished] = h1
+                h[unfinished] = h1
 
         return output
 
