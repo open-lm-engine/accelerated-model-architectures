@@ -99,10 +99,8 @@ class _GRU(CustomOp):
                 possible_new_state = (input_state * reset_gate) @ W + input[:, s, :, None, :]
                 possible_new_state = tanh(possible_new_state)
 
-                input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
-                input_state = clip_gradients(input_state, gradient_clipping)
-
-                output[:, s] = input_state
+                new_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
+                new_state = clip_gradients(new_state, gradient_clipping)
             else:
                 start = cu_seqlens[:-1]
                 end = cu_seqlens[1:]
@@ -110,28 +108,31 @@ class _GRU(CustomOp):
                 offset = start + s
                 unfinished = offset < end
 
-                new_state = input_state[unfinished].unsqueeze(-2)
+                new_state = input_state[unfinished, :, None, :]
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                forget_gate = new_state @ forget_weight.unsqueeze(0) + forget_input[offset_unfinished].unsqueeze(-2)
-                forget_gate = sigmoid(forget_gate)
+                forget_gate = new_state @ Wf + forget_input[offset_unfinished, :, None, :]
+                reset_gate = new_state @ Wr + reset_input[offset_unfinished, :, None, :]
 
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                reset_gate = new_state @ reset_weight.unsqueeze(0) + reset_input[offset_unfinished].unsqueeze(-2)
+                forget_gate = sigmoid(forget_gate)
                 reset_gate = sigmoid(reset_gate)
 
                 # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
                 possible_new_state = (new_state * reset_gate) @ weight.unsqueeze(0) + input[
-                    offset_unfinished
-                ].unsqueeze(-2)
+                    offset_unfinished, :, None, :
+                ]
                 possible_new_state = tanh(possible_new_state)
 
                 new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
                 new_state = clip_gradients(new_state, gradient_clipping)
                 new_state = new_state.squeeze(-2)
 
+            if cu_seqlens is None:
+                output[:, s] = new_state
+                input_state = new_state
+            else:
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
 
