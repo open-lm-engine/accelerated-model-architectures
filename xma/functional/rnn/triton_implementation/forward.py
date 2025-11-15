@@ -131,7 +131,7 @@ def rnn_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    with torch.device(input.device):
+    with torch.device(x.device):
         rnn_forward_triton_kernel[GRID](
             x_ptr=x,
             x_stride=x.stride(),
