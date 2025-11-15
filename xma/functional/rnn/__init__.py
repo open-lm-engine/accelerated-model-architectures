@@ -99,10 +99,10 @@ class _RNN(CustomOp):
         Nw = W.size(0)
         N = max(Nx, Nw)
 
-        y_shape = list(input.size())
+        y_shape = list(x.size())
         y_shape[-2] = N
 
-        y = torch.empty(y_shape, device=input.device, dtype=input.dtype)
+        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         rnn_forward_triton(
