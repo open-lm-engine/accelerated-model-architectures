@@ -105,12 +105,12 @@ def rnn_forward_triton_kernel(
             start += 1
 
 
-@custom_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"y"})
 def rnn_forward_triton(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    input_state: torch.Tensor | None,
-    output: torch.Tensor,
+    x: torch.Tensor,
+    W: torch.Tensor,
+    h: torch.Tensor | None,
+    y: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
@@ -122,7 +122,7 @@ def rnn_forward_triton(
         S = None
         _, Nx, H = input.size()
 
-    Nw = weight.size(0)
+    Nw = W.size(0)
     N = max(Nx, Nw)
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
@@ -133,14 +133,14 @@ def rnn_forward_triton(
 
     with torch.device(input.device):
         rnn_forward_triton_kernel[GRID](
-            x_ptr=input,
-            x_stride=input.stride(),
-            W_ptr=weight,
-            W_stride=weight.stride(),
-            h0_ptr=input_state,
-            h0_stride=None if input_state is None else input_state.stride(),
-            y_ptr=output,
-            y_stride=output.stride(),
+            x_ptr=x,
+            x_stride=x.stride(),
+            W_ptr=W,
+            W_stride=W.stride(),
+            h0_ptr=h,
+            h0_stride=None if h is None else h.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
             cu_seqlens_ptr=cu_seqlens,
             cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,

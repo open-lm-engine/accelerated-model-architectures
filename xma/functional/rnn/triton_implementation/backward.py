@@ -195,28 +195,28 @@ def rnn_backward_triton_kernel(
     )
 
 
-@custom_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
+@custom_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"dx", "dW"})
 def rnn_backward_triton(
-    weight: torch.Tensor,
-    output: torch.Tensor,
-    input_state: torch.Tensor | None,
-    output_grad: torch.Tensor,
-    input_grad: torch.Tensor,
-    weight_grad: torch.Tensor,
+    W: torch.Tensor,
+    y: torch.Tensor,
+    h: torch.Tensor | None,
+    dy: torch.Tensor,
+    dx: torch.Tensor,
+    dW: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
     gradient_clipping: float | None,
 ) -> None:
     if cu_seqlens is None:
-        B, S, N, H = output.size()
+        B, S, N, H = y.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
-        _, N, H = output.size()
+        _, N, H = y.size()
 
-    Nx = input_grad.size(-2)
-    Nw = weight.size(0)
+    Nx = dx.size(-2)
+    Nw = W.size(0)
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
@@ -224,20 +224,20 @@ def rnn_backward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    with torch.device(output.device):
+    with torch.device(y.device):
         rnn_backward_triton_kernel[GRID](
-            W_ptr=weight,
-            W_stride=weight.stride(),
-            h0_ptr=input_state,
-            h0_stride=None if input_state is None else input_state.stride(),
-            y_ptr=output,
-            y_stride=output.stride(),
-            dx_ptr=input_grad,
-            dx_stride=input_grad.stride(),
-            dW_ptr=weight_grad,
-            dW_stride=weight_grad.stride(),
-            dy_ptr=output_grad,
-            dy_stride=output_grad.stride(),
+            W_ptr=W,
+            W_stride=W.stride(),
+            h0_ptr=h,
+            h0_stride=None if h is None else h.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
+            dx_ptr=dx,
+            dx_stride=dx.stride(),
+            dW_ptr=dW,
+            dW_stride=dW.stride(),
+            dy_ptr=dy,
+            dy_stride=dy.stride(),
             cu_seqlens_ptr=cu_seqlens,
             cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
