@@ -1,4 +1,4 @@
-flash-model-architectures
+accelerated-model-architectures
 =========================
 
 .. toctree::
