@@ -17,5 +17,6 @@ style:
 	uv run --extra dev --no-default-groups pre-commit run --all-files
 
 website:
-	$(MAKE) -C docs html
-	sphinx-autobuild docs docs/_build/html --port $(port)
+	uv run --extra dev $(MAKE) -C docs html
+	uv run --extra dev sphinx-apidoc -o docs . tests
+	uv run --extra dev sphinx-autobuild docs docs/_build/html --port $(port)
