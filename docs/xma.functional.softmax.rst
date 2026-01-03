@@ -1,16 +1,10 @@
-xma.functional.softmax package
-==============================
-
-Subpackages
------------
+xma.functional.softmax
+======================
 
 .. toctree::
    :maxdepth: 4
 
    xma.functional.softmax.triton_implementation
-
-Module contents
----------------
 
 .. automodule:: xma.functional.softmax
    :members:

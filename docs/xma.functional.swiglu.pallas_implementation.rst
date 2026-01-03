@@ -1,27 +1,21 @@
-xma.functional.swiglu.pallas\_implementation package
-====================================================
+xma.functional.swiglu.pallas\_implementation
+============================================
 
-Submodules
-----------
-
-xma.functional.swiglu.pallas\_implementation.backward module
-------------------------------------------------------------
+xma.functional.swiglu.pallas\_implementation.backward
+-----------------------------------------------------
 
 .. automodule:: xma.functional.swiglu.pallas_implementation.backward
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.functional.swiglu.pallas\_implementation.forward module
------------------------------------------------------------
+xma.functional.swiglu.pallas\_implementation.forward
+----------------------------------------------------
 
 .. automodule:: xma.functional.swiglu.pallas_implementation.forward
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.functional.swiglu.pallas_implementation
    :members:

@@ -1,43 +1,37 @@
-xma.cutotune package
-====================
+xma.cutotune
+============
 
-Submodules
-----------
-
-xma.cutotune.cache module
--------------------------
+xma.cutotune.cache
+------------------
 
 .. automodule:: xma.cutotune.cache
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.cutotune.config module
---------------------------
+xma.cutotune.config
+-------------------
 
 .. automodule:: xma.cutotune.config
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.cutotune.parameter module
------------------------------
+xma.cutotune.parameter
+----------------------
 
 .. automodule:: xma.cutotune.parameter
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.cutotune.tuner module
--------------------------
+xma.cutotune.tuner
+------------------
 
 .. automodule:: xma.cutotune.tuner
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.cutotune
    :members:

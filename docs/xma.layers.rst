@@ -1,35 +1,26 @@
-xma.layers package
-==================
-
-Subpackages
------------
+xma.layers
+==========
 
 .. toctree::
    :maxdepth: 4
 
    xma.layers.moe
 
-Submodules
-----------
-
-xma.layers.gru module
----------------------
+xma.layers.gru
+--------------
 
 .. automodule:: xma.layers.gru
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.layers.rnn module
----------------------
+xma.layers.rnn
+--------------
 
 .. automodule:: xma.layers.rnn
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.layers
    :members:

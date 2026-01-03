@@ -1,19 +1,13 @@
-xma.functional.bmm package
-==========================
+xma.functional.bmm
+==================
 
-Submodules
-----------
-
-xma.functional.bmm.triton\_implementation module
-------------------------------------------------
+xma.functional.bmm.triton\_implementation
+-----------------------------------------
 
 .. automodule:: xma.functional.bmm.triton_implementation
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.functional.bmm
    :members:

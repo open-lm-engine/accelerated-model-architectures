@@ -1,27 +1,21 @@
-xma.functional.fused\_residual\_add\_rmsnorm.triton\_implementation package
-===========================================================================
+xma.functional.fused\_residual\_add\_rmsnorm.triton\_implementation
+===================================================================
 
-Submodules
-----------
-
-xma.functional.fused\_residual\_add\_rmsnorm.triton\_implementation.backward module
------------------------------------------------------------------------------------
+xma.functional.fused\_residual\_add\_rmsnorm.triton\_implementation.backward
+----------------------------------------------------------------------------
 
 .. automodule:: xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.functional.fused\_residual\_add\_rmsnorm.triton\_implementation.forward module
-----------------------------------------------------------------------------------
+xma.functional.fused\_residual\_add\_rmsnorm.triton\_implementation.forward
+---------------------------------------------------------------------------
 
 .. automodule:: xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.functional.fused_residual_add_rmsnorm.triton_implementation
    :members:

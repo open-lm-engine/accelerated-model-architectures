@@ -1,16 +1,10 @@
-xma.functional.continuous\_count package
-========================================
-
-Subpackages
------------
+xma.functional.continuous\_count
+================================
 
 .. toctree::
    :maxdepth: 4
 
    xma.functional.continuous_count.cuda_implementation
-
-Module contents
----------------
 
 .. automodule:: xma.functional.continuous_count
    :members:

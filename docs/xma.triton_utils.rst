@@ -1,27 +1,21 @@
-xma.triton\_utils package
-=========================
+xma.triton\_utils
+=================
 
-Submodules
-----------
-
-xma.triton\_utils.math module
------------------------------
+xma.triton\_utils.math
+----------------------
 
 .. automodule:: xma.triton_utils.math
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.triton\_utils.matmul module
--------------------------------
+xma.triton\_utils.matmul
+------------------------
 
 .. automodule:: xma.triton_utils.matmul
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.triton_utils
    :members:

@@ -1,27 +1,21 @@
-xma.functional.swiglu.cuda\_implementation package
-==================================================
+xma.functional.swiglu.cuda\_implementation
+==========================================
 
-Submodules
-----------
-
-xma.functional.swiglu.cuda\_implementation.backward module
-----------------------------------------------------------
+xma.functional.swiglu.cuda\_implementation.backward
+---------------------------------------------------
 
 .. automodule:: xma.functional.swiglu.cuda_implementation.backward
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.functional.swiglu.cuda\_implementation.forward module
----------------------------------------------------------
+xma.functional.swiglu.cuda\_implementation.forward
+--------------------------------------------------
 
 .. automodule:: xma.functional.swiglu.cuda_implementation.forward
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.functional.swiglu.cuda_implementation
    :members:

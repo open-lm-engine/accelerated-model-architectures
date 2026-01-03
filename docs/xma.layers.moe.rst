@@ -1,16 +1,10 @@
-xma.layers.moe package
-======================
-
-Subpackages
------------
+xma.layers.moe
+==============
 
 .. toctree::
    :maxdepth: 4
 
    xma.layers.moe.triton_implementation
-
-Module contents
----------------
 
 .. automodule:: xma.layers.moe
    :members:

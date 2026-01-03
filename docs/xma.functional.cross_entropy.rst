@@ -1,19 +1,13 @@
-xma.functional.cross\_entropy package
-=====================================
+xma.functional.cross\_entropy
+=============================
 
-Submodules
-----------
-
-xma.functional.cross\_entropy.triton\_implementation module
------------------------------------------------------------
+xma.functional.cross\_entropy.triton\_implementation
+----------------------------------------------------
 
 .. automodule:: xma.functional.cross_entropy.triton_implementation
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.functional.cross_entropy
    :members:

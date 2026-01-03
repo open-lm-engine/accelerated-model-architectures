@@ -1,27 +1,21 @@
-xma.cute\_dsl\_utils package
-============================
+xma.cute\_dsl\_utils
+====================
 
-Submodules
-----------
-
-xma.cute\_dsl\_utils.math module
---------------------------------
+xma.cute\_dsl\_utils.math
+-------------------------
 
 .. automodule:: xma.cute_dsl_utils.math
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.cute\_dsl\_utils.utils module
----------------------------------
+xma.cute\_dsl\_utils.utils
+--------------------------
 
 .. automodule:: xma.cute_dsl_utils.utils
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.cute_dsl_utils
    :members:

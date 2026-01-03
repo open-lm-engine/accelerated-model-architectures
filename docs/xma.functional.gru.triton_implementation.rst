@@ -1,27 +1,21 @@
-xma.functional.gru.triton\_implementation package
-=================================================
+xma.functional.gru.triton\_implementation
+=========================================
 
-Submodules
-----------
-
-xma.functional.gru.triton\_implementation.backward module
----------------------------------------------------------
+xma.functional.gru.triton\_implementation.backward
+--------------------------------------------------
 
 .. automodule:: xma.functional.gru.triton_implementation.backward
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.functional.gru.triton\_implementation.forward module
---------------------------------------------------------
+xma.functional.gru.triton\_implementation.forward
+-------------------------------------------------
 
 .. automodule:: xma.functional.gru.triton_implementation.forward
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.functional.gru.triton_implementation
    :members:

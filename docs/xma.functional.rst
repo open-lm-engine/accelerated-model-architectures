@@ -1,8 +1,5 @@
-xma.functional package
-======================
-
-Subpackages
------------
+xma.functional
+==============
 
 .. toctree::
    :maxdepth: 4
@@ -17,35 +14,29 @@ Subpackages
    xma.functional.softmax
    xma.functional.swiglu
 
-Submodules
-----------
-
-xma.functional.fused\_linear\_cross\_entropy module
----------------------------------------------------
+xma.functional.fused\_linear\_cross\_entropy
+--------------------------------------------
 
 .. automodule:: xma.functional.fused_linear_cross_entropy
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.functional.rmsnorm module
------------------------------
+xma.functional.rmsnorm
+----------------------
 
 .. automodule:: xma.functional.rmsnorm
    :members:
    :show-inheritance:
    :undoc-members:
 
-xma.functional.swiglu\_packed module
-------------------------------------
+xma.functional.swiglu\_packed
+-----------------------------
 
 .. automodule:: xma.functional.swiglu_packed
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
 
 .. automodule:: xma.functional
    :members:

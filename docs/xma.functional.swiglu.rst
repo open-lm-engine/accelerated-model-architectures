@@ -1,8 +1,5 @@
-xma.functional.swiglu package
-=============================
-
-Subpackages
------------
+xma.functional.swiglu
+=====================
 
 .. toctree::
    :maxdepth: 4
@@ -11,9 +8,6 @@ Subpackages
    xma.functional.swiglu.nki_implementation
    xma.functional.swiglu.pallas_implementation
    xma.functional.swiglu.triton_implementation
-
-Module contents
----------------
 
 .. automodule:: xma.functional.swiglu
    :members:
