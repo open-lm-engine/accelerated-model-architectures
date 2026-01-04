@@ -20,5 +20,5 @@ website:
 	uv run --extra dev $(MAKE) -C docs clean
 	uv run --extra dev $(MAKE) -C docs html
 	uv run --extra dev sphinx-apidoc -e -o docs . tests
-	uv run python tools/clean_rst_headings.py
+	uv run --extra dev python tools/clean_rst_headings.py
 	uv run --extra dev sphinx-autobuild docs docs/_build/html --port $(port)
