@@ -21,6 +21,11 @@ jobs:
         with:
           python-version: 3.11
 
+      - name: clone and install uv
+        run: |
+          git submodule update --init --recursive
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
       - name: Build documentation
         run: |
           make website
