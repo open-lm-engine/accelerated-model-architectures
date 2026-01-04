@@ -29,6 +29,7 @@ jobs:
       - name: Build documentation
         env:
           UV_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
+          UV_INDEX_STRATEGY: unsafe-best-match
         run: make website
 
       - name: Deploy to GitHub Pages
