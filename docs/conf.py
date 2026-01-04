@@ -63,6 +63,7 @@ MOCK_MODULES = [
     "triton",
     "triton.backends",
     "triton.backends.compiler",
+    "triton.compiler",
     "triton.language",
     "torch._inductor.runtime.triton_compat",
     "torch_neuronx",
