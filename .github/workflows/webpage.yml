@@ -28,7 +28,7 @@ jobs:
 
       - name: Build documentation
         run: |
-          uv pip uninstall triton
+          uv run pip uninstall triton
           make website
 
       - name: Deploy to GitHub Pages
