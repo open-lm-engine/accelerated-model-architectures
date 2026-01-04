@@ -96,14 +96,17 @@ class _Swiglu(CustomOp):
 
 
 def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
-    """computes swiglu activation as `up` * `gate` * sigmoid(`gate`)
+    """
+    computes swiglu activation as `up * gate * sigmoid(gate)`
 
-    Args:
-        gate (torch.Tensor): `gate` activation tensor
-        up (torch.Tensor): `up` activation tensor
-
-    Returns:
-        torch.Tensor: output tensor
+    :param gate: `gate` activation tensor
+    :type gate: torch.Tensor
+    :param up: `up` activation tensor
+    :type up: torch.Tensor
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
     assert gate.size() == up.size(), "tensors gate and up should have same shape"

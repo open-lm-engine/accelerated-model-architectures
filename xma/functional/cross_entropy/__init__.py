@@ -64,17 +64,21 @@ def cross_entropy(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
-    """compute cross entropy loss
+    """
+    cross entropy loss
 
-    Args:
-        x (torch.Tensor): logits
-        labels (torch.Tensor): labels
-        reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
-        logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
-            Defaults to None.
-
-    Returns:
-        torch.Tensor: loss
+    :param x: logits
+    :type x: torch.Tensor
+    :param labels: labels
+    :type labels: torch.Tensor
+    :param reduction: reduction method: "sum", "mean" or None
+    :type reduction: str
+    :param logits_multiplier: logits multiplier pre-multiplies logits, None implies 1. Defaults to None.
+    :type logits_multiplier: float | None
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: loss
+    :rtype: Tensor
     """
 
     assert reduction in ["sum", "mean"]

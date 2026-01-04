@@ -136,20 +136,27 @@ def fused_residual_add_rmsnorm(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
-    """fused residual add RMSNorm computation
+    """
+    fused residual add RMSNorm computation
 
-    Args:
-        x (torch.Tensor): input activation
-        residual (torch.Tensor): residual activation
-        weight (torch.Tensor | None): RMSNorm weight
-        eps (float | None): epsilon
-        multiplier (float | None, optional): if not None, pre-multiplies `x` with `multiplier`. Defaults to None.
-        memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
-            Defaults to False.
-        deterministic (bool, optional): whether to use deterministic backward. Defaults to False.
-
-    Returns:
-        tuple[torch.Tensor, torch.Tensor | None]: output activations, updated residual stream
+    :param x: input activation
+    :type x: torch.Tensor
+    :param residual: residual activation
+    :type residual: torch.Tensor | None
+    :param weight: RMSNorm weight
+    :type weight: torch.Tensor | None
+    :param eps: epsilon
+    :type eps: float | None
+    :param multiplier: if not None, pre-multiplies `x` with `multiplier`. Defaults to None.
+    :type multiplier: float | None
+    :param memory_efficient: memory efficient = False caches RMSNorm's denominator in the forward. Defaults to False.
+    :type memory_efficient: bool
+    :param deterministic: whether to use deterministic backward. Defaults to False.
+    :type deterministic: bool
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output activations and updated residual stream
+    :rtype: tuple[Tensor, Tensor | None]
     """
 
     if weight is not None:

@@ -23,22 +23,27 @@ def bmm(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
-    """computes `alpha` * (`A` @ `B`) + `beta` * `C`
+    """
+    computes alpha * (A @ B) + beta * C`
 
-    Args:
-        A (torch.Tensor): `A` matrix
-        B (torch.Tensor): `B` matrix
-        C (torch.Tensor | None): `C` matrix, function returns `A` @ `B` if C is None
-        is_A_transposed (bool, optional): whether A has shape K x M. Defaults to False.
-        is_B_transposed (bool, optional): whether B has shape N x K. Defaults to False.
-        alpha (float, optional): alpha. Defaults to 1.
-        beta (float, optional): beta. Defaults to 1.
-
-    Raises:
-        ValueError: if unexpected `kernel_backend` is passed
-
-    Returns:
-        torch.Tensor: output tensor
+    :param A: `A` matrix
+    :type A: torch.Tensor
+    :param B: `B` matrix
+    :type B: torch.Tensor
+    :param C: `C` matrix, function returns `A @ B` if `C` is None
+    :type C: torch.Tensor | None
+    :param is_A_transposed: whether `A` has shape K x M. Defaults to False.
+    :type is_A_transposed: bool
+    :param is_B_transposed: whether `B` has shape N x K. Defaults to False.
+    :type is_B_transposed: bool
+    :param alpha: alpha. Defaults to 1.
+    :type alpha: float
+    :param beta: beta. Defaults to 1.
+    :type beta: float
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
     assert A.dim() == 3

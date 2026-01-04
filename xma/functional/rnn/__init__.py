@@ -180,21 +180,29 @@ def rnn(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
+    """
+    computes multihead RNN recurrent update over the sequence length: `tanh(input_state @ weight + input)`
 
-    Args:
-        input (torch.Tensor): input tensor of shape (B, S, N, H) where N is the number of heads and H is the head
-            dimension. Should have shape (T, N, H) and `cu_seqlens` should be passed.
-        weight (torch.Tensor): weight tensor of shape (N, H, H)
-        input_state (torch.Tensor | None, optional): starting state of shape (B, N, H), None means starting state
-            is 0 tensor. Defaults to None.
-        gradient_clipping (float | None, optional): gradient clipping for the state gradient in backward, None
-            implies no clipping. Defaults to None.
-        cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
-        max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
-
-    Returns:
-        tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
+    :param input: input tensor of shape (B, S, Nx, H) where Nx is the number of input heads and H is the head
+        dimension. Should have shape (T, Nx, H) and `cu_seqlens` should be passed.
+    :type input: torch.Tensor
+    :param weight: weight tensor of shape (Nw, H, H)
+    :type weight: torch.Tensor
+    :param input_state: starting state of shape (B, N, H), where N = max{Nx, Nw}. None means starting state is
+        0 tensor. Defaults to None.
+    :type input_state: torch.Tensor | None
+    :param gradient_clipping: gradient clipping for the state gradient in backward, None implies no clipping.
+        Defaults to None.
+    :type gradient_clipping: float | None
+    :param cu_seqlens: cumulative sequence length (must contain 0 as first element). Defaults to None.
+    :type cu_seqlens: torch.Tensor | None
+    :param max_seqlen: max sequence length in the batch. Defaults to None.
+    :type max_seqlen: torch.Tensor | int | None
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H) and output state of
+        shape (B, N, H).
+    :rtype: tuple[Tensor, Tensor]
     """
 
     assert input.dim() == 3 + (cu_seqlens is None)

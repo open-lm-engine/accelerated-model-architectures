@@ -98,13 +98,15 @@ class _SwigluPacked(CustomOp):
 
 
 def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
-    """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
+    """
+    computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
 
-    Args:
-        x (torch.Tensor): input activation
-
-    Returns:
-        torch.Tensor: output tensor
+    :param x: input activation
+    :type x: torch.Tensor
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
     original_shape = x.size()
