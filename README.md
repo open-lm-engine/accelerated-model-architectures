@@ -2,6 +2,8 @@
 Copyright (c) 2025, Mayank Mishra
 ************************************************** -->
 
+Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
+
 # <img src="assets/xma.png" width="90px" height="30px" style="vertical-align: middle;"> (Accelerated Model Architectures)
 
 XMA is a repository comprising of fast kernels for model training.  
