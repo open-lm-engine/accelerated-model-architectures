@@ -1,21 +1,11 @@
 xma.functional.swiglu.cuda\_implementation
 ==========================================
 
-xma.functional.swiglu.cuda\_implementation.backward
----------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.swiglu.cuda_implementation.backward
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.functional.swiglu.cuda\_implementation.forward
---------------------------------------------------
-
-.. automodule:: xma.functional.swiglu.cuda_implementation.forward
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.swiglu.cuda_implementation.backward
+   xma.functional.swiglu.cuda_implementation.forward
 
 .. automodule:: xma.functional.swiglu.cuda_implementation
    :members:

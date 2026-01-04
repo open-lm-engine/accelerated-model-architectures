@@ -1,13 +1,10 @@
 xma.functional.bmm
 ==================
 
-xma.functional.bmm.triton\_implementation
------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.bmm.triton_implementation
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.bmm.triton_implementation
 
 .. automodule:: xma.functional.bmm
    :members:

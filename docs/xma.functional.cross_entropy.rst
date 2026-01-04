@@ -1,13 +1,10 @@
 xma.functional.cross\_entropy
 =============================
 
-xma.functional.cross\_entropy.triton\_implementation
-----------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.cross_entropy.triton_implementation
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.cross_entropy.triton_implementation
 
 .. automodule:: xma.functional.cross_entropy
    :members:

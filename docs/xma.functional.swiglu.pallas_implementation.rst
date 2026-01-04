@@ -1,21 +1,11 @@
 xma.functional.swiglu.pallas\_implementation
 ============================================
 
-xma.functional.swiglu.pallas\_implementation.backward
------------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.swiglu.pallas_implementation.backward
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.functional.swiglu.pallas\_implementation.forward
-----------------------------------------------------
-
-.. automodule:: xma.functional.swiglu.pallas_implementation.forward
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.swiglu.pallas_implementation.backward
+   xma.functional.swiglu.pallas_implementation.forward
 
 .. automodule:: xma.functional.swiglu.pallas_implementation
    :members:

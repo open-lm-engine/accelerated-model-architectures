@@ -6,13 +6,10 @@ xma.functional.gru
 
    xma.functional.gru.triton_implementation
 
-xma.functional.gru.utils
-------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.gru.utils
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.gru.utils
 
 .. automodule:: xma.functional.gru
    :members:

@@ -14,29 +14,12 @@ xma.functional
    xma.functional.softmax
    xma.functional.swiglu
 
-xma.functional.fused\_linear\_cross\_entropy
---------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.fused_linear_cross_entropy
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.functional.rmsnorm
-----------------------
-
-.. automodule:: xma.functional.rmsnorm
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.functional.swiglu\_packed
------------------------------
-
-.. automodule:: xma.functional.swiglu_packed
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.fused_linear_cross_entropy
+   xma.functional.rmsnorm
+   xma.functional.swiglu_packed
 
 .. automodule:: xma.functional
    :members:

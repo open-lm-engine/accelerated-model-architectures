@@ -33,6 +33,9 @@ extensions = [
 
 autosummary_generate = True
 
+# Don't prepend module names to class/function names
+add_module_names = False
+
 
 class Mock(MagicMock):
     @classmethod

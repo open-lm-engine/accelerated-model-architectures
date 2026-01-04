@@ -1,21 +1,11 @@
 xma.triton\_utils
 =================
 
-xma.triton\_utils.math
-----------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.triton_utils.math
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.triton\_utils.matmul
-------------------------
-
-.. automodule:: xma.triton_utils.matmul
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.triton_utils.math
+   xma.triton_utils.matmul
 
 .. automodule:: xma.triton_utils
    :members:

@@ -1,21 +1,11 @@
 xma.functional.softmax.triton\_implementation
 =============================================
 
-xma.functional.softmax.triton\_implementation.backward
-------------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.softmax.triton_implementation.backward
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.functional.softmax.triton\_implementation.forward
------------------------------------------------------
-
-.. automodule:: xma.functional.softmax.triton_implementation.forward
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.softmax.triton_implementation.backward
+   xma.functional.softmax.triton_implementation.forward
 
 .. automodule:: xma.functional.softmax.triton_implementation
    :members:

@@ -1,21 +1,11 @@
 xma.functional.gru.triton\_implementation
 =========================================
 
-xma.functional.gru.triton\_implementation.backward
---------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.gru.triton_implementation.backward
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.functional.gru.triton\_implementation.forward
--------------------------------------------------
-
-.. automodule:: xma.functional.gru.triton_implementation.forward
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.gru.triton_implementation.backward
+   xma.functional.gru.triton_implementation.forward
 
 .. automodule:: xma.functional.gru.triton_implementation
    :members:

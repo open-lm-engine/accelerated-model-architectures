@@ -6,21 +6,11 @@ xma.layers
 
    xma.layers.moe
 
-xma.layers.gru
---------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.layers.gru
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.layers.rnn
---------------
-
-.. automodule:: xma.layers.rnn
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.layers.gru
+   xma.layers.rnn
 
 .. automodule:: xma.layers
    :members:

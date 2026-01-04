@@ -1,21 +1,11 @@
 xma.functional.swiglu.triton\_implementation
 ============================================
 
-xma.functional.swiglu.triton\_implementation.backward
------------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.functional.swiglu.triton_implementation.backward
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.functional.swiglu.triton\_implementation.forward
-----------------------------------------------------
-
-.. automodule:: xma.functional.swiglu.triton_implementation.forward
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.functional.swiglu.triton_implementation.backward
+   xma.functional.swiglu.triton_implementation.forward
 
 .. automodule:: xma.functional.swiglu.triton_implementation
    :members:

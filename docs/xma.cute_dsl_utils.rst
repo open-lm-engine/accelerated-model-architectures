@@ -1,21 +1,11 @@
 xma.cute\_dsl\_utils
 ====================
 
-xma.cute\_dsl\_utils.math
--------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: xma.cute_dsl_utils.math
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-xma.cute\_dsl\_utils.utils
---------------------------
-
-.. automodule:: xma.cute_dsl_utils.utils
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   xma.cute_dsl_utils.math
+   xma.cute_dsl_utils.utils
 
 .. automodule:: xma.cute_dsl_utils
    :members:
