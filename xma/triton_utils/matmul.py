@@ -23,17 +23,16 @@ def matmul(A, B, C, output_dtype: tl.constexpr):
         if C is not None:
             x += C
         x = x.to(output_dtype)
-    else:
-        if C is None:
-            if output_dtype == tl.bfloat16:
-                x = tl.dot(A, B, out_dtype=tl.float32).to(output_dtype)
-            else:
-                x = tl.dot(A, B, out_dtype=output_dtype)
-        elif C.shape[0] == 1 or C.shape[1] == 1:
-            x = tl.dot(A, B, out_dtype=tl.float32)
-            x += C
-            x = x.to(output_dtype)
+    elif C is None:
+        if output_dtype == tl.bfloat16:
+            x = tl.dot(A, B, out_dtype=tl.float32).to(output_dtype)
         else:
-            x = tl.dot(A, B, C.to(tl.float32), out_dtype=tl.float32).to(output_dtype)
+            x = tl.dot(A, B, out_dtype=output_dtype)
+    elif C.shape[0] == 1 or C.shape[1] == 1:
+        x = tl.dot(A, B, out_dtype=tl.float32)
+        x += C
+        x = x.to(output_dtype)
+    else:
+        x = tl.dot(A, B, C.to(tl.float32), out_dtype=tl.float32).to(output_dtype)
 
     return x

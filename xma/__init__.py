@@ -25,6 +25,6 @@ from .functional import (
     unpack_sequence,
 )
 from .inductor import enable_kernels, init_inductor
-from .layers import GRU, RNN, MoE
+from .layers import GRU, RNN, LinearAttention, MoE
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .utils import get_ptx_from_triton_kernel, get_triton_num_warps, set_seed

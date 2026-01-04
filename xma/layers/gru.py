@@ -72,7 +72,7 @@ class GRU(XMAModule):
             torch.empty(self.num_reset_weight_heads, self.state_head_dim, self.state_head_dim)
         )
 
-        self.output_projection = nn.Linear(self.state_size, output_size, bias=False)
+        self.output_projection = nn.Linear(self.state_size, output_size, bias=add_bias)
 
         self.reset_parameters()
 
