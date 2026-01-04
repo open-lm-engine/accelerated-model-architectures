@@ -8,8 +8,10 @@ Installation
 ------------
 
 .. code-block:: bash
-
-   pip install xma
+    git clone https://github.com/open-lm-engine/accelerated-model-architectures
+    cd accelerated-model-architectures
+    pip install .
+    cd ..
 
 Layers
 ------
