@@ -28,6 +28,7 @@ jobs:
 
       - name: Build documentation
         run: |
+          uv venv
           uv pip install torch --index-url https://download.pytorch.org/whl/cpu
           make website
 
