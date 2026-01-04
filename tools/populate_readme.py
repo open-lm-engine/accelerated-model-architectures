@@ -89,10 +89,11 @@ Installation
 ------------
 
 .. code-block:: bash
-    git clone https://github.com/open-lm-engine/accelerated-model-architectures
-    cd accelerated-model-architectures
-    pip install .
-    cd ..
+
+   git clone https://github.com/open-lm-engine/accelerated-model-architectures
+   cd accelerated-model-architectures
+   pip install .
+   cd ..
 
 Layers
 ------
