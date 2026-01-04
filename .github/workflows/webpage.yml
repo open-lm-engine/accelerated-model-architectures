@@ -27,10 +27,9 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Build documentation
-        run: |
-          uv venv
-          uv pip install torch --index-url https://download.pytorch.org/whl/cpu
-          make website
+        env:
+          UV_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
+        run: make website
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
