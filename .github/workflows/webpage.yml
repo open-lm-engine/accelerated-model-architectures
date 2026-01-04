@@ -1,0 +1,43 @@
+name: Deploy Sphinx Documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v2
+
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.12
+
+      - name: clone and install uv
+        run: |
+          git submodule update --init --recursive
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Build documentation
+        env:
+          UV_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
+          UV_INDEX_STRATEGY: unsafe-best-match
+        run: make website
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/_build/html

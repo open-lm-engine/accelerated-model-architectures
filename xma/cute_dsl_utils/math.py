@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import cutlass.cute as cute
 from cutlass import Float32, Numeric, const_expr, range_constexpr
 from cutlass._mlir.dialects import llvm
