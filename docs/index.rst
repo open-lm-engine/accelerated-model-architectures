@@ -13,4 +13,24 @@ documentation for details.
 .. toctree::
    :maxdepth: 4
 
-   xma
+   xma.functional
+   xma.layers
+   .. xma.utils
+
+.. toctree::
+   :maxdepth: 4
+
+   xma.accelerator
+   xma.counters
+   .. xma.constants
+   .. xma.custom_op
+   .. xma.inductor
+   .. xma.jit
+   .. xma.math
+   .. xma.module
+   .. xma.torch_utils
+
+.. automodule:: xma
+   :members:
+   :show-inheritance:
+   :undoc-members:
