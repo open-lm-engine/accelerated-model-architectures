@@ -62,6 +62,7 @@ MOCK_MODULES = [
     "neuronxcc.nki.language",
     "triton",
     "triton.backends",
+    "triton.backends.compiler",
     "triton.language",
     "torch._inductor.runtime.triton_compat",
     "torch_neuronx",
