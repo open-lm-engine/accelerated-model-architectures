@@ -17,6 +17,7 @@ style:
 	uv run --extra dev --no-default-groups pre-commit run --all-files
 
 website:
+	uv run --extra dev $(MAKE) -C docs clean
 	uv run --extra dev $(MAKE) -C docs html
 	uv run --extra dev sphinx-apidoc -e -o docs . tests
 	uv run python tools/clean_rst_headings.py
