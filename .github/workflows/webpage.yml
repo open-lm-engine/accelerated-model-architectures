@@ -28,7 +28,7 @@ jobs:
 
       - name: Build documentation
         run: |
-          export TORCH_CUDA_ARCH_LIST=""
+          uv pip install torch --index-url https://download.pytorch.org/whl/cpu
           make website
 
       - name: Deploy to GitHub Pages
