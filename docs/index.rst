@@ -12,6 +12,7 @@ documentation for details.
 
 .. toctree::
    :maxdepth: 4
+   :hidden:
 
    xma.functional
    xma.layers
@@ -19,6 +20,7 @@ documentation for details.
 
 .. toctree::
    :maxdepth: 4
+   :hidden:
 
    xma.accelerator
    xma.counters
