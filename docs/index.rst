@@ -1,38 +1,145 @@
-.. XMA documentation master file, created by
-   sphinx-quickstart on Sat Jan  3 13:57:49 2026.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+XMA (Accelerated Model Architectures)
+=====================================
 
-XMA documentation
-=================
+XMA is a repository comprising of fast kernels for model training.
+We are planning on adding lots of experimental and fun model architectures with support for multiple accelerators like NVIDIA, AMD GPUs, Google TPUs and Amazon Trainiums.
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+Installation
+------------
+
+.. code-block:: bash
+
+   pip install xma
+
+Layers
+------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 16 16 16 16 16
+
+   * - Layer
+     - CUDA
+     - Pallas
+     - NKI
+     - ROCm
+     - Triton
+   * - GRU
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - MoE
+     - ✅
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - RNN
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+
+Functional
+----------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 14 14 14 14 14
+
+   * - Function
+     - CUDA
+     - Pallas
+     - NKI
+     - ROCm
+     - Triton
+   * - bmm
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - continuous_count
+     - ✅
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+   * - cross_entropy
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - fused_linear_cross_entropy
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - fused_residual_add_rmsnorm
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - rmsnorm
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - pack_sequence
+     - ✅
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - softmax
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - swiglu
+     - ✅
+     - ✅
+     - ✅
+     - ❌
+     - ✅
+   * - swiglu_packed
+     - ✅
+     - ✅
+     - ✅
+     - ❌
+     - ✅
+   * - unpack_sequence
+     - ✅
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+
+Community
+---------
+
+Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested in LLM architecture or distributed training/inference research.
 
 .. toctree::
    :maxdepth: 4
    :hidden:
+   :caption: API Reference
 
    xma.functional
    xma.layers
-   .. xma.utils
 
 .. toctree::
    :maxdepth: 4
    :hidden:
+   :caption: Utilities
 
    xma.accelerator
    xma.counters
-   .. xma.constants
-   .. xma.custom_op
-   .. xma.inductor
-   .. xma.jit
-   .. xma.math
-   .. xma.module
-   .. xma.torch_utils
-
-.. automodule:: xma
-   :members:
-   :show-inheritance:
-   :undoc-members:
