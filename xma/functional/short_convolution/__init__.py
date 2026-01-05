@@ -12,19 +12,54 @@ from ...custom_op import CustomOp
 class _CausalShortConvolution1D(CustomOp):
     @staticmethod
     def forward_backward_torch(
-        input: torch.Tensor,
-        weight: torch.Tensor,
-        bias: torch.Tensor | None,
+        x: torch.Tensor,
+        W: torch.Tensor,
+        b: torch.Tensor | None,
         stride: int,
         groups: int,
-        input_state: torch.Tensor | None,
+        h0: torch.Tensor | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
     ) -> torch.Tensor:
+        if h0 is None:
+            x = x.transpose(-1, -2)
+
+            if return_cache_state:
+                # F.pad trims the hidden_states if sequence_length > kernel_size
+                input_state = F.pad(hidden_states, (kernel_size - S, 0))
+
+            hidden_states = F.conv1d(
+                input=hidden_states,
+                weight=conv1d_weight,
+                bias=conv1d_bias,
+                stride=conv1d_stride,
+                padding=conv1d_padding,
+                groups=conv1d_num_groups,
+            )
+
+            # removes padding on the right side of the sequence
+            hidden_states = hidden_states[..., : 1 - kernel_size]
+            hidden_states = hidden_states.transpose(-1, -2)
+        else:
+            assert sequence_length == 1
+
+            input_state = input_state.roll(shifts=-1, dims=-1)
+            input_state[..., -1] = hidden_states[:, 0]
+
+            hidden_states = (input_state * conv1d_weight.squeeze(1)).sum(dim=-1)
+            hidden_states = hidden_states[:, None, :]
+            if conv1d_bias is not None:
+                hidden_states = hidden_states + conv1d_bias
+
+            if not return_cache_state:
+                input_state = None
+
+        hidden_states = get_activation_function(activation_string)(hidden_states)
+        hidden_states = _apply_mask_to_padding_states(hidden_states, attention_mask)
         x = F.conv1d(
             input=x,
-            weight=weight,
-            bias=bias,
+            weight=W,
+            bias=b,
             stride=stride,
             padding=kernel_size - 1,
             groups=groups,
