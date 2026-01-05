@@ -12,7 +12,14 @@ from ...custom_op import CustomOp
 class _CausalShortConvolution1D(CustomOp):
     @staticmethod
     def forward_backward_torch(
-        x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None, stride: int, padding: int, groups: int
+        x: torch.Tensor,
+        weight: torch.Tensor,
+        bias: torch.Tensor | None,
+        stride: int,
+        groups: int,
+        input_state: torch.Tensor | None,
+        cu_seqlens: torch.Tensor | None,
+        max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
         x = F.conv1d(
             input=x,
@@ -71,7 +78,14 @@ def causal_short_convolution_1D(
         assert input_state.size() == (B, H)
 
     input = _CausalShortConvolution1D.run(
-        input=input, weight=weight, bias=bias, stride=stride, groups=groups, input_state=input_state
+        input=input,
+        weight=weight,
+        bias=bias,
+        stride=stride,
+        groups=groups,
+        input_state=input_state,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
     )
 
     input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
