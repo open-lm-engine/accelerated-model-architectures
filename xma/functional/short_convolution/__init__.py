@@ -24,16 +24,12 @@ class _CausalShortConvolution1D(CustomOp):
         if h0 is None:
             x = x.transpose(-1, -2)
 
-            if return_cache_state:
-                # F.pad trims the hidden_states if sequence_length > kernel_size
-                input_state = F.pad(x, (kernel_size - S, 0))
-
             x = F.conv1d(
                 input=x,
                 weight=W,
                 bias=b,
                 stride=stride,
-                padding=padding,
+                padding=kernel_size - 1,
                 groups=groups,
             )
 
