@@ -31,7 +31,6 @@ def causal_short_convolution_1D(
     weight: torch.Tensor,
     bias: torch.Tensor | None,
     stride: int,
-    padding: int,
     groups: int,
     input_state: torch.Tensor | None = None,
     cu_seqlens: torch.Tensor | None = None,
