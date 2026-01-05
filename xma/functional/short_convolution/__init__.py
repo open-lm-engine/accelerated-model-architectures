@@ -30,8 +30,12 @@ class _CausalShortConvolution1D(CustomOp):
         if cu_seqlens is None:
             S = x.size(1)
 
+            if S < K:
+                h = F.pad(x, (0, 0, K - S, 0))
+            else:
+                h = x[:,]
+
             x = x.transpose(-1, -2)
-            h = F.pad(x, (K - S, 0))
 
             x = F.conv1d(input=x, weight=W, bias=b, stride=stride, padding=K - 1, groups=groups)
 
@@ -103,7 +107,7 @@ def causal_short_convolution_1D(
     K = weight.size(0)
 
     if input_state is not None:
-        assert input_state.size() == (B, K, H)
+        assert input_state.size() == (B, K - 1, H)
 
     assert activation_function in ["silu", "identity"]
 
