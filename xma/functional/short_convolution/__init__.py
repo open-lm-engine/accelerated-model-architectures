@@ -12,7 +12,7 @@ from ...custom_op import CustomOp
 class _CausalShortConvolution1D(CustomOp):
     @staticmethod
     def forward_backward_torch(
-        x: torch.Tensor,
+        input: torch.Tensor,
         weight: torch.Tensor,
         bias: torch.Tensor | None,
         stride: int,
@@ -86,6 +86,7 @@ def causal_short_convolution_1D(
         input_state=input_state,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
+        kernel_backend=kernel_backend,
     )
 
     input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
