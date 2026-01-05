@@ -46,8 +46,8 @@ def rnn_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID_B = tl.program_id(axis=0)
-    BLOCK_ID_N = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(0)
+    BLOCK_ID_N = tl.program_id(1)
 
     BLOCK_ID_Nx = BLOCK_ID_N // Gx
     BLOCK_ID_Nw = BLOCK_ID_N // Gw
