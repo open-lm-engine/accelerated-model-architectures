@@ -7,12 +7,7 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...torch_utils import clip_gradients, sigmoid, tanh
-from ...utils import (
-    empty_like_contiguous,
-    get_max_seqlen_and_max_seqlen_tensor,
-    is_triton_available,
-    zeros_like_contiguous,
-)
+from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 from ..rnn import _get_backward_tensor
 from .utils import _get_num_heads
 
@@ -33,7 +28,7 @@ class _GRU(CustomOp):
         h0: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
-        max_seqlen: torch.Tensor | int | None,
+        max_seqlen: int | None,
     ) -> torch.Tensor:
         Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
 
@@ -45,7 +40,7 @@ class _GRU(CustomOp):
             B, S, _, H = x.size()
         else:
             B = cu_seqlens.size(0) - 1
-            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+            S = max_seqlen
             H = x.size(-1)
 
         Gx = N // Nx
@@ -123,12 +118,10 @@ class _GRU(CustomOp):
         h0: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
-        max_seqlen: torch.Tensor | int | None,
+        max_seqlen: int | None,
         kernel_backend: KernelBackend,
     ) -> torch.Tensor:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-
-        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         Nx, Nxf, Nxr, _, _, _, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
         y_shape = list(x.size())
@@ -154,7 +147,6 @@ class _GRU(CustomOp):
             h0=h0,
             y=y,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=max_seqlen,
         )
 
@@ -169,7 +161,6 @@ class _GRU(CustomOp):
             y,
             h0,
             cu_seqlens,
-            max_seqlen_tensor,
             x if z is None else None,
             xf if f is None else None,
             xr if r is None else None,
@@ -183,7 +174,7 @@ class _GRU(CustomOp):
 
     @staticmethod
     def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
-        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor, x, xf, xr = ctx.saved_tensors
+        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, x, xf, xr = ctx.saved_tensors
         Nx, Nxf, Nxr = ctx.num_heads
 
         dx = _get_backward_tensor(y=y, Nx=Nx, N=y.size(-2))
@@ -217,7 +208,6 @@ class _GRU(CustomOp):
             dW=dW,
             dh0=dh0,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=ctx.max_seqlen,
             gradient_clipping=ctx.gradient_clipping,
         )
@@ -243,7 +233,7 @@ def gru(
     input_state: torch.Tensor | None = None,
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
-    max_seqlen: torch.Tensor | int | None = None,
+    max_seqlen: int | None = None,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -274,7 +264,7 @@ def gru(
     :param cu_seqlens: cumulative sequence length (must contain 0 as first element). Defaults to None.
     :type cu_seqlens: torch.Tensor | None
     :param max_seqlen: max sequence length in the batch. Defaults to None.
-    :type max_seqlen: torch.Tensor | int | None
+    :type max_seqlen: int | None
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
     :return: output tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H) and output state of

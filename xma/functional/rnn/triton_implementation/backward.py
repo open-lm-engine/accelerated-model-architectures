@@ -31,8 +31,7 @@ def rnn_backward_triton_kernel(
     dy_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
-    max_seqlen_ptr,
+    max_seqlen,
     B,
     S,
     H: tl.constexpr,
@@ -80,7 +79,7 @@ def rnn_backward_triton_kernel(
         start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
         end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
 
-        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
+        S = max_seqlen
         end -= 1
 
         y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
@@ -180,7 +179,6 @@ def rnn_backward_triton(
     dW: torch.Tensor,
     dh0: torch.Tensor | None,
     cu_seqlens: torch.Tensor | None,
-    max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
     gradient_clipping: float | None,
 ) -> None:
@@ -193,8 +191,6 @@ def rnn_backward_triton(
 
     Nx = dx.size(-2)
     Nw = W.size(0)
-
-    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
@@ -218,8 +214,7 @@ def rnn_backward_triton(
         dy_stride=dy.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-        IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
-        max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
+        max_seqlen=max_seqlen,
         B=B,
         S=S,
         H=H,
