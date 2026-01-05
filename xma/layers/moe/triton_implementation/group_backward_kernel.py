@@ -37,8 +37,8 @@ def groupXtY_triton_kernel(
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
 ):
-    pid0 = tl.program_id(axis=0)
-    pid1 = tl.program_id(axis=1)
+    pid0 = tl.program_id(0)
+    pid1 = tl.program_id(1)
     num0 = tl.num_programs(0)
     num1 = tl.num_programs(1)
     pid1, pid0 = tl.swizzle2d(pid1, pid0, num1, num0, 128)

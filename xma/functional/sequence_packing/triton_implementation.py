@@ -23,8 +23,8 @@ def pack_unpack_sequence_triton_kernel(
     PACK: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
-    BLOCK_ID_S = tl.program_id(axis=0)
-    BLOCK_ID_B = tl.program_id(axis=1)
+    BLOCK_ID_S = tl.program_id(0)
+    BLOCK_ID_B = tl.program_id(1)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
     start = tl.load(cu_seqlens_ptrs)
