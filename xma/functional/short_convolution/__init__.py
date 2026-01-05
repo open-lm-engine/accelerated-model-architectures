@@ -105,8 +105,10 @@ def causal_short_convolution_1D(
         B = cu_seqlens.size(0) - 1
         H = input.size(-1)
 
+    K = weight.size(0)
+
     if input_state is not None:
-        assert input_state.size() == (B, H)
+        assert input_state.size() == (B, K, H)
 
     input = _CausalShortConvolution1D.run(
         input=input,
@@ -120,6 +122,9 @@ def causal_short_convolution_1D(
         kernel_backend=kernel_backend,
     )
 
-    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
+    if cu_seqlens is None:
+        input_state = input[:, 1 - K :]
+    else:
+        input_state = input[cu_seqlens[1:] - 1]
 
     return input, input_state
