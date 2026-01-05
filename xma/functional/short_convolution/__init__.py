@@ -20,25 +20,25 @@ class _CausalShortConvolution1D(CustomOp):
         h0: torch.Tensor | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
+        activation_function: str,
     ) -> torch.Tensor:
-        if h0 is None:
-            x = x.transpose(-1, -2)
+        K = W.size(0)
 
-            x = F.conv1d(
-                input=x,
-                weight=W,
-                bias=b,
-                stride=stride,
-                padding=kernel_size - 1,
-                groups=groups,
-            )
+        if h0 is not None:
+            x = torch.cat([h0, x], dim=1)
+
+        if cu_seqlens is None:
+            S = x.size(1)
+
+            x = x.transpose(-1, -2)
+            h = F.pad(x, (K - S, 0))
+
+            x = F.conv1d(input=x, weight=W, bias=b, stride=stride, padding=K - 1, groups=groups)
 
             # removes padding on the right side of the sequence
-            x = x[..., : 1 - kernel_size]
+            x = x[..., : 1 - K]
             x = x.transpose(-1, -2)
         else:
-            assert sequence_length == 1
-
             input_state = input_state.roll(shifts=-1, dims=-1)
             input_state[..., -1] = hidden_states[:, 0]
 
@@ -50,18 +50,12 @@ class _CausalShortConvolution1D(CustomOp):
             if not return_cache_state:
                 input_state = None
 
-        hidden_states = get_activation_function(activation_string)(hidden_states)
-        hidden_states = _apply_mask_to_padding_states(hidden_states, attention_mask)
-        x = F.conv1d(
-            input=x,
-            weight=W,
-            bias=b,
-            stride=stride,
-            padding=kernel_size - 1,
-            groups=groups,
-        )
+        if activation_function == "silu":
+            x = F.silu(x)
 
-        return x
+        h = h.transpose(-1, -2)
+
+        return x, h
 
 
 def causal_short_convolution_1D(
@@ -73,6 +67,7 @@ def causal_short_convolution_1D(
     input_state: torch.Tensor | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: int | None = None,
+    activation_function: str = "identity",
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -109,6 +104,8 @@ def causal_short_convolution_1D(
 
     if input_state is not None:
         assert input_state.size() == (B, K, H)
+
+    assert activation_function in ["silu", "identity"]
 
     input = _CausalShortConvolution1D.run(
         input=input,
