@@ -125,6 +125,6 @@ def causal_short_convolution_1D(
     if cu_seqlens is None:
         input_state = input[:, 1 - K :]
     else:
-        input_state = input[cu_seqlens[1:] - 1]
+        input_state = input[cu_seqlens[1:] - K : cu_seqlens[1:]]
 
     return input, input_state
