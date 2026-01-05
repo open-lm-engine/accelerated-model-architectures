@@ -51,7 +51,13 @@ def causal_short_convolution_1D(
     :type stride: int
     :param groups: convolution groups
     :type groups: int
-    :return:
+    :param cu_seqlens: cumulative sequence length (must contain 0 as first element). Defaults to None.
+    :type cu_seqlens: torch.Tensor | None
+    :param max_seqlen: max sequence length in the batch. Defaults to None.
+    :type max_seqlen: torch.Tensor | int | None
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor of shape (B, S, H) if `cu_seqlens` is None else (T, H) and output state of shape (B, H).
     :rtype: tuple[Tensor, Tensor]
     """
 
