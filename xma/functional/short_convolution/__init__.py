@@ -33,6 +33,7 @@ def causal_short_convolution_1D(
     stride: int,
     padding: int,
     groups: int,
+    input_state: torch.Tensor | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
     *,
@@ -60,6 +61,15 @@ def causal_short_convolution_1D(
     :return: output tensor of shape (B, S, H) if `cu_seqlens` is None else (T, H) and output state of shape (B, H).
     :rtype: tuple[Tensor, Tensor]
     """
+
+    if cu_seqlens is None:
+        B, _, H = input.size()
+    else:
+        B = cu_seqlens.size(0) - 1
+        H = input.size(-1)
+
+    if input_state is not None:
+        assert input_state.size() == (B, H)
 
     input = _CausalShortConvolution1D.run(
         input=input, weight=weight, bias=bias, stride=stride, groups=groups, input_state=input_state
