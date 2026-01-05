@@ -26,20 +26,20 @@ class _CausalShortConvolution1D(CustomOp):
 
             if return_cache_state:
                 # F.pad trims the hidden_states if sequence_length > kernel_size
-                input_state = F.pad(hidden_states, (kernel_size - S, 0))
+                input_state = F.pad(x, (kernel_size - S, 0))
 
-            hidden_states = F.conv1d(
-                input=hidden_states,
-                weight=conv1d_weight,
-                bias=conv1d_bias,
-                stride=conv1d_stride,
-                padding=conv1d_padding,
-                groups=conv1d_num_groups,
+            x = F.conv1d(
+                input=x,
+                weight=W,
+                bias=b,
+                stride=stride,
+                padding=padding,
+                groups=groups,
             )
 
             # removes padding on the right side of the sequence
-            hidden_states = hidden_states[..., : 1 - kernel_size]
-            hidden_states = hidden_states.transpose(-1, -2)
+            x = x[..., : 1 - kernel_size]
+            x = x.transpose(-1, -2)
         else:
             assert sequence_length == 1
 
