@@ -156,109 +156,109 @@ class LinearAttentionTest(TestCommons):
             #             rtol_float16=0,
             #         )
 
-    # @parameterized.expand(
-    #     TestCommons.make_args_matrix(
-    #         [KernelBackend.torch],  # KernelBackend
-    #         TestCommons.get_dtypes(),  # dtype
-    #         [[0, 7, 19, 27, 93]],  # cu_seqlens
-    #         [(8, 4, 3, 3, 3)],  # problem_shape
-    #         [False, True],  # has_input_state
-    #     )
-    # )
-    # def test_linear_attention_varlen_torch(
-    #     self,
-    #     kernel_backend: KernelBackend,
-    #     dtype: torch.dtype,
-    #     cu_seqlens: list[int],
-    #     problem_shape: tuple[int, int, int, int, int],
-    #     has_input_state: bool,
-    # ) -> None:
-    #     if Accelerator.get_accelerator() != Accelerator.cuda:
-    #         self.skipTest("Sufficient to run on CUDA device")
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            [KernelBackend.torch],  # KernelBackend
+            TestCommons.get_dtypes(),  # dtype
+            [[0, 7, 19, 27, 93]],  # cu_seqlens
+            [(8, 4, 3, 3, 3)],  # problem_shape
+            [False, True],  # has_input_state
+        )
+    )
+    def test_linear_attention_varlen_torch(
+        self,
+        kernel_backend: KernelBackend,
+        dtype: torch.dtype,
+        cu_seqlens: list[int],
+        problem_shape: tuple[int, int, int, int, int],
+        has_input_state: bool,
+    ) -> None:
+        if Accelerator.get_accelerator() != Accelerator.cuda:
+            self.skipTest("Sufficient to run on CUDA device")
 
-    #     self.skip_if_incompatible_kernel_backend(kernel_backend)
-    #     device = kernel_backend.get_compatible_accelerator().get_current_device()
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-    #     set_seed(_SEED)
+        set_seed(_SEED)
 
-    #     batch_size = len(cu_seqlens) - 1
-    #     cu_seqlens = torch.tensor(cu_seqlens, device=device)
-    #     max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+        batch_size = len(cu_seqlens) - 1
+        cu_seqlens = torch.tensor(cu_seqlens, device=device)
+        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
-    #     key_head_dim, value_head_dim, num_query_heads, num_key_heads, num_value_heads = problem_shape
-    #     num_heads = max(num_query_heads, num_key_heads, num_value_heads)
-    #     state_size = num_heads * key_head_dim * value_head_dim
+        key_head_dim, value_head_dim, num_query_heads, num_key_heads, num_value_heads = problem_shape
+        num_heads = max(num_query_heads, num_key_heads, num_value_heads)
+        state_size = num_heads * key_head_dim * value_head_dim
 
-    #     x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
-    #         batch_size=batch_size,
-    #         sequence_length=None,
-    #         total_tokens=cu_seqlens[-1],
-    #         state_size=state_size,
-    #         has_input_state=has_input_state,
-    #         dtype=dtype,
-    #         device=device,
-    #     )
+        x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
+            batch_size=batch_size,
+            sequence_length=None,
+            total_tokens=cu_seqlens[-1],
+            state_size=state_size,
+            has_input_state=has_input_state,
+            dtype=dtype,
+            device=device,
+        )
 
-    #     with torch.device(device):
-    #         linear_attention = LinearAttention(
-    #             input_size=state_size,
-    #             key_head_dim=key_head_dim,
-    #             value_head_dim=value_head_dim,
-    #             output_size=state_size,
-    #             num_query_heads=num_query_heads,
-    #             num_key_heads=num_key_heads,
-    #             num_value_heads=num_value_heads,
-    #             add_bias=False,
-    #         ).to(dtype)
+        with torch.device(device):
+            linear_attention = LinearAttention(
+                input_size=state_size,
+                key_head_dim=key_head_dim,
+                value_head_dim=value_head_dim,
+                output_size=state_size,
+                num_query_heads=num_query_heads,
+                num_key_heads=num_key_heads,
+                num_value_heads=num_value_heads,
+                add_bias=False,
+            ).to(dtype)
 
-    #     y_kernel, _ = linear_attention(
-    #         input=x_packed_kernel,
-    #         input_state=input_state_kernel,
-    #         cu_seqlens=cu_seqlens,
-    #         max_seqlen=max_seqlen,
-    #         kernel_backend=KernelBackend.torch,
-    #     )
+        y_kernel, _ = linear_attention(
+            input=x_packed_kernel,
+            input_state=input_state_kernel,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
+        )
 
-    #     y_torch = []
-    #     for i in range(batch_size):
-    #         y, _ = linear_attention(
-    #             input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-    #             input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
-    #             kernel_backend=KernelBackend.torch,
-    #         )
-    #         y_torch.append(y.squeeze(0))
-    #     y_torch = torch.cat(y_torch)
+        y_torch = []
+        for i in range(batch_size):
+            y, _ = linear_attention(
+                input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
+                kernel_backend=KernelBackend.torch,
+            )
+            y_torch.append(y.squeeze(0))
+        y_torch = torch.cat(y_torch)
 
-    #     self.assert_equal_tensors(y_kernel, y_torch, False)
+        self.assert_equal_tensors(y_kernel, y_torch, False)
 
-    #     y_kernel.sum().backward()
-    #     weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(linear_attention)
+        y_kernel.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(linear_attention)
 
-    #     y_torch.sum().backward()
-    #     weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(linear_attention)
+        y_torch.sum().backward()
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(linear_attention)
 
-    #     self.assert_equal_tensors(
-    #         x_packed_kernel.grad,
-    #         x_packed_torch.grad,
-    #         False,
-    #         atol_float32=2e-5,
-    #         rtol_float32=0,
-    #         atol_bfloat16=2.5e-4,
-    #         rtol_bfloat16=0,
-    #     )
+        self.assert_equal_tensors(
+            x_packed_kernel.grad,
+            x_packed_torch.grad,
+            False,
+            atol_float32=2e-5,
+            rtol_float32=0,
+            atol_bfloat16=2.5e-4,
+            rtol_bfloat16=0,
+        )
 
-    #     for weight_name in weight_kernel_grads:
-    #         self.assert_equal_tensors(
-    #             weight_kernel_grads[weight_name],
-    #             weight_torch_grads[weight_name],
-    #             False,
-    #             atol_float32=3e-7,
-    #             rtol_float32=0,
-    #             atol_float16=5e-4,
-    #             rtol_float16=0,
-    #             atol_bfloat16=5e-3,
-    #             rtol_bfloat16=0,
-    #         )
+        for weight_name in weight_kernel_grads:
+            self.assert_equal_tensors(
+                weight_kernel_grads[weight_name],
+                weight_torch_grads[weight_name],
+                False,
+                atol_float32=3e-7,
+                rtol_float32=0,
+                atol_float16=5e-4,
+                rtol_float16=0,
+                atol_bfloat16=5e-3,
+                rtol_bfloat16=0,
+            )
 
     def _get_packed_tensor_inputs(
         self,
