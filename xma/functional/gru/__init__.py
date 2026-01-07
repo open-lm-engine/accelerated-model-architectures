@@ -233,7 +233,7 @@ def gru(
     input_state: torch.Tensor | None = None,
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
-    max_seqlen: torch.Tensor | int | None = None,
+    max_seqlen: int | None = None,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -264,7 +264,7 @@ def gru(
     :param cu_seqlens: cumulative sequence length (must contain 0 as first element). Defaults to None.
     :type cu_seqlens: torch.Tensor | None
     :param max_seqlen: max sequence length in the batch. Defaults to None.
-    :type max_seqlen: torch.Tensor | int | None
+    :type max_seqlen: int | None
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
     :return: output tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H) and output state of
