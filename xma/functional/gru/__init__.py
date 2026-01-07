@@ -32,15 +32,16 @@ class _GRU(CustomOp):
     ) -> torch.Tensor:
         Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
 
+        y_shape = list(x.size())
+        y_shape[-2] = N
+        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
+
         if cu_seqlens is None:
             B, S, _, H = x.size()
-            y = torch.empty(B, S, N, H, device=x.device, dtype=x.dtype)
         else:
             B = cu_seqlens.size(0) - 1
             S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
-            T, _, H = x.size()
-
-            y = torch.empty(T, N, H, device=x.device, dtype=x.dtype)
+            H = x.size(-1)
 
         Gx = N // Nx
         Gxf = N // Nxf
