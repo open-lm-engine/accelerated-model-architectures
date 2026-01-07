@@ -259,12 +259,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">KernelBackend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...custom_op</span><span class="w"> </span><span class="kn">import</span> <span class="n">CustomOp</span><span class="p">,</span> <span class="n">ctx_save_for_backward</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...torch_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">clip_gradients</span><span class="p">,</span> <span class="n">tanh</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">empty_like_contiguous</span><span class="p">,</span>
-    <span class="n">get_max_seqlen_and_max_seqlen_tensor</span><span class="p">,</span>
-    <span class="n">is_triton_available</span><span class="p">,</span>
-    <span class="n">zeros_like_contiguous</span><span class="p">,</span>
-<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">is_triton_available</span><span class="p">,</span> <span class="n">zeros_like_contiguous</span>
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
@@ -302,7 +297,7 @@
         <span class="n">h0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">gradient_clipping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">cu_seqlens</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">max_seqlen</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_seqlen</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="n">Nx</span><span class="p">,</span> <span class="n">Nw</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">_get_num_heads</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">run_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
@@ -362,12 +357,10 @@
         <span class="n">h0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">gradient_clipping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">cu_seqlens</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">max_seqlen</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_seqlen</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">kernel_backend</span> <span class="ow">in</span> <span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">,</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">]</span>
-
-        <span class="n">max_seqlen_tensor</span><span class="p">,</span> <span class="n">max_seqlen</span> <span class="o">=</span> <span class="n">get_max_seqlen_and_max_seqlen_tensor</span><span class="p">(</span><span class="n">max_seqlen</span><span class="p">)</span>
 
         <span class="n">Nx</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">_get_num_heads</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">run_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">y_shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
@@ -381,11 +374,10 @@
             <span class="n">h0</span><span class="o">=</span><span class="n">h0</span><span class="p">,</span>
             <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
             <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span>
-            <span class="n">max_seqlen_tensor</span><span class="o">=</span><span class="n">max_seqlen_tensor</span><span class="p">,</span>
             <span class="n">max_seqlen</span><span class="o">=</span><span class="n">max_seqlen</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">max_seqlen_tensor</span><span class="p">)</span>
+        <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="p">)</span>
         <span class="n">ctx</span><span class="o">.</span><span class="n">max_seqlen</span> <span class="o">=</span> <span class="n">max_seqlen</span>
         <span class="n">ctx</span><span class="o">.</span><span class="n">gradient_clipping</span> <span class="o">=</span> <span class="n">gradient_clipping</span>
         <span class="n">ctx</span><span class="o">.</span><span class="n">Nx</span> <span class="o">=</span> <span class="n">Nx</span>
@@ -394,7 +386,7 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">max_seqlen_tensor</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span>
+        <span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span>
         <span class="n">Nx</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Nx</span>
         <span class="n">N</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
 
@@ -411,7 +403,6 @@
             <span class="n">dW</span><span class="o">=</span><span class="n">dW</span><span class="p">,</span>
             <span class="n">dh0</span><span class="o">=</span><span class="n">dh0</span><span class="p">,</span>
             <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span>
-            <span class="n">max_seqlen_tensor</span><span class="o">=</span><span class="n">max_seqlen_tensor</span><span class="p">,</span>
             <span class="n">max_seqlen</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">max_seqlen</span><span class="p">,</span>
             <span class="n">gradient_clipping</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">gradient_clipping</span><span class="p">,</span>
         <span class="p">)</span>
@@ -430,7 +421,7 @@
     <span class="n">input_state</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">gradient_clipping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">cu_seqlens</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">max_seqlen</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_seqlen</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
@@ -451,7 +442,7 @@
 <span class="sd">    :param cu_seqlens: cumulative sequence length (must contain 0 as first element). Defaults to None.</span>
 <span class="sd">    :type cu_seqlens: torch.Tensor | None</span>
 <span class="sd">    :param max_seqlen: max sequence length in the batch. Defaults to None.</span>
-<span class="sd">    :type max_seqlen: torch.Tensor | int | None</span>
+<span class="sd">    :type max_seqlen: int | None</span>
 <span class="sd">    :param kernel_backend: KernelBackend</span>
 <span class="sd">    :type kernel_backend: KernelBackend | None</span>
 <span class="sd">    :return: output tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H) and output state of</span>
