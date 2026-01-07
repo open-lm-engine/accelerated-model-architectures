@@ -25,7 +25,7 @@ def softmax_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID = tl.program_id(axis=0)
+    BLOCK_ID = tl.program_id(0)
 
     BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     MASK_B = BLOCK_B < B

@@ -80,7 +80,7 @@ def scatter2scatter_triton_kernel(
     x_grouped,
     y_grouped,
 ):
-    pid = tl.program_id(axis=0)
+    pid = tl.program_id(0)
 
     N_BLOCK_COUNT = tl.cdiv(N, BLOCK_N)
     M_block_id = pid // N_BLOCK_COUNT

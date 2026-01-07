@@ -36,7 +36,7 @@ def cross_entropy_forward_backward_triton_kernel(
     BLOCK_SIZE_V: tl.constexpr,
     reduction: tl.constexpr,
 ):
-    BLOCK_ID = tl.program_id(axis=0)
+    BLOCK_ID = tl.program_id(0)
 
     BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     MASK_B = BLOCK_B < B
