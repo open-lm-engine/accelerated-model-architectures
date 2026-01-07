@@ -40,8 +40,7 @@ def gru_forward_triton_kernel(
     y_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
-    max_seqlen_ptr,
+    max_seqlen,
     B,
     S,
     H: tl.constexpr,
@@ -104,7 +103,7 @@ def gru_forward_triton_kernel(
         start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
         end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
 
-        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
+        S = max_seqlen
 
         x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
         xf_ptrs = xf_ptr + start * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
@@ -200,13 +199,10 @@ def gru_forward_triton(
     h0: torch.Tensor | None,
     y: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
-    max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
 ) -> None:
     if cu_seqlens is None:
         assert max_seqlen is None
-        assert max_seqlen_tensor is None
-
         B, S, _, H = x.size()
     else:
         B = cu_seqlens.size(0) - 1
@@ -214,7 +210,6 @@ def gru_forward_triton(
         _, _, H = x.size()
 
     Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
-    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
@@ -245,8 +240,7 @@ def gru_forward_triton(
         y_stride=y.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-        IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
-        max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
+        max_seqlen=max_seqlen,
         B=B,
         S=S,
         H=H,
