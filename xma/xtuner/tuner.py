@@ -9,6 +9,7 @@ from typing import Any, Callable
 import torch
 from tqdm import tqdm
 
+from ..accelerator import Accelerator
 from ..utils import get_boolean_env_variable
 from .cache import get_xtune_cache
 from .config import XTuneConfig
@@ -204,7 +205,7 @@ class _XTune:
         return str(lookup_key)[1:-1]
 
     def _run_benchmark(self, **kwargs: dict) -> float:
-        device_synchronize()
+        Accelerator.synchronize()
 
         for _ in range(self.warmup_iterations):
             self.function(**kwargs)
@@ -221,7 +222,7 @@ class _XTune:
                 self.function(**kwargs)
                 end.record()
 
-                device_synchronize()
+                Accelerator.synchronize()
                 elapsed_time += start.elapsed_time(end)
 
                 for variable_name, function in self.reset_to_zero.items():
@@ -236,7 +237,7 @@ class _XTune:
                 self.function(**kwargs)
             end.record()
 
-            device_synchronize()
+            Accelerator.synchronize()
             elapsed_time = start.elapsed_time(end)
 
         return elapsed_time / self.benchmark_iterations

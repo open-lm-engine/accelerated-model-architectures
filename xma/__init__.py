@@ -21,4 +21,4 @@ from .inductor import enable_kernels, init_inductor
 from .layers import GRU, RNN, MoE
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .utils import get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
-from .xtune import XTuneConfig, XTuneParameter, get_cartesian_product_xtune_configs, get_xtune_cache, xtune
+from .xtuner import XTuneConfig, XTuneParameter, get_cartesian_product_xtune_configs, get_xtune_cache, xtune
