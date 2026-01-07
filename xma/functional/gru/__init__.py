@@ -147,7 +147,6 @@ class _GRU(CustomOp):
             h0=h0,
             y=y,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=max_seqlen,
         )
 
@@ -175,7 +174,7 @@ class _GRU(CustomOp):
 
     @staticmethod
     def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
-        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor, x, xf, xr = ctx.saved_tensors
+        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, x, xf, xr = ctx.saved_tensors
         Nx, Nxf, Nxr = ctx.num_heads
 
         dx = _get_backward_tensor(y=y, Nx=Nx, N=y.size(-2))
@@ -209,7 +208,6 @@ class _GRU(CustomOp):
             dW=dW,
             dh0=dh0,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=ctx.max_seqlen,
             gradient_clipping=ctx.gradient_clipping,
         )
