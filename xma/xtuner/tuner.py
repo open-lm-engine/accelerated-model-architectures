@@ -59,7 +59,8 @@ class _XTune:
         self.function_cache = {}
 
     def __call__(self, *args, **kwargs) -> Any:
-        return self.function(**self._resolve_config(*args, **kwargs))
+        function_kwargs = self._resolve_config(*args, **kwargs)
+        return self.function(**function_kwargs)
 
     def _resolve_config(self, *args, **kwargs) -> dict:
         override_xtune_parameters = self._check_all_or_no_args_are_xtune_parameters(*args, **kwargs)
