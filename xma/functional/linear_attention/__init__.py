@@ -7,8 +7,7 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...math import ceil_divide
-from ...utils import get_max_seqlen_and_max_seqlen_tensor
-from .triton_implementation import linear_attention_forward_chunked_triton
+from .triton_implementation import recurrent_state_forward_triton
 from .utils import _get_num_heads
 
 
@@ -86,7 +85,6 @@ class _LinearAttention(CustomOp):
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
-        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         B, S, _, K = k.size()
         V = v.size(-1)
@@ -95,7 +93,7 @@ class _LinearAttention(CustomOp):
         h = torch.empty(B, NUM_CHUNKS, N, K, V, dtype=k.dtype, device=k.device)
         ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device)
 
-        linear_attention_forward_chunked_triton(
+        recurrent_state_forward_triton(
             k=k,
             v=v,
             h0=h0,
