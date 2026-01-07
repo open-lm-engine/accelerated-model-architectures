@@ -7,12 +7,7 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...torch_utils import clip_gradients, tanh
-from ...utils import (
-    empty_like_contiguous,
-    get_max_seqlen_and_max_seqlen_tensor,
-    is_triton_available,
-    zeros_like_contiguous,
-)
+from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 
 
 if is_triton_available():
@@ -115,8 +110,6 @@ class _RNN(CustomOp):
     ) -> torch.Tensor:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
-        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
-
         Nx, _, N = _get_num_heads(x=x, W=W, run_check=False)
         y_shape = list(x.size())
         y_shape[-2] = N
@@ -129,11 +122,10 @@ class _RNN(CustomOp):
             h0=h0,
             y=y,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=max_seqlen,
         )
 
-        ctx_save_for_backward(ctx, W, y, h0, cu_seqlens, max_seqlen_tensor)
+        ctx_save_for_backward(ctx, W, y, h0, cu_seqlens)
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.Nx = Nx
@@ -142,7 +134,7 @@ class _RNN(CustomOp):
 
     @staticmethod
     def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
-        W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
+        W, y, h0, cu_seqlens = ctx.saved_tensors
         Nx = ctx.Nx
         N = y.size(-2)
 
@@ -159,7 +151,6 @@ class _RNN(CustomOp):
             dW=dW,
             dh0=dh0,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=ctx.max_seqlen,
             gradient_clipping=ctx.gradient_clipping,
         )
