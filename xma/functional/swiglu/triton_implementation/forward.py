@@ -59,7 +59,7 @@ def swiglu_forward_triton_kernel(
 @xma_op(mutates_args={"y"})
 def swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     B, H = get_num_elements_and_hidden_size(g)
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), ceil_divide(H, kwargs["BLOCK_SIZE_H"]))
 
     # second last stride can be used to iterate the token dimension
     swiglu_forward_triton_kernel[GRID](

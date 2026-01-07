@@ -423,7 +423,7 @@ def gru_backward_triton(
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), N)
 
     gru_backward_triton_kernel[GRID](
         x_ptr=x,

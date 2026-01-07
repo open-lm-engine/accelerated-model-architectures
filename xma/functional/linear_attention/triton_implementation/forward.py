@@ -187,7 +187,7 @@ def linear_attention_forward_chunked_triton(
     Nv, V = v.size()[-2:]
     N = h.size(2)
 
-    GRID = lambda meta: (B * N, ceil_divide(K, meta["BLOCK_SIZE_K"]), ceil_divide(V, meta["BLOCK_SIZE_V"]))
+    GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
     linear_attention_forward_chunked_triton_kernel[GRID](
         k_ptr=k,

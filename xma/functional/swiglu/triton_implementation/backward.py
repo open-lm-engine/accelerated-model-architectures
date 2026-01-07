@@ -61,7 +61,7 @@ def swiglu_backward_triton(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
     B, H = get_num_elements_and_hidden_size(g)
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), ceil_divide(H, kwargs["BLOCK_SIZE_H"]))
 
     swiglu_backward_triton_kernel[GRID](
         g_ptr=g,

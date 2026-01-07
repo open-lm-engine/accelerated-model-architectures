@@ -78,7 +78,7 @@ def group(
     K = A.size(1)
     assert A.size(0) * fan_out == N
 
-    grid = lambda meta: (triton.cdiv(meta["N"], meta["BLOCK_N"]),)
+    grid = lambda kwargs: (triton.cdiv(kwargs["N"], kwargs["BLOCK_N"]),)
 
     group_triton_kernel[grid](
         # A_ptr, stride_an, stride_ai,
