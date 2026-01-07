@@ -35,7 +35,9 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_autotune_configs(), key=["CHUNK_SIZE"])
 @triton.jit
-def linear_attention_forward_chunked_triton_kernel(
+def output_forward_triton_kernel(
+    q_ptr,
+    q_stride,
     k_ptr,
     k_stride,
     v_ptr,
@@ -44,10 +46,9 @@ def linear_attention_forward_chunked_triton_kernel(
     h0_stride,
     h_ptr,
     h_stride,
-    ht_ptr,
-    ht_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
+    NUM_CHUNKS,
     S,
     N: tl.constexpr,
     K: tl.constexpr,
@@ -168,12 +169,12 @@ def linear_attention_forward_chunked_triton_kernel(
 
 
 @xma_op(mutates_args={"h", "ht"})
-def linear_attention_forward_chunked_triton(
+def output_forward_triton(
+    q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
     h0: torch.Tensor | None,
     h: torch.Tensor | None,
-    ht: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
 ) -> None:
@@ -185,11 +186,13 @@ def linear_attention_forward_chunked_triton(
         _, Nk, K = k.size()
 
     Nv, V = v.size()[-2:]
-    N = h.size(2)
+    _, NUM_CHUNKS, N, _, _ = h.size()
 
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
-    linear_attention_forward_chunked_triton_kernel[GRID](
+    output_forward_triton_kernel[GRID](
+        q_ptr=q,
+        q_stride=q.stride(),
         k_ptr=k,
         k_stride=k.stride(),
         v_ptr=v,
@@ -198,10 +201,9 @@ def linear_attention_forward_chunked_triton(
         h0_stride=None if h0 is None else h0.stride(),
         h_ptr=h,
         h_stride=None if h is None else h.stride(),
-        ht_ptr=ht,
-        ht_stride=ht.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+        NUM_CHUNKS=NUM_CHUNKS,
         S=S,
         N=N,
         K=K,

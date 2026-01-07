@@ -7,7 +7,7 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...math import ceil_divide
-from .triton_implementation import recurrent_state_forward_triton
+from .triton_implementation import output_forward_triton, recurrent_state_forward_triton
 from .utils import _get_num_heads
 
 
@@ -103,7 +103,17 @@ class _LinearAttention(CustomOp):
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
-        return None, ht
+        output_forward_triton(
+            k=k,
+            v=v,
+            h0=h0,
+            h=h,
+            ht=ht,
+            cu_seqlens=cu_seqlens,
+            CHUNK_SIZE=CHUNK_SIZE,
+        )
+
+        return y, ht
 
 
 def linear_attention(
