@@ -59,6 +59,10 @@ class _XTune:
         self.function_cache = {}
 
     def __call__(self, *args, **kwargs) -> Any:
+        function_kwargs = self._resolve_config(*args, **kwargs)
+        return self.function(**function_kwargs)
+
+    def _resolve_config(self, *args, **kwargs) -> dict:
         override_xtune_parameters = self._check_all_or_no_args_are_xtune_parameters(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
 
@@ -81,16 +85,12 @@ class _XTune:
                     f"function {self.function.__name__}"
                 )
 
-        output = self.function(
-            **self._get_function_arguments(
-                config=best_config,
-                args=args,
-                kwargs=kwargs,
-                override_allowed=override_xtune_parameters,
-            )
+        return self._get_function_arguments(
+            config=best_config,
+            args=args,
+            kwargs=kwargs,
+            override_allowed=override_xtune_parameters,
         )
-
-        return output
 
     def _check_all_or_no_args_are_xtune_parameters(self, *args, **kwargs) -> bool:
         num_xtune_overrideables = 0
