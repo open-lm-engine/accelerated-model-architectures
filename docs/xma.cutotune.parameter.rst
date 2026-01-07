@@ -1,7 +1,7 @@
-xma.cutotune.parameter
+xma.xtune.parameter
 ======================
 
-.. automodule:: xma.cutotune.parameter
+.. automodule:: xma.xtune.parameter
    :members:
    :show-inheritance:
    :undoc-members:

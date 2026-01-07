@@ -1,7 +1,7 @@
-xma.cutotune.tuner
+xma.xtune.tuner
 ==================
 
-.. automodule:: xma.cutotune.tuner
+.. automodule:: xma.xtune.tuner
    :members:
    :show-inheritance:
    :undoc-members:

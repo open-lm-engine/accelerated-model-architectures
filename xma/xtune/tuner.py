@@ -10,29 +10,29 @@ import torch
 from tqdm import tqdm
 
 from ..utils import get_boolean_env_variable
-from .cache import get_cutotune_cache
-from .config import CutoTuneConfig
-from .parameter import CutoTuneParameter
+from .cache import get_xtune_cache
+from .config import XTuneConfig
+from .parameter import XTuneParameter
 
 
-_DEBUG_CUTOTUNE = get_boolean_env_variable("DEBUG_CUTOTUNE", False)
+_DEBUG_XTUNE = get_boolean_env_variable("DEBUG_XTUNE", False)
 _SEPARATOR = "."
 _DEFAULT_WARMUP_ITERATIONS = 5
 _BENCHMARK_ITERATIONS = 10
 
 
-class _CutoTune:
+class _XTune:
     def __init__(
         self,
         function: Callable,
-        configs: list[CutoTuneConfig],
+        configs: list[XTuneConfig],
         triggers: set[str],
         warmup_iterations: int,
         benchmark_iterations: int,
         functional_triggers: dict[str, Callable] = {},
         reset_to_zero: dict = {},
     ) -> None:
-        assert len(configs) > 0, "no cutotune config is passed"
+        assert len(configs) > 0, "no xtune config is passed"
 
         self.function = function
         self.configs = configs
@@ -40,14 +40,14 @@ class _CutoTune:
         self.benchmark_iterations = benchmark_iterations
 
         self.signature = inspect.getfullargspec(function)
-        self.cutotuneable_parameters = set(self.configs[0].get_key_values().keys())
+        self.xtuneable_parameters = set(self.configs[0].get_key_values().keys())
 
         self._setup_trigger_map(triggers)
 
         for config in self.configs:
             assert (
-                set(config.get_key_values().keys()) == self.cutotuneable_parameters
-            ), "cutotune configs don't match the expected function signature"
+                set(config.get_key_values().keys()) == self.xtuneable_parameters
+            ), "xtune configs don't match the expected function signature"
 
         self.functional_triggers = functional_triggers
         self.reset_to_zero = reset_to_zero
@@ -58,25 +58,23 @@ class _CutoTune:
         self.function_cache = {}
 
     def __call__(self, *args, **kwargs) -> Any:
-        override_cutotune_parameters = self._check_all_or_no_args_are_cutotune_parameters(*args, **kwargs)
+        override_xtune_parameters = self._check_all_or_no_args_are_xtune_parameters(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
 
         best_config = self.function_cache.get(lookup_key, None)
 
         if best_config is None:
-            # bypass cutotune for single config
+            # bypass xtune for single config
             if len(self.configs) == 1:
                 best_config = self.configs[0]
                 best_time = 0
             else:
-                best_config, best_time, _ = self._cutotune(*args, **kwargs)
+                best_config, best_time, _ = self._xtune(*args, **kwargs)
 
             self.function_cache[lookup_key] = best_config
-            get_cutotune_cache().add_config(
-                function_hash=self.function_hash, lookup_key=lookup_key, config=best_config
-            )
+            get_xtune_cache().add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
 
-            if _DEBUG_CUTOTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
+            if _DEBUG_XTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
                 print(
                     f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
                     f"function {self.function.__name__}"
@@ -87,39 +85,34 @@ class _CutoTune:
                 config=best_config,
                 args=args,
                 kwargs=kwargs,
-                override_allowed=override_cutotune_parameters,
+                override_allowed=override_xtune_parameters,
             )
         )
 
         return output
 
-    def _check_all_or_no_args_are_cutotune_parameters(self, *args, **kwargs) -> bool:
-        num_cutotune_overrideables = 0
+    def _check_all_or_no_args_are_xtune_parameters(self, *args, **kwargs) -> bool:
+        num_xtune_overrideables = 0
 
         for i in range(len(args)):
             variable_name = self.signature.args[i]
 
-            if isinstance(args[i], CutoTuneParameter) and variable_name in self.cutotuneable_parameters:
-                num_cutotune_overrideables += 1
+            if isinstance(args[i], XTuneParameter) and variable_name in self.xtuneable_parameters:
+                num_xtune_overrideables += 1
 
         # accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function
         for variable_name in kwargs:
-            if (
-                isinstance(kwargs.get(variable_name), CutoTuneParameter)
-                and variable_name in self.cutotuneable_parameters
-            ):
-                num_cutotune_overrideables += 1
+            if isinstance(kwargs.get(variable_name), XTuneParameter) and variable_name in self.xtuneable_parameters:
+                num_xtune_overrideables += 1
 
-        assert num_cutotune_overrideables in [
+        assert num_xtune_overrideables in [
             0,
-            len(self.cutotuneable_parameters),
-        ], f"invalid number of CutoTuneParameter arguments, should be either 0 or {len(self.cutotuneable_parameters)}"
+            len(self.xtuneable_parameters),
+        ], f"invalid number of XTuneParameter arguments, should be either 0 or {len(self.xtuneable_parameters)}"
 
-        return num_cutotune_overrideables == 0
+        return num_xtune_overrideables == 0
 
-    def _get_function_arguments(
-        self, config: CutoTuneConfig, args: list, kwargs: dict, override_allowed: bool
-    ) -> dict:
+    def _get_function_arguments(self, config: XTuneConfig, args: list, kwargs: dict, override_allowed: bool) -> dict:
         # copy the best_config first so we can override with args or kwargs
         result = {variable_name: value for variable_name, value in config.get_key_values().items()}
 
@@ -138,17 +131,17 @@ class _CutoTune:
 
     @torch.compiler.set_stance("force_eager")
     @torch.inference_mode()
-    def _cutotune(self, *args, **kwargs) -> tuple[CutoTuneConfig, float, list[tuple[CutoTuneConfig, float]]]:
+    def _xtune(self, *args, **kwargs) -> tuple[XTuneConfig, float, list[tuple[XTuneConfig, float]]]:
         best_config = None
         best_time = float("inf")
 
-        configs = tqdm(self.configs) if _DEBUG_CUTOTUNE else self.configs
+        configs = tqdm(self.configs) if _DEBUG_XTUNE else self.configs
         timed_configs = []
 
         for config in configs:
             if not config.is_condition_valid(
                 **self._get_function_arguments(
-                    config=CutoTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
+                    config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
                 )
             ):
                 continue
@@ -163,7 +156,7 @@ class _CutoTune:
                 best_config = config
                 best_time = elapsed_time
 
-        assert best_config is not None, "no best_config found, check that at least 1 cutotune config is valid"
+        assert best_config is not None, "no best_config found, check that at least 1 xtune config is valid"
 
         return best_config, best_time, timed_configs
 
@@ -202,7 +195,7 @@ class _CutoTune:
         # now run the functional triggers
         if len(self.functional_triggers) > 0:
             kwargs = self._get_function_arguments(
-                config=CutoTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
+                config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
             )
 
             for variable_name, func in self.functional_triggers.items():
@@ -266,10 +259,10 @@ class _CutoTune:
                 variable_name in self.signature.args
             ), f"unexpected variable_name ({variable_name}) found in triggers"
 
-        for variable_name in self.cutotuneable_parameters:
+        for variable_name in self.xtuneable_parameters:
             assert (
                 variable_name not in self.variable_name_trigger_map
-            ), "trigger can't be an instance of CutoTuneParameter"
+            ), "trigger can't be an instance of XTuneParameter"
 
     def _parse_trigger(self, trigger: str) -> tuple[str, str, Callable]:
         split_trigger = trigger.split(_SEPARATOR)
@@ -305,16 +298,16 @@ class _CutoTune:
         return self.function_cache
 
 
-def cutotune(
-    configs: list[CutoTuneConfig],
+def xtune(
+    configs: list[XTuneConfig],
     triggers: set[str] = set(),
     functional_triggers: dict[str, Callable] = {},
     warmup_iterations: int = _DEFAULT_WARMUP_ITERATIONS,
     benchmark_iterations: int = _BENCHMARK_ITERATIONS,
     reset_to_zero: dict = {},
-) -> _CutoTune:
+) -> _XTune:
     def inner(function: Callable) -> Callable:
-        return _CutoTune(
+        return _XTune(
             function=function,
             configs=configs,
             triggers=triggers,

@@ -1,7 +1,7 @@
-xma.cutotune.cache
+xma.xtune.cache
 ==================
 
-.. automodule:: xma.cutotune.cache
+.. automodule:: xma.xtune.cache
    :members:
    :show-inheritance:
    :undoc-members:

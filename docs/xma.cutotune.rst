@@ -1,15 +1,15 @@
-xma.cutotune
+xma.xtune
 ============
 
 .. toctree::
    :maxdepth: 4
 
-   xma.cutotune.cache
-   xma.cutotune.config
-   xma.cutotune.parameter
-   xma.cutotune.tuner
+   xma.xtune.cache
+   xma.xtune.config
+   xma.xtune.parameter
+   xma.xtune.tuner
 
-.. automodule:: xma.cutotune
+.. automodule:: xma.xtune
    :members:
    :show-inheritance:
    :undoc-members:
