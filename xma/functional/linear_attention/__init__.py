@@ -7,7 +7,7 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...math import ceil_divide
-from .triton_implementation import output_forward_triton, recurrent_state_forward_triton
+from .triton_implementation import linear_attention_forward_triton
 from .utils import _get_num_heads
 
 
@@ -90,28 +90,11 @@ class _LinearAttention(CustomOp):
         V = v.size(-1)
         NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
 
+        y = torch.empty(B, S, N, V)
         h = torch.empty(B, NUM_CHUNKS, N, K, V, dtype=k.dtype, device=k.device)
         ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device)
 
-        recurrent_state_forward_triton(
-            k=k,
-            v=v,
-            h0=h0,
-            h=h,
-            ht=ht,
-            cu_seqlens=cu_seqlens,
-            CHUNK_SIZE=CHUNK_SIZE,
-        )
-
-        output_forward_triton(
-            k=k,
-            v=v,
-            h0=h0,
-            h=h,
-            ht=ht,
-            cu_seqlens=cu_seqlens,
-            CHUNK_SIZE=CHUNK_SIZE,
-        )
+        linear_attention_forward_triton(q=q, k=k, v=v, h0=h0, h=h, ht=ht, cu_seqlens=cu_seqlens, CHUNK_SIZE=CHUNK_SIZE)
 
         return y, ht
 

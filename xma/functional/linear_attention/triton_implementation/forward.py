@@ -330,10 +330,11 @@ def linear_attention_forward_triton(
     k: torch.Tensor,
     v: torch.Tensor,
     h0: torch.Tensor | None,
+    h: torch.Tensor,
     ht: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
-) -> torch.Tensor:
+) -> None:
     if cu_seqlens is None:
         B, S, Nk, K = k.size()
     else:
