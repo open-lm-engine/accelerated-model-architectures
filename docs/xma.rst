@@ -5,7 +5,7 @@ xma
    :maxdepth: 4
 
    xma.cute_dsl_utils
-   xma.cutotune
+   xma.xtune
    xma.functional
    xma.layers
    xma.triton_utils

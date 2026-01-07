@@ -198,7 +198,7 @@ class GRUTest(TestCommons):
 
         batch_size = len(cu_seqlens) - 1
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
-        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
 
         (
             state_head_dim,
@@ -323,7 +323,7 @@ class GRUTest(TestCommons):
         with context():
             batch_size = len(cu_seqlens) - 1
             cu_seqlens = torch.tensor(cu_seqlens, device=device)
-            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
 
             x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
                 batch_size=batch_size,
