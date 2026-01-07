@@ -307,6 +307,25 @@ def xtune(
     benchmark_iterations: int = _BENCHMARK_ITERATIONS,
     reset_to_zero: dict = {},
 ) -> _XTune:
+    """
+    autotuner for any function or kernel
+
+    :param configs: list of configs to autotune over
+    :type configs: list[XTuneConfig]
+    :param triggers: change in these parameters will trigger autotuning
+    :type triggers: set[str]
+    :param functional_triggers: key, function mapping. change in the function outputs will trigger autotuning.
+    :type functional_triggers: dict[str, Callable]
+    :param warmup_iterations: iterations for warmup. Defaults to 5.
+    :type warmup_iterations: int
+    :param benchmark_iterations: iterations for benchmarking. Defaults to 10.
+    :type benchmark_iterations: int
+    :param reset_to_zero: these parameters are reset to 0 after autotuning finishes.
+    :type reset_to_zero: dict
+    :return: autotuned version of the function
+    :rtype: _XTune
+    """
+
     def inner(function: Callable) -> Callable:
         return _XTune(
             function=function,
