@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
+from ..sequence_packing import pack_sequence, unpack_sequence
 
 
 class _CausalShortConvolution1D(CustomOp):
@@ -23,37 +24,52 @@ class _CausalShortConvolution1D(CustomOp):
         activation_function: str,
     ) -> torch.Tensor:
         K = W.size(0)
+        B = x.size(0) if cu_seqlens is None else cu_seqlens.size(0) - 1
 
         if h0 is not None:
-            x = torch.cat([h0, x], dim=1)
+            if cu_seqlens is None:
+                x = torch.cat([h0, x], dim=1)
+            else:
+                B = cu_seqlens.size(0) - 1
+                T = x.size(0)
 
-        if cu_seqlens is None:
-            S = x.size(1)
+                y = []
+                for b in range(cu_seqlens.size(0) - 1):
+                    start = cu_seqlens[b]
+                    end = cu_seqlens[b + 1]
 
-            h = F.pad(x, (0, 0, K - S, 0)) if S < K else x[:,]
-            x = x.transpose(-1, -2)
+                    y.append(torch.cat([h0[b], x[start:end]]))
 
-            x = F.conv1d(input=x, weight=W, bias=b, stride=stride, padding=K - 1, groups=groups)
+                x = torch.cat(y)
+                max_seqlen += K
 
-            # removes padding on the right side of the sequence
-            x = x[..., : 1 - K]
-            x = x.transpose(-1, -2)
-        else:
-            input_state = input_state.roll(shifts=-1, dims=-1)
-            input_state[..., -1] = hidden_states[:, 0]
+        if cu_seqlens is not None:
+            x = unpack_sequence(
+                inputs=torch.cat(y),
+                cu_seqlens=cu_seqlens,
+                batch_size=B,
+                sequence_length=max_seqlen + K,
+                kernel_backend=KernelBackend.torch,
+            )
 
-            hidden_states = (input_state * conv1d_weight.squeeze(1)).sum(dim=-1)
-            hidden_states = hidden_states[:, None, :]
-            if conv1d_bias is not None:
-                hidden_states = hidden_states + conv1d_bias
+        S = x.size(1)
 
-            if not return_cache_state:
-                input_state = None
+        h = F.pad(x, (0, 0, K - S, 0)) if S < K else x[:, 1 - K :]
+        x = x.transpose(-1, -2)
+
+        x = F.conv1d(input=x, weight=W, bias=b, stride=stride, padding=K - 1, groups=groups)
+
+        # removes padding on the right side of the sequence
+        x = x[..., : 1 - K]
 
         if activation_function == "silu":
             x = F.silu(x)
 
+        x = x.transpose(-1, -2)
         h = h.transpose(-1, -2)
+
+        if cu_seqlens is not None:
+            x = pack_sequence(inputs=x, cu_seqlens=cu_seqlens, total_tokens=T, kernel_backend=KernelBackend.torch)
 
         return x, h
 
@@ -107,21 +123,16 @@ def causal_short_convolution_1D(
 
     assert activation_function in ["silu", "identity"]
 
-    input = _CausalShortConvolution1D.run(
-        input=input,
-        weight=weight,
-        bias=bias,
+    input, input_state = _CausalShortConvolution1D.run(
+        x=input,
+        W=weight,
+        b=bias,
         stride=stride,
         groups=groups,
-        input_state=input_state,
+        h0=input_state,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
         kernel_backend=kernel_backend,
     )
-
-    if cu_seqlens is None:
-        input_state = input[:, 1 - K :]
-    else:
-        input_state = input[cu_seqlens[1:] - K : cu_seqlens[1:]]
 
     return input, input_state
