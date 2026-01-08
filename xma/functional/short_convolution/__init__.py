@@ -30,11 +30,7 @@ class _CausalShortConvolution1D(CustomOp):
         if cu_seqlens is None:
             S = x.size(1)
 
-            if S < K:
-                h = F.pad(x, (0, 0, K - S, 0))
-            else:
-                h = x[:,]
-
+            h = F.pad(x, (0, 0, K - S, 0)) if S < K else x[:,]
             x = x.transpose(-1, -2)
 
             x = F.conv1d(input=x, weight=W, bias=b, stride=stride, padding=K - 1, groups=groups)
