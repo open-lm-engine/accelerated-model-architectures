@@ -66,7 +66,6 @@ class _CausalShortConvolution1D(CustomOp):
             x = F.silu(x)
 
         x = x.transpose(-1, -2)
-        h = h.transpose(-1, -2)
 
         if cu_seqlens is not None:
             x = pack_sequence(inputs=x, cu_seqlens=cu_seqlens, total_tokens=T, kernel_backend=KernelBackend.torch)
