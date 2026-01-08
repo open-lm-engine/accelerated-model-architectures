@@ -105,7 +105,7 @@ class _RNN(CustomOp):
         h0: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
-        max_seqlen: torch.Tensor | int | None,
+        max_seqlen: int | None,
         kernel_backend: KernelBackend,
     ) -> torch.Tensor:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
@@ -167,7 +167,7 @@ def rnn(
     input_state: torch.Tensor | None = None,
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
-    max_seqlen: torch.Tensor | int | None = None,
+    max_seqlen: int | None = None,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:

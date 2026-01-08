@@ -27,7 +27,7 @@ def group_triton_kernel(
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
 ):
-    N_block_id = tl.program_id(axis=0)
+    N_block_id = tl.program_id(0)
 
     N_blk = N_block_id * BLOCK_N + tl.arange(0, BLOCK_N)
     N_mask = N_blk < N

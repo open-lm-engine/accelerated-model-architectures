@@ -33,7 +33,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID_B = tl.program_id(axis=0)
+    BLOCK_ID_B = tl.program_id(0)
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)

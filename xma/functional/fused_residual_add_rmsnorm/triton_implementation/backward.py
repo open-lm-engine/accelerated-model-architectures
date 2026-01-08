@@ -39,8 +39,8 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID = tl.program_id(axis=0)
-    NUM_BLOCKS = tl.num_programs(axis=0)
+    BLOCK_ID = tl.program_id(0)
+    NUM_BLOCKS = tl.num_programs(0)
 
     NUM_ELEMENTS_PER_BLOCK = tl.cdiv(B, NUM_BLOCKS)
 
