@@ -73,6 +73,20 @@ class _CausalShortConvolution1D(CustomOp):
 
         return x, h
 
+    @staticmethod
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        W: torch.Tensor,
+        b: torch.Tensor | None,
+        stride: int,
+        groups: int,
+        h0: torch.Tensor | None,
+        cu_seqlens: torch.Tensor | None,
+        max_seqlen: int | None,
+        activation_function: str,
+    ) -> tuple[torch.Tensor, torch.Tensor]: ...
+
 
 def causal_short_convolution_1D(
     input: torch.Tensor,
