@@ -34,14 +34,15 @@ class _Softmax(CustomOp):
 
     @staticmethod
     def forward(ctx, x: torch.Tensor, logits_multiplier: float | None, kernel_backend: KernelBackend) -> torch.Tensor:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-
         y = empty_like_contiguous(x)
 
         if kernel_backend == KernelBackend.cuda:
+            x = x.contiguous()
             softmax_forward_cuda(x=x, y=y, logits_multiplier=logits_multiplier)
-        else:
+        elif kernel_backend == KernelBackend.triton:
             softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
+        else:
+            raise NotImplementedError
 
         ctx_save_for_backward(ctx, y)
         ctx.logits_multiplier = logits_multiplier
