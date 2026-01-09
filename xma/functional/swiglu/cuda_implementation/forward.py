@@ -39,11 +39,11 @@ def swiglu_forward_cuda_kernel(
     tY = thr_copy.partition_D(bY)
     tID = thr_copy.partition_S(bID)
 
-    fragG = cute.make_fragment_like(tG)
-    fragU = cute.make_fragment_like(tU)
-    fragY = cute.make_fragment_like(tY)
+    fragG = cute.make_rmem_tensor_like(tG)
+    fragU = cute.make_rmem_tensor_like(tU)
+    fragY = cute.make_rmem_tensor_like(tY)
 
-    fragID = cute.make_fragment(tID.shape, Boolean)
+    fragID = cute.make_rmem_tensor(tID.shape, Boolean)
     for i in range_constexpr(cute.size(fragID)):
         fragID[i] = cute.elem_less(tID[i], shape)
 
