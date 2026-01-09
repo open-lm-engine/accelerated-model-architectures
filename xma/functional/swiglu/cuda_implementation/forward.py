@@ -102,19 +102,19 @@ class SwiGLUForwardCUDAKernel:
         kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
 
 
+_CACHE = {}
+
+
 @xma_op(mutates_args={"y"})
 def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     key = g.dtype
-    function = swiglu_forward_cuda.cache.get(key, None)
+    function = _CACHE.get(key, None)
 
     if function is None:
         _g, _u, _y = [get_fake_cute_tensor(i, leading_dim=-1) for i in (g, u, y)]
 
         function = SwiGLUForwardCUDAKernel()
         function = cute.compile(function, _g, _u, _y, options="--enable-tvm-ffi")
-        swiglu_forward_cuda.cache[key] = function
+        _CACHE[key] = function
 
     function(g, u, y)
-
-
-swiglu_forward_cuda.cache = {}

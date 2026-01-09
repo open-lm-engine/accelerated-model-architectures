@@ -136,21 +136,21 @@ class SwiGLUBackwardCUDAKernel:
         kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
 
 
+_CACHE = {}
+
+
 @xma_op(mutates_args={"dg", "du"})
 def swiglu_backward_cuda(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
     key = g.dtype
-    function = swiglu_backward_cuda.cache.get(key, None)
+    function = _CACHE.get(key, None)
 
     if function is None:
         _g, _u, _dy, _dg, _du = [get_fake_cute_tensor(i, leading_dim=-1) for i in (g, u, dy, dg, du)]
 
         function = SwiGLUBackwardCUDAKernel()
         function = cute.compile(function, _g, _u, _dy, _dg, _du, options="--enable-tvm-ffi")
-        swiglu_backward_cuda.cache[key] = function
+        _CACHE[key] = function
 
     function(g, u, dy, dg, du)
-
-
-swiglu_backward_cuda.cache = {}
