@@ -129,7 +129,7 @@ def swiglu_backward_cuda_jit(
 def swiglu_backward_cuda(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
-    g, u, dy, dg, du = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (g, u, dy, dg, du)]
+    g, u, dy, dg, du = [torch_tensor_to_cute_tensor(i, leading_dim=-1) for i in (g, u, dy, dg, du)]
 
     key = g.element_type
     function = swiglu_backward_cuda.cache.get(key, None)

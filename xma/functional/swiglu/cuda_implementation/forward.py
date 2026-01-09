@@ -102,7 +102,7 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
 
 @xma_op(mutates_args={"y"})
 def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
-    g, u, y = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (g, u, y)]
+    g, u, y = [torch_tensor_to_cute_tensor(i, leading_dim=-1) for i in (g, u, y)]
 
     key = g.element_type
     function = swiglu_forward_cuda.cache.get(key, None)
