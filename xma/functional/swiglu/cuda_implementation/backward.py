@@ -104,13 +104,13 @@ def swiglu_backward_cuda_jit(
     val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
     tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
+    mID = cute.make_identity_tensor(mG.shape)
+
     gG = cute.zipped_divide(mG, tiler_mn)
     gU = cute.zipped_divide(mU, tiler_mn)
     gdY = cute.zipped_divide(mdY, tiler_mn)
     gdG = cute.zipped_divide(mdG, tiler_mn)
     gdU = cute.zipped_divide(mdU, tiler_mn)
-
-    mID = cute.make_identity_tensor(mG.shape)
     gID = cute.zipped_divide(mID, tiler_mn)
 
     copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
