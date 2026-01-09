@@ -20,7 +20,7 @@ def get_fake_cute_tensor(x: torch.Tensor, divisibility: int = 1, leading_dim: in
 
     tensor = cute.runtime.make_fake_tensor(
         get_cute_dtype_from_torch_dtype(x.dtype),
-        shape,
+        x.size(),
         stride=stride,
         assumed_align=divisibility * x.dtype.itemsize // 8,
     )
