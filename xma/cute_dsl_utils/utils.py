@@ -18,7 +18,7 @@ def torch_tensor_to_cute_tensor(x: torch.Tensor, leading_dim: int) -> cute.Tenso
     x = from_dlpack(x, assumed_align=get_alignment(x))
 
     # not sure if there is a better way to check PyTorch's broadcasting
-    if x.stride(leading_dim) == 0:
+    if x.stride[leading_dim] == 0:
         leading_dim = None
 
     x = x.mark_layout_dynamic(leading_dim=leading_dim)
