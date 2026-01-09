@@ -7,7 +7,11 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
-from ...utils import empty_like_contiguous, is_triton_available
+from ...utils import empty_like_contiguous, is_cute_dsl_available, is_triton_available
+
+
+if is_cute_dsl_available():
+    from .cuda_implementation import softmax_forward_cuda
 
 
 if is_triton_available():

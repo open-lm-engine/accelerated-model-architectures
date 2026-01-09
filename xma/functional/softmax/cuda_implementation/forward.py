@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 
 import cutlass.cute as cute
