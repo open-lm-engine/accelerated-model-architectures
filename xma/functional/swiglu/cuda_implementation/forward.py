@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import torch
 
 import cutlass.cute as cute
@@ -13,6 +15,9 @@ from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 
 class SwiGLUForwardCUDAKernel:
+    def __ini__(self, BLOCK_SIZE: int = 128) -> SwiGLUForwardCUDAKernel:
+        self.BLOCK_SIZE = BLOCK_SIZE
+
     @cute.kernel
     def kernel(
         self,
@@ -75,10 +80,9 @@ class SwiGLUForwardCUDAKernel:
 
     @cute.jit
     def __call__(self, mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
-        BLOCK_SIZE = 128
         vector_size = 128 // mG.element_type.width
 
-        thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
+        thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
         tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
@@ -95,7 +99,7 @@ class SwiGLUForwardCUDAKernel:
         NUM_BLOCKS = cute.size(gG, mode=[1])
 
         kernel = self.kernel(gG=gG, gU=gU, gY=gY, gID=gID, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape)
-        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
+        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
 
 
 @xma_op(mutates_args={"y"})
