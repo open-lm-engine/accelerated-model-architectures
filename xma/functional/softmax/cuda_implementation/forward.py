@@ -66,7 +66,7 @@ def softmax_forward_cuda(x: torch.Tensor, y: torch.Tensor, logits_multiplier: fl
         function = cute.compile(softmax_forward_cuda_jit, x, y, logits_multiplier)
         softmax_forward_cuda.cache[key] = function
 
-    function(x, y)
+    function(x, y, logits_multiplier)
 
 
 softmax_forward_cuda.cache = {}
