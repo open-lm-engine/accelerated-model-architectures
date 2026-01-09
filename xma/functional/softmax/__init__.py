@@ -38,7 +38,10 @@ class _Softmax(CustomOp):
 
         y = empty_like_contiguous(x)
 
-        softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
+        if kernel_backend == KernelBackend.cuda:
+            softmax_forward_cuda(x=x, y=y, logits_multiplier=logits_multiplier)
+        else:
+            softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
 
         ctx_save_for_backward(ctx, y)
         ctx.logits_multiplier = logits_multiplier
