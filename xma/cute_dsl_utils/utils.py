@@ -5,9 +5,6 @@
 import torch
 
 import cutlass.cute as cute
-from cutlass.cute.runtime import from_dlpack
-
-from ..utils import get_alignment
 
 
 def get_fake_cute_tensor(x: torch.Tensor, divisibility: int = 1, leading_dim: int = -1) -> cute.Tensor:
@@ -17,7 +14,10 @@ def get_fake_cute_tensor(x: torch.Tensor, divisibility: int = 1, leading_dim: in
     if leading_dim < 0:
         leading_dim = x.dim() + leading_dim
 
-    stride = tuple(1 if i == leading_dim else cute.sym_int64(divisibility=divisibility) for i in range(len(shape)))
-    tensor = cute.runtime.make_fake_tensor(dtype, shape, stride=stride, assumed_align=divisibility * dtype.width // 8)
+    stride = tuple(1 if i == leading_dim else cute.sym_int64(divisibility=divisibility) for i in x.dim())
+
+    tensor = cute.runtime.make_fake_tensor(
+        dtype, shape, stride=stride, assumed_align=divisibility * x.dtype.itemsize // 8
+    )
 
     return tensor
