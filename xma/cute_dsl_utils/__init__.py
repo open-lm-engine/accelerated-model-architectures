@@ -3,4 +3,4 @@
 # **************************************************
 
 from .math import sigmoid, tanh
-from .utils import torch_tensor_to_cute_tensor
+from .utils import get_fake_cute_tensor
