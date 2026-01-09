@@ -12,7 +12,7 @@ from ..utils import get_alignment
 
 def torch_tensor_to_cute_tensor(x: torch.Tensor, leading_dim: int) -> cute.Tensor:
     x = x.detach()
-    x = from_dlpack(x, assumed_align=get_alignment(x))
+    x = from_dlpack(x, assumed_align=get_alignment(x), enable_tvm_ffi=True)
 
     # not sure if there is a better way to check PyTorch's broadcasting
     if x.stride[leading_dim] == 0:
