@@ -52,13 +52,13 @@ class SwiGLUBackwardCUDAKernel:
         tdU = thr_copy.partition_D(bdU)
         tID = thr_copy.partition_S(bID)
 
-        fragG = cute.make_fragment_like(tG)
-        fragU = cute.make_fragment_like(tU)
-        fragdY = cute.make_fragment_like(tdY)
-        fragdG = cute.make_fragment_like(tdG)
-        fragdU = cute.make_fragment_like(tdU)
+        fragG = cute.make_rmem_tensor_like(tG)
+        fragU = cute.make_rmem_tensor_like(tU)
+        fragdY = cute.make_rmem_tensor_like(tdY)
+        fragdG = cute.make_rmem_tensor_like(tdG)
+        fragdU = cute.make_rmem_tensor_like(tdU)
 
-        fragID = cute.make_fragment(tID.shape, Boolean)
+        fragID = cute.make_rmem_tensor(tID.shape, Boolean)
         for i in range_constexpr(cute.size(fragID)):
             fragID[i] = cute.elem_less(tID[i], shape)
 
