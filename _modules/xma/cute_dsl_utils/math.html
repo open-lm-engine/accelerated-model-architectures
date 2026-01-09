@@ -284,7 +284,7 @@
         <span class="n">output_dtype</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span>
 
     <span class="k">if</span> <span class="n">const_expr</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">TensorSSA</span><span class="p">)):</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">cute</span><span class="o">.</span><span class="n">make_fragment</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">Float32</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">cute</span><span class="o">.</span><span class="n">make_rmem_tensor</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">Float32</span><span class="p">)</span>
         <span class="n">y</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">Float32</span><span class="p">))</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">range_constexpr</span><span class="p">(</span><span class="n">cute</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">)):</span>
