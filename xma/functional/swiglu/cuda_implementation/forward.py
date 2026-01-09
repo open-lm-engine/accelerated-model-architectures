@@ -108,7 +108,7 @@ def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> No
     function = swiglu_forward_cuda.cache.get(key, None)
 
     if function is None:
-        function = cute.compile(swiglu_forward_cuda_jit, g, u, y)
+        function = cute.compile(swiglu_forward_cuda_jit, g, u, y, options="--enable-tvm-ffi")
         swiglu_forward_cuda.cache[key] = function
 
     function(g, u, y)

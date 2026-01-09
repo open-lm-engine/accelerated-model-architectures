@@ -135,7 +135,7 @@ def swiglu_backward_cuda(
     function = swiglu_backward_cuda.cache.get(key, None)
 
     if function is None:
-        function = cute.compile(swiglu_backward_cuda_jit, g, u, dy, dg, du)
+        function = cute.compile(swiglu_backward_cuda_jit, g, u, dy, dg, du, options="--enable-tvm-ffi")
         swiglu_backward_cuda.cache[key] = function
 
     function(g, u, dy, dg, du)
