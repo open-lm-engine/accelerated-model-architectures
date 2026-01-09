@@ -111,7 +111,10 @@ def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> No
     function = _CACHE.get(key, None)
 
     if function is None:
-        _g, _u, _y = [get_fake_cute_tensor(i, leading_dim=-1) for i in (g, u, y)]
+        _g, _u, _y = [
+            get_fake_cute_tensor(dtype=i.dtype, shape=(cute.sym_int(), cute.sym_int()), leading_dim=-1)
+            for i in (g, u, y)
+        ]
 
         function = SwiGLUForwardCUDAKernel()
         function = cute.compile(function, _g, _u, _y, options="--enable-tvm-ffi")

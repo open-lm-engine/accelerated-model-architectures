@@ -10,11 +10,8 @@ from ..cute_dsl_utils import get_cute_dtype_from_torch_dtype
 
 
 def get_fake_cute_tensor(
-    dtype: torch.dtype, shape: tuple[int], stride: tuple[int], divisibility: int = 1, leading_dim: int = -1
+    dtype: torch.dtype, shape: tuple[int], divisibility: int = 1, leading_dim: int = -1
 ) -> cute.Tensor:
-    if stride[leading_dim] != 1:
-        raise ValueError("leading_dim doesn't have stride 1")
-
     if leading_dim < 0:
         leading_dim = len(shape) + leading_dim
 
