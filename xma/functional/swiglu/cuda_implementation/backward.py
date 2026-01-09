@@ -14,7 +14,7 @@ from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 class SwiGLUBackwardCUDAKernel:
     @cute.kernel
-    def swiglu_backward_cuda_kernel(
+    def kernel(
         self,
         gG: cute.Tensor,
         gU: cute.Tensor,
@@ -95,9 +95,7 @@ class SwiGLUBackwardCUDAKernel:
             cute.copy(copy_atom, fragdU, tdU, pred=fragID)
 
     @cute.jit
-    def swiglu_backward_cuda_jit(
-        self, mG: cute.Tensor, mU: cute.Tensor, mdY: cute.Tensor, mdG: cute.Tensor, mdU: cute.Tensor
-    ) -> None:
+    def __call__(self, mG: cute.Tensor, mU: cute.Tensor, mdY: cute.Tensor, mdG: cute.Tensor, mdU: cute.Tensor) -> None:
         BLOCK_SIZE = 128
         vector_size = 128 // mG.element_type.width
 
