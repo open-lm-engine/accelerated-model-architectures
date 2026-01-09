@@ -16,6 +16,7 @@ from ....cute_dsl_utils import torch_tensor_to_cute_tensor
 def softmax_forward_cuda_kernel(
     gX: cute.Tensor,
     gY: cute.Tensor,
+    logits_multiplier: float,
     gID: cute.Tensor,
     copy_atom: cute.CopyAtom,
     tiled_copy: cute.TiledCopy,
@@ -28,7 +29,7 @@ def softmax_forward_cuda_kernel(
 
 
 @cute.jit
-def softmax_forward_cuda_jit(mX: cute.Tensor, mY: cute.Tensor) -> None:
+def softmax_forward_cuda_jit(mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
     BLOCK_SIZE = 128
     vector_size = 128 // mX.element_type.width
 
@@ -42,7 +43,15 @@ def softmax_forward_cuda_jit(mX: cute.Tensor, mY: cute.Tensor) -> None:
     gY = cute.zipped_divide(mY, tiler_mn)
     gID = cute.zipped_divide(mID, tiler_mn)
 
-    softmax_forward_cuda_kernel(gX=gX, gY=gY, gID=gID, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mX.shape)
+    softmax_forward_cuda_kernel(
+        gX=gX,
+        gY=gY,
+        logits_multiplier=logits_multiplier,
+        gID=gID,
+        copy_atom=copy_atom,
+        tiled_copy=tiled_copy,
+        shape=mX.shape,
+    )
 
 
 @xma_op(mutates_args={"y"})
@@ -50,11 +59,11 @@ def softmax_forward_cuda(x: torch.Tensor, y: torch.Tensor, logits_multiplier: fl
     x = torch_tensor_to_cute_tensor(x, leading_dim=-1)
     y = torch_tensor_to_cute_tensor(y, leading_dim=-1)
 
-    key = x.element_type
+    key = (x.element_type, logits_multiplier is None)
     function = softmax_forward_cuda.cache.get(key, None)
 
     if function is None:
-        function = cute.compile(softmax_forward_cuda_jit, x, y)
+        function = cute.compile(softmax_forward_cuda_jit, x, y, logits_multiplier)
         softmax_forward_cuda.cache[key] = function
 
     function(x, y)
