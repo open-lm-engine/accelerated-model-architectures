@@ -15,7 +15,7 @@ from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 
 class SwiGLUForwardCUDAKernel:
-    def __ini__(self, BLOCK_SIZE: int = 128) -> SwiGLUForwardCUDAKernel:
+    def __init__(self, BLOCK_SIZE: int = 128) -> SwiGLUForwardCUDAKernel:
         self.BLOCK_SIZE = BLOCK_SIZE
 
     @cute.kernel
