@@ -1,68 +1,81 @@
 # **************************************************
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
+from __future__ import annotations
 
 import torch
 
 import cutlass.cute as cute
-from cutlass import Boolean, Float32, range_constexpr
+from cutlass import Boolean, Float32, Numeric, range_constexpr
+from cutlass.utils import SmemAllocator
 
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
 from ....custom_op import xma_op
 from ....cute_dsl_utils import torch_tensor_to_cute_tensor
 
 
-@cute.kernel
-def softmax_forward_cuda_kernel(
-    gX: cute.Tensor,
-    gY: cute.Tensor,
-    logits_multiplier: float | None,
-    gID: cute.Tensor,
-    copy_atom: cute.CopyAtom,
-    tiled_copy: cute.TiledCopy,
-    shape: cute.Shape,
-) -> None:
-    return
-    # BLOCK_ID, _, _ = cute.arch.block_idx()
-    # THREAD_ID, _, _ = cute.arch.thread_idx()
+class SoftmaxForwardCUDAKernel:
+    def __init__(self, N: int, dtype: type[Numeric]) -> SoftmaxForwardCUDAKernel:
+        self.N = N
+        self.dtype = dtype
 
-    # block_coord = ((None, None), BLOCK_ID)
+    @cute.kernel
+    def kernel(
+        self,
+        gX: cute.Tensor,
+        gY: cute.Tensor,
+        logits_multiplier: float | None,
+        copy_atom: cute.CopyAtom,
+        tiled_copy: cute.TiledCopy,
+        shape: cute.Shape,
+        tiler_mn: cute.Shape,
+    ) -> None:
+        BLOCK_ID, _, _ = cute.arch.block_idx()
+        THREAD_ID, _, _ = cute.arch.thread_idx()
 
+        block_coord = ((None, None), BLOCK_ID)
 
-@cute.jit
-def softmax_forward_cuda_jit(mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
-    BLOCK_SIZE = 128
-    vector_size = 128 // mX.element_type.width
+        cX = cute.make_identity_tensor(shape)
 
-    NUM_THREADS_N = 8
-    M, N = mX.shape
+        bX = gX[block_coord]
+        bY = gY[block_coord]
 
-    thr_layout = cute.make_ordered_layout((BLOCK_SIZE // NUM_THREADS_N, NUM_THREADS_N), order=(1, 0))
-    val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
-    tiler_mn = (BLOCK_SIZE // NUM_THREADS_N, N)
+        shared_memory = SmemAllocator()
 
-    copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mX.element_type, num_bits_per_copy=128)
-    tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout=thr_layout, val_layout=val_layout)
+        sX = shared_memory.allocate_tensor(
+            gX.element_type, cute.make_ordered_layout(tiler_mn, order=(1, 0)), byte_alignment=16
+        )
 
-    mID = cute.make_identity_tensor(mX.shape)
+    @cute.jit
+    def __call__(self, mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
+        BLOCK_SIZE = 128
+        vector_size = 128 // mX.element_type.width
 
-    gX = cute.zipped_divide(mX, tiler_mn)
-    gY = cute.zipped_divide(mY, tiler_mn)
-    gID = cute.zipped_divide(mID, tiler_mn)
+        NUM_THREADS_N = 8
 
-    NUM_BLOCKS = cute.size(gX, mode=[1])
+        thr_layout = cute.make_ordered_layout((BLOCK_SIZE // NUM_THREADS_N, NUM_THREADS_N), order=(1, 0))
+        val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
+        tiler_mn = (BLOCK_SIZE // NUM_THREADS_N, self.N)
 
-    kernel = softmax_forward_cuda_kernel(
-        gX=gX,
-        gY=gY,
-        logits_multiplier=logits_multiplier,
-        gID=gID,
-        copy_atom=copy_atom,
-        tiled_copy=tiled_copy,
-        shape=mX.shape,
-    )
+        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mX.element_type, num_bits_per_copy=128)
+        tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout=thr_layout, val_layout=val_layout)
 
-    kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
+        gX = cute.zipped_divide(mX, tiler_mn)
+        gY = cute.zipped_divide(mY, tiler_mn)
+
+        NUM_BLOCKS = cute.ceil_div(mX.shape[0], tiler_mn[0])
+
+        kernel = self.kernel(
+            gX=gX,
+            gY=gY,
+            logits_multiplier=logits_multiplier,
+            copy_atom=copy_atom,
+            tiled_copy=tiled_copy,
+            shape=mX.shape,
+            tiler_mn=tiler_mn,
+        )
+
+        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
 @xma_op(mutates_args={"y"})
@@ -70,11 +83,12 @@ def softmax_forward_cuda(x: torch.Tensor, y: torch.Tensor, logits_multiplier: fl
     x = torch_tensor_to_cute_tensor(x, leading_dim=-1)
     y = torch_tensor_to_cute_tensor(y, leading_dim=-1)
 
-    key = (x.element_type, logits_multiplier is None)
+    key = (x.element_type, x.shape[1], logits_multiplier is None)
     function = softmax_forward_cuda.cache.get(key, None)
 
     if function is None:
-        function = cute.compile(softmax_forward_cuda_jit, x, y, logits_multiplier)
+        function = SoftmaxForwardCUDAKernel(N=x.shape[1], dtype=x.element_type)
+        function = cute.compile(function, x, y, logits_multiplier)
         softmax_forward_cuda.cache[key] = function
 
     function(x, y, logits_multiplier)
