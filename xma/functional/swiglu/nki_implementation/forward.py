@@ -60,6 +60,3 @@ def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> Non
         _CACHE[compile_key] = kernel
 
     kernel(g, u, y)
-
-
-_CACHE = {}
