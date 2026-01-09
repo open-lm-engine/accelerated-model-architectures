@@ -49,3 +49,15 @@ def softmax_forward_cuda_jit(mX: cute.Tensor, mY: cute.Tensor) -> None:
 def softmax_forward_cuda(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
     x = torch_tensor_to_cute_tensor(x, leading_dim=-1)
     y = torch_tensor_to_cute_tensor(y, leading_dim=-1)
+
+    key = x.element_type
+    function = softmax_forward_cuda.cache.get(key, None)
+
+    if function is None:
+        function = cute.compile(softmax_forward_cuda_jit, x, y)
+        softmax_forward_cuda.cache[key] = function
+
+    function(x, y)
+
+
+softmax_forward_cuda.cache = {}
