@@ -122,7 +122,7 @@ def online_softmax_backward_triton_kernel(
 
 @xtune(
     configs=[XTuneConfig({"use_online_softmax": False}), XTuneConfig({"use_online_softmax": True})],
-    functional_triggers={"H": lambda **kwargs: get_next_power_of_2(kwargs["x"].size(1))},
+    functional_triggers={"H": lambda **kwargs: get_next_power_of_2(kwargs["dx"].size(1))},
 )
 def _autotuned_softmax_backward_triton(
     y: torch.Tensor, dy: torch.Tensor, dx: torch.Tensor, logits_multiplier: float | None, use_online_softmax: bool
