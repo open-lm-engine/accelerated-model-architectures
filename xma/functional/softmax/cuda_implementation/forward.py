@@ -40,6 +40,7 @@ class SoftmaxForwardCUDAKernel:
         self,
         gX: cute.Tensor,
         gY: cute.Tensor,
+        gC: cute.Tensor,
         logits_multiplier: float | None,
         copy_atom: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
@@ -53,10 +54,7 @@ class SoftmaxForwardCUDAKernel:
 
         bX = gX[block_coord]
         bY = gY[block_coord]
-
-        cX = cute.make_identity_tensor(shape)
-        cX = cute.zipped_divide(cX, self.tiler_mn)
-        cX = cX[block_coord]
+        bC = gC[block_coord]
 
         shared_memory = SmemAllocator()
 
@@ -73,7 +71,7 @@ class SoftmaxForwardCUDAKernel:
         tXgX = thr_copy.partition_S(gX)
         tXsX = thr_copy.partition_D(sX)
         tXgY = thr_copy.partition_D(gY)
-        tXcX = thr_copy.partition_S(cX)
+        tXcX = thr_copy.partition_S(gC)
         tXrX = cute.make_rmem_tensor_like(tXgX)
 
     @cute.jit
@@ -86,14 +84,18 @@ class SoftmaxForwardCUDAKernel:
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mY.element_type, num_bits_per_copy=128)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout=thr_layout, val_layout=val_layout)
 
+        mC = cute.make_identity_tensor(mX.shape)
+
         gX = cute.zipped_divide(mX, self.tiler_mn)
         gY = cute.zipped_divide(mY, self.tiler_mn)
+        gC = cute.zipped_divide(mC, self.tiler_mn)
 
         NUM_BLOCKS = cute.ceil_div(mX.shape[0], self.tiler_mn[0])
 
         self.kernel(
             gX=gX,
             gY=gY,
+            gC=gC,
             logits_multiplier=logits_multiplier,
             copy_atom=copy_atom,
             tiled_copy=tiled_copy,
