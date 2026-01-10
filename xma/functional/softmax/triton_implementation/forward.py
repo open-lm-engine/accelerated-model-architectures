@@ -71,7 +71,7 @@ def _get_online_softmax_forward_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(True), key=[])
+@triton.autotune(configs=_get_online_softmax_forward_autotune_configs(), key=[])
 @triton.jit
 def online_softmax_forward_triton_kernel(
     x_ptr,
