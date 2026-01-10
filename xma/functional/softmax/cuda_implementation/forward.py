@@ -42,7 +42,8 @@ class SoftmaxForwardCUDAKernel:
         gY: cute.Tensor,
         gC: cute.Tensor,
         logits_multiplier: float | None,
-        copy_atom: cute.CopyAtom,
+        copy_atom_X: cute.CopyAtom,
+        copy_atom_Y: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
     ) -> None:
@@ -74,6 +75,10 @@ class SoftmaxForwardCUDAKernel:
         tXcX = thr_copy.partition_S(gC)
         tXrX = cute.make_rmem_tensor_like(tXgX)
 
+        cute.copy(copy_atom_X, tXgX, tXsX)
+        cute.arch.cp_async_commit_group()
+        cute.arch.cp_async_wait_group(0)
+
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
         vector_size = const_expr(128 // mX.element_type.width)
@@ -81,8 +86,10 @@ class SoftmaxForwardCUDAKernel:
         thr_layout = cute.make_ordered_layout((self.NUM_THREADS_M, self.NUM_THREADS_N), order=(1, 0))
         val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
 
-        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mY.element_type, num_bits_per_copy=128)
-        tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout=thr_layout, val_layout=val_layout)
+        copy_atom_X = cute.make_copy_atom(cute.nvgpu.cpasync.CopyG2SOp(), mY.element_type, num_bits_per_copy=128)
+        copy_atom_Y = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mY.element_type, num_bits_per_copy=128)
+
+        tiled_copy = cute.make_tiled_copy_tv(copy_atom_Y, thr_layout=thr_layout, val_layout=val_layout)
 
         mC = cute.make_identity_tensor(mX.shape)
 
@@ -97,7 +104,8 @@ class SoftmaxForwardCUDAKernel:
             gY=gY,
             gC=gC,
             logits_multiplier=logits_multiplier,
-            copy_atom=copy_atom,
+            copy_atom_X=copy_atom_X,
+            copy_atom_Y=copy_atom_Y,
             tiled_copy=tiled_copy,
             shape=mX.shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
