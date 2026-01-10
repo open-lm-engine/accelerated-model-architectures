@@ -11,7 +11,7 @@ from cutlass import Boolean, Float32, range_constexpr
 
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
 from ....custom_op import xma_op
-from ....cute_dsl_utils import get_fake_cute_tensor, sigmoid, torch_tensor_to_cute_tensor
+from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 
 class SwiGLUForwardCUDAKernel:
