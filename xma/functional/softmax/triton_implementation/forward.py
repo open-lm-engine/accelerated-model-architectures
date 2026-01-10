@@ -7,11 +7,26 @@ import triton
 import triton.language as tl
 
 from ....custom_op import xma_op
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import get_num_elements_and_hidden_size
 from ....xtuner import XTuneConfig, xtune
 
 
+def _get_autotune_configs(needs_BLOCK_SIZE_H: bool = True) -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_B in get_powers_of_2(1, 64):
+        for BLOCK_SIZE_H in (get_powers_of_2(16, 8192) if needs_BLOCK_SIZE_H else [1]):
+            for num_warps in get_powers_of_2(4, 32):
+                config = {"BLOCK_SIZE_B": BLOCK_SIZE_B}
+                if needs_BLOCK_SIZE_H:
+                    config["BLOCK_SIZE_H"] = BLOCK_SIZE_H
+
+                configs.append(triton.Config(config, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(False), key=[])
 @triton.jit
 def softmax_forward_triton_kernel(
     x_ptr,
@@ -49,6 +64,7 @@ def softmax_forward_triton_kernel(
     tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], x, mask=MASK_BH)
 
 
+@triton.autotune(configs=_get_autotune_configs(True), key=[])
 @triton.jit
 def online_softmax_forward_triton_kernel(
     x_ptr,
