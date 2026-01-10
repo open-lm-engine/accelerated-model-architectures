@@ -160,7 +160,7 @@ def swiglu_backward_cuda(
         ]
 
         function = SwiGLUBackwardCUDAKernel()
-        function = cute.compile(function, _g, _u, _dy, _dg, _du)
+        function = cute.compile(function, _g, _u, _dy, _dg, _du, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
     function(g, u, dy, dg, du)
