@@ -140,14 +140,19 @@ class _XTune:
         timed_configs = []
 
         for config in self.configs:
-            if _XTUNE_PRINT_AUTOTUNING:
-                print(f"Autotuning function {self.function.__name__} with config {config}")
-
-            if not config.is_condition_valid(
+            is_valid_config = config.is_condition_valid(
                 **self._get_function_arguments(
                     config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
                 )
-            ):
+            )
+
+            if is_valid_config:
+                if _XTUNE_PRINT_AUTOTUNING:
+                    print(f"Autotuning function {self.function.__name__} with config {config}")
+            else:
+                if _XTUNE_PRINT_AUTOTUNING:
+                    print(f"Skipping config {config} for function {self.function.__name__}")
+
                 continue
 
             elapsed_time = self._run_benchmark(
