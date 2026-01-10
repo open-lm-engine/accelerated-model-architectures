@@ -140,13 +140,11 @@ class _XTune:
         timed_configs = []
 
         for config in self.configs:
-            is_valid_config = config.is_condition_valid(
+            if not config.is_condition_valid(
                 **self._get_function_arguments(
                     config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
                 )
-            )
-
-            if not is_valid_config:
+            ):
                 if _XTUNE_PRINT_AUTOTUNING:
                     print(f"Skipping config {config} for function {self.function.__name__}")
 
