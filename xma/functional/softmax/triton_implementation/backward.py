@@ -143,7 +143,7 @@ def _autotuned_softmax_backward_triton(
             H=H,
         )
     else:
-        softmax_backward_triton_kernel[GRID,](
+        softmax_backward_triton_kernel[GRID](
             y_ptr=y,
             y_stride=y.stride(),
             dy_ptr=dy,
