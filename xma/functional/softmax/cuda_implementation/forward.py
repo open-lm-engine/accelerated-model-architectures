@@ -17,9 +17,13 @@ from ....cute_dsl_utils import get_cute_dtype_from_torch_dtype, get_fake_cute_te
 
 
 class SoftmaxForwardCUDAKernel:
-    def __init__(self, N: int, dtype: type[Numeric]) -> SoftmaxForwardCUDAKernel:
+    def __init__(
+        self, N: int, dtype: type[Numeric], BLOCK_SIZE: int = 128, NUM_THREADS_N: int = 8
+    ) -> SoftmaxForwardCUDAKernel:
         self.N = N
         self.dtype = dtype
+        self.BLOCK_SIZE = BLOCK_SIZE
+        self.NUM_THREADS_N = NUM_THREADS_N
 
     @cute.kernel
     def kernel(
@@ -50,14 +54,13 @@ class SoftmaxForwardCUDAKernel:
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
-        BLOCK_SIZE = 128
         vector_size = 128 // mX.element_type.width
 
-        NUM_THREADS_N = 8
-
-        thr_layout = cute.make_ordered_layout((BLOCK_SIZE // NUM_THREADS_N, NUM_THREADS_N), order=(1, 0))
+        thr_layout = cute.make_ordered_layout(
+            (self.BLOCK_SIZE // self.NUM_THREADS_N, self.NUM_THREADS_N), order=(1, 0)
+        )
         val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
-        tiler_mn = (BLOCK_SIZE // NUM_THREADS_N, self.N)
+        tiler_mn = (self.BLOCK_SIZE // self.NUM_THREADS_N, self.N)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mX.element_type, num_bits_per_copy=128)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout=thr_layout, val_layout=val_layout)
@@ -77,7 +80,7 @@ class SoftmaxForwardCUDAKernel:
             tiler_mn=tiler_mn,
         )
 
-        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
+        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
 
 
 _CACHE = {}
@@ -94,12 +97,7 @@ def softmax_forward_cuda(x: torch.Tensor, y: torch.Tensor, logits_multiplier: fl
         divisibility = math.gcd(16 // x.dtype.itemsize, N)
 
         _x, _y = [
-            get_fake_cute_tensor(
-                dtype=i.dtype,
-                shape=(cute.sym_int(), cute.sym_int(divisibility=divisibility)),
-                divisibility=divisibility,
-            )
-            for i in (x, y)
+            get_fake_cute_tensor(dtype=i.dtype, shape=(cute.sym_int(), N), divisibility=divisibility) for i in (x, y)
         ]
 
         function = SoftmaxForwardCUDAKernel(N=N, dtype=get_cute_dtype_from_torch_dtype(x.dtype))
