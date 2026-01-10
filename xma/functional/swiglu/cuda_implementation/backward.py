@@ -121,7 +121,7 @@ class SwiGLUBackwardCUDAKernel:
 
         NUM_BLOCKS = cute.size(gG, mode=[1])
 
-        kernel = self.kernel(
+        self.kernel(
             gG=gG,
             gU=gU,
             gdY=gdY,
@@ -131,9 +131,7 @@ class SwiGLUBackwardCUDAKernel:
             copy_atom=copy_atom,
             tiled_copy=tiled_copy,
             shape=mG.shape,
-        )
-
-        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
+        ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
 
 
 _CACHE = {}
