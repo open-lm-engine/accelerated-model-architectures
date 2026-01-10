@@ -11,7 +11,7 @@ from cutlass import Boolean, Float32, range_constexpr
 
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
 from ....custom_op import xma_op
-from ....cute_dsl_utils import get_fake_cute_tensor, sigmoid
+from ....cute_dsl_utils import get_fake_cute_tensor, sigmoid, torch_tensor_to_cute_tensor
 
 
 class SwiGLUForwardCUDAKernel:
@@ -98,8 +98,9 @@ class SwiGLUForwardCUDAKernel:
 
         NUM_BLOCKS = cute.size(gG, mode=[1])
 
-        kernel = self.kernel(gG=gG, gU=gU, gY=gY, gID=gID, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape)
-        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
+        self.kernel(gG=gG, gU=gU, gY=gY, gID=gID, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape).launch(
+            grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1)
+        )
 
 
 _CACHE = {}
@@ -107,17 +108,14 @@ _CACHE = {}
 
 @xma_op(mutates_args={"y"})
 def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
-    key = g.dtype
+    g, u, y = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (g, u, y)]
+
+    key = g.element_type
     function = _CACHE.get(key, None)
 
     if function is None:
-        _g, _u, _y = [
-            get_fake_cute_tensor(dtype=i.dtype, shape=(cute.sym_int(), cute.sym_int()), leading_dim=-1)
-            for i in (g, u, y)
-        ]
-
         function = SwiGLUForwardCUDAKernel()
-        function = cute.compile(function, _g, _u, _y, options="--enable-tvm-ffi")
+        function = cute.compile(function, g, u, y)
         _CACHE[key] = function
 
     function(g, u, y)
