@@ -8,7 +8,6 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -80,7 +79,7 @@ def softmax_backward_triton_kernel(
 def softmax_backward_triton(
     y: torch.Tensor, dy: torch.Tensor, dx: torch.Tensor, logits_multiplier: float | None
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(dx)
+    B, H = dx.size()
 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if y.dtype == torch.float32 else 8192)

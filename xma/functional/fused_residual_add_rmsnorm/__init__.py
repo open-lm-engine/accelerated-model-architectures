@@ -7,12 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import Accelerator, KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...utils import (
-    empty_like_contiguous,
-    get_num_elements_and_hidden_size,
-    is_triton_available,
-    zeros_like_contiguous,
-)
+from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 
 
 if is_triton_available():
@@ -61,7 +56,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
-        B, _ = get_num_elements_and_hidden_size(x)
+        B = x.size(0)
         has_residual = r is not None
 
         y = empty_like_contiguous(x)
