@@ -30,7 +30,7 @@ def softmax_forward_triton_kernel(
     y_stride,
     logits_multiplier,
     B,
-    H: tl.constexpr,
+    H,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -80,7 +80,7 @@ def online_softmax_forward_triton_kernel(
     y_stride,
     logits_multiplier,
     B,
-    H: tl.constexpr,
+    H,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
