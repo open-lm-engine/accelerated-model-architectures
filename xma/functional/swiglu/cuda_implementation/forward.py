@@ -88,11 +88,11 @@ class SwiGLUForwardCUDAKernel:
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
         tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
+        mC = cute.make_identity_tensor(mG.shape)
+
         gG = cute.zipped_divide(mG, tiler_mn)
         gU = cute.zipped_divide(mU, tiler_mn)
         gY = cute.zipped_divide(mY, tiler_mn)
-
-        mC = cute.make_identity_tensor(mG.shape)
         gC = cute.zipped_divide(mC, tiler_mn)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
