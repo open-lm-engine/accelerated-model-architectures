@@ -28,7 +28,7 @@ class SwiGLUBackwardCUDAKernel:
         gdY: cute.Tensor,
         gdG: cute.Tensor,
         gdU: cute.Tensor,
-        gID: cute.Tensor,
+        gC: cute.Tensor,
         copy_atom: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
@@ -43,7 +43,7 @@ class SwiGLUBackwardCUDAKernel:
         bdY = gdY[block_coord]
         bdG = gdG[block_coord]
         bdU = gdU[block_coord]
-        bID = gID[block_coord]
+        bC = gC[block_coord]
 
         thr_copy = tiled_copy.get_slice(THREAD_ID)
 
@@ -52,32 +52,32 @@ class SwiGLUBackwardCUDAKernel:
         tdY = thr_copy.partition_S(bdY)
         tdG = thr_copy.partition_D(bdG)
         tdU = thr_copy.partition_D(bdU)
-        tID = thr_copy.partition_S(bID)
+        tC = thr_copy.partition_S(bC)
 
-        fragG = cute.make_rmem_tensor_like(tG)
-        fragU = cute.make_rmem_tensor_like(tU)
-        fragdY = cute.make_rmem_tensor_like(tdY)
-        fragdG = cute.make_rmem_tensor_like(tdG)
-        fragdU = cute.make_rmem_tensor_like(tdU)
+        rG = cute.make_rmem_tensor_like(tG)
+        rU = cute.make_rmem_tensor_like(tU)
+        rdY = cute.make_rmem_tensor_like(tdY)
+        rdG = cute.make_rmem_tensor_like(tdG)
+        rdU = cute.make_rmem_tensor_like(tdU)
 
-        fragID = cute.make_rmem_tensor(tID.shape, Boolean)
-        for i in range_constexpr(cute.size(fragID)):
-            fragID[i] = cute.elem_less(tID[i], shape)
+        rC = cute.make_rmem_tensor(tC.shape, Boolean)
+        for i in range_constexpr(cute.size(rC)):
+            rC[i] = cute.elem_less(tC[i], shape)
 
-        is_within_boundary = cute.elem_less(tID[cute.size(tID) - 1], shape)
+        is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
         if is_within_boundary:
-            cute.copy(copy_atom, tG, fragG)
-            cute.copy(copy_atom, tU, fragU)
-            cute.copy(copy_atom, tdY, fragdY)
+            cute.copy(copy_atom, tG, rG)
+            cute.copy(copy_atom, tU, rU)
+            cute.copy(copy_atom, tdY, rdY)
         else:
-            cute.copy(copy_atom, tG, fragG, pred=fragID)
-            cute.copy(copy_atom, tU, fragU, pred=fragID)
-            cute.copy(copy_atom, tdY, fragdY, pred=fragID)
+            cute.copy(copy_atom, tG, rG, pred=rC)
+            cute.copy(copy_atom, tU, rU, pred=rC)
+            cute.copy(copy_atom, tdY, rdY, pred=rC)
 
-        g = fragG.load()
-        u = fragU.load()
-        dy = fragdY.load()
+        g = rG.load()
+        u = rU.load()
+        dy = rdY.load()
 
         dtype = g.dtype
         g = g.to(Float32)
@@ -91,15 +91,15 @@ class SwiGLUBackwardCUDAKernel:
         dg = dg.to(dtype)
         du = du.to(dtype)
 
-        fragdG.store(dg)
-        fragdU.store(du)
+        rdG.store(dg)
+        rdU.store(du)
 
         if is_within_boundary:
-            cute.copy(copy_atom, fragdG, tdG)
-            cute.copy(copy_atom, fragdU, tdU)
+            cute.copy(copy_atom, rdG, tdG)
+            cute.copy(copy_atom, rdU, tdU)
         else:
-            cute.copy(copy_atom, fragdG, tdG, pred=fragID)
-            cute.copy(copy_atom, fragdU, tdU, pred=fragID)
+            cute.copy(copy_atom, rdG, tdG, pred=rC)
+            cute.copy(copy_atom, rdU, tdU, pred=rC)
 
     @cute.jit
     def __call__(self, mG: cute.Tensor, mU: cute.Tensor, mdY: cute.Tensor, mdG: cute.Tensor, mdU: cute.Tensor) -> None:
@@ -109,14 +109,14 @@ class SwiGLUBackwardCUDAKernel:
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
         tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
+        mC = cute.make_identity_tensor(mG.shape)
+
         gG = cute.zipped_divide(mG, tiler_mn)
         gU = cute.zipped_divide(mU, tiler_mn)
         gdY = cute.zipped_divide(mdY, tiler_mn)
         gdG = cute.zipped_divide(mdG, tiler_mn)
         gdU = cute.zipped_divide(mdU, tiler_mn)
-
-        mID = cute.make_identity_tensor(mG.shape)
-        gID = cute.zipped_divide(mID, tiler_mn)
+        gC = cute.zipped_divide(mC, tiler_mn)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
@@ -129,7 +129,7 @@ class SwiGLUBackwardCUDAKernel:
             gdY=gdY,
             gdG=gdG,
             gdU=gdU,
-            gID=gID,
+            gC=gC,
             copy_atom=copy_atom,
             tiled_copy=tiled_copy,
             shape=mG.shape,
