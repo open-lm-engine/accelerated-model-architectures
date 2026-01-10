@@ -29,7 +29,14 @@ class SoftmaxForwardCUDAKernel:
         self.BLOCK_SIZE = BLOCK_SIZE
         assert self.BLOCK_SIZE == self.NUM_THREADS_M * self.NUM_THREADS_N
 
+        self.NUM_WARPS = self.BLOCK_SIZE // WARP_SIZE
+        self.NUM_WARPS_N = max(self.NUM_THREADS_N // WARP_SIZE, 1)
+        self.NUM_WARPS_M = self.NUM_WARPS // self.NUM_THREADS_N
+
         self.tiler_mn = (self.NUM_THREADS_M, self.N)
+
+    def _get_reduction_buffer_layout(self, tv_layout: cute.Layout) -> cute.Layout:
+        return cute.make_ordered_layout((self.NUM_WARPS_M, self.NUM_WARPS_N), (1, 0))
 
     @cute.kernel
     def kernel(
@@ -44,6 +51,7 @@ class SoftmaxForwardCUDAKernel:
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
+        tv_layout = tiled_copy.layout_tv_tiled
         block_coord = ((None, None), BLOCK_ID)
 
         cX = cute.make_identity_tensor(shape)
@@ -57,6 +65,10 @@ class SoftmaxForwardCUDAKernel:
             gX.element_type, cute.make_ordered_layout(self.tiler_mn, order=(1, 0)), byte_alignment=16
         )
 
+        sR = shared_memory.allocate_tensor(
+            Float32, layout=self._get_reduction_buffer_layout(tv_layout), byte_alignment=16
+        )
+
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
         vector_size = const_expr(128 // mX.element_type.width)
@@ -66,10 +78,6 @@ class SoftmaxForwardCUDAKernel:
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mY.element_type, num_bits_per_copy=128)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout=thr_layout, val_layout=val_layout)
-
-        print(copy_atom)
-        print()
-        print(tiled_copy)
 
         gX = cute.zipped_divide(mX, self.tiler_mn)
         gY = cute.zipped_divide(mY, self.tiler_mn)
