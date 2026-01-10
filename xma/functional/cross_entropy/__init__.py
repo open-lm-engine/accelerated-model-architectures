@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size, is_triton_available
+from ...utils import empty_like_contiguous, is_triton_available
 
 
 if is_triton_available():
@@ -84,9 +84,7 @@ def cross_entropy(
     assert reduction in ["sum", "mean"]
     assert x.dim() == 2, "x should be 2 dimensional"
     assert labels.dim() == 1, "labels should be 1 dimensional"
-    assert (
-        labels.size(0) == get_num_elements_and_hidden_size(x)[0]
-    ), "x and labels have different number of elements along batch dimension"
+    assert labels.size(0) == x.size(0), "x and labels have different number of elements along batch dimension"
 
     x = _CrossEntropy.run(
         x=x, labels=labels, reduction=reduction, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend

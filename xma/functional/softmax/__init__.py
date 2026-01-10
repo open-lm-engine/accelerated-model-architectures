@@ -76,15 +76,4 @@ def softmax(
     :rtype: Tensor
     """
 
-    # if 1D -> make 2D
-    is_flat = x.dim() == 1
-    if is_flat:
-        x = x[None, ...]
-
-    x = _Softmax.run(x=x, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend)
-
-    # convert back to 1D
-    if is_flat:
-        x = x.squeeze(0)
-
-    return x
+    return _Softmax.run(x=x, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend)

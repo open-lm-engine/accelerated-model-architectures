@@ -7,12 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import Accelerator, KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...utils import (
-    empty_like_contiguous,
-    get_num_elements_and_hidden_size,
-    is_triton_available,
-    zeros_like_contiguous,
-)
+from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 
 
 if is_triton_available():
@@ -61,7 +56,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
-        B, _ = get_num_elements_and_hidden_size(x)
+        B = x.size(0)
         has_residual = r is not None
 
         y = empty_like_contiguous(x)
@@ -164,14 +159,6 @@ def fused_residual_add_rmsnorm(
         assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
         assert weight.type() == x.type(), "tensors weight and y should have same dtype"
 
-    # if 1D -> make 2D
-    is_flat = x.dim() == 1
-    if is_flat:
-        x = x[None, ...]
-
-        if residual is not None:
-            residual = residual[None, :]
-
     x, residual = _FusedResidualAddRMSNorm.run(
         x=x,
         r=residual,
@@ -182,12 +169,5 @@ def fused_residual_add_rmsnorm(
         deterministic=deterministic,
         kernel_backend=kernel_backend,
     )
-
-    # convert back to 1D
-    if is_flat:
-        x = x.squeeze(0)
-
-        if residual is not None:
-            residual = residual.squeeze(0)
 
     return x, residual

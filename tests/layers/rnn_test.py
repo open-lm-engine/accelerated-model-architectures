@@ -166,7 +166,7 @@ class RNNTest(TestCommons):
 
         batch_size = len(cu_seqlens) - 1
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
-        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
 
         state_head_dim, num_input_heads, num_weight_heads = snn
         num_heads = max(num_input_heads, num_weight_heads)
@@ -270,7 +270,7 @@ class RNNTest(TestCommons):
         with context():
             batch_size = len(cu_seqlens) - 1
             cu_seqlens = torch.tensor(cu_seqlens, device=device)
-            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
 
             x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
                 batch_size=batch_size,
