@@ -61,15 +61,15 @@ class SoftmaxForwardCUDAKernel:
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
         vector_size = const_expr(128 // mX.element_type.width)
 
-        thr_layout = cute.make_ordered_layout(
-            (self.BLOCK_SIZE // self.NUM_THREADS_N, self.NUM_THREADS_N), order=(1, 0)
-        )
+        thr_layout = cute.make_ordered_layout((self.NUM_THREADS_M, self.NUM_THREADS_N), order=(1, 0))
         val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
 
-        copy_atom_X = cute.make_copy_atom(cute.nvgpu.cpasync.CopyG2SOp(), mX.element_type, num_bits_per_copy=128)
-        copy_atom_Y = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mY.element_type, num_bits_per_copy=128)
-
+        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mY.element_type, num_bits_per_copy=128)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout=thr_layout, val_layout=val_layout)
+
+        print(copy_atom)
+        print()
+        print(tiled_copy)
 
         gX = cute.zipped_divide(mX, self.tiler_mn)
         gY = cute.zipped_divide(mY, self.tiler_mn)
