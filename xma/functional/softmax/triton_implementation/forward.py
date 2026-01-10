@@ -11,7 +11,7 @@ from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....xtuner import XTuneConfig, xtune
 
 
-def _get_softmax_forward_autotune_configs() -> list[triton.Config]:
+def _get_autotune_configs() -> list[triton.Config]:
     configs = []
     for BLOCK_SIZE_B in get_powers_of_2(1, 64):
         for num_warps in get_powers_of_2(4, 32):
@@ -20,7 +20,7 @@ def _get_softmax_forward_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_softmax_forward_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def softmax_forward_triton_kernel(
     x_ptr,
@@ -58,7 +58,7 @@ def softmax_forward_triton_kernel(
     tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], x, mask=MASK_BH)
 
 
-def _get_online_softmax_forward_autotune_configs() -> list[triton.Config]:
+def _get_online_autotune_configs() -> list[triton.Config]:
     configs = []
     for BLOCK_SIZE_B in get_powers_of_2(1, 4):
         for BLOCK_SIZE_H in get_powers_of_2(16, 8192):
@@ -70,7 +70,7 @@ def _get_online_softmax_forward_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_online_softmax_forward_autotune_configs(), key=[])
+@triton.autotune(configs=_get_online_autotune_configs(), key=[])
 @triton.jit
 def online_softmax_forward_triton_kernel(
     x_ptr,
