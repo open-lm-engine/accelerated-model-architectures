@@ -266,12 +266,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">Accelerator</span><span class="p">,</span> <span class="n">KernelBackend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...custom_op</span><span class="w"> </span><span class="kn">import</span> <span class="n">CustomOp</span><span class="p">,</span> <span class="n">ctx_needs_gradients</span><span class="p">,</span> <span class="n">ctx_save_for_backward</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">empty_like_contiguous</span><span class="p">,</span>
-    <span class="n">get_num_elements_and_hidden_size</span><span class="p">,</span>
-    <span class="n">is_triton_available</span><span class="p">,</span>
-    <span class="n">zeros_like_contiguous</span><span class="p">,</span>
-<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">is_triton_available</span><span class="p">,</span> <span class="n">zeros_like_contiguous</span>
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
@@ -320,7 +315,7 @@
         <span class="k">if</span> <span class="n">eps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">eps</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span>
 
-        <span class="n">B</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_num_elements_and_hidden_size</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">has_residual</span> <span class="o">=</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
         <span class="n">y</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
@@ -425,14 +420,6 @@
         <span class="k">assert</span> <span class="n">weight</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;hidden size for x and weight tensor is different&quot;</span>
         <span class="k">assert</span> <span class="n">weight</span><span class="o">.</span><span class="n">type</span><span class="p">()</span> <span class="o">==</span> <span class="n">x</span><span class="o">.</span><span class="n">type</span><span class="p">(),</span> <span class="s2">&quot;tensors weight and y should have same dtype&quot;</span>
 
-    <span class="c1"># if 1D -&gt; make 2D</span>
-    <span class="n">is_flat</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span>
-    <span class="k">if</span> <span class="n">is_flat</span><span class="p">:</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
-
-        <span class="k">if</span> <span class="n">residual</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">residual</span> <span class="o">=</span> <span class="n">residual</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-
     <span class="n">x</span><span class="p">,</span> <span class="n">residual</span> <span class="o">=</span> <span class="n">_FusedResidualAddRMSNorm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
         <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span>
         <span class="n">r</span><span class="o">=</span><span class="n">residual</span><span class="p">,</span>
@@ -443,13 +430,6 @@
         <span class="n">deterministic</span><span class="o">=</span><span class="n">deterministic</span><span class="p">,</span>
         <span class="n">kernel_backend</span><span class="o">=</span><span class="n">kernel_backend</span><span class="p">,</span>
     <span class="p">)</span>
-
-    <span class="c1"># convert back to 1D</span>
-    <span class="k">if</span> <span class="n">is_flat</span><span class="p">:</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">residual</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">residual</span> <span class="o">=</span> <span class="n">residual</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">residual</span></div>
 

@@ -266,15 +266,6 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">..math</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_powers_of_2</span>
 
 
-<div class="viewcode-block" id="get_num_elements_and_hidden_size">
-<a class="viewcode-back" href="../../../xma.utils.tensor.html#xma.utils.tensor.get_num_elements_and_hidden_size">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_num_elements_and_hidden_size</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
-    <span class="n">hidden_size</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">num_elements</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">//</span> <span class="n">hidden_size</span>
-    <span class="k">return</span> <span class="n">num_elements</span><span class="p">,</span> <span class="n">hidden_size</span></div>
-
-
-
 <div class="viewcode-block" id="empty_like_contiguous">
 <a class="viewcode-back" href="../../../xma.utils.tensor.html#xma.utils.tensor.empty_like_contiguous">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">empty_like_contiguous</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>

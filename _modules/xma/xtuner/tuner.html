@@ -275,7 +275,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">.parameter</span><span class="w"> </span><span class="kn">import</span> <span class="n">XTuneParameter</span>
 
 
-<span class="n">_DEBUG_XTUNE</span> <span class="o">=</span> <span class="n">get_boolean_env_variable</span><span class="p">(</span><span class="s2">&quot;DEBUG_XTUNE&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+<span class="n">_XTUNE_PRINT_AUTOTUNING</span> <span class="o">=</span> <span class="n">get_boolean_env_variable</span><span class="p">(</span><span class="s2">&quot;XTUNE_PRINT_AUTOTUNING&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 <span class="n">_SEPARATOR</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span>
 <span class="n">_DEFAULT_WARMUP_ITERATIONS</span> <span class="o">=</span> <span class="mi">5</span>
 <span class="n">_BENCHMARK_ITERATIONS</span> <span class="o">=</span> <span class="mi">10</span>
@@ -338,7 +338,9 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">function_cache</span><span class="p">[</span><span class="n">lookup_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">best_config</span>
             <span class="n">get_xtune_cache</span><span class="p">()</span><span class="o">.</span><span class="n">add_config</span><span class="p">(</span><span class="n">function_hash</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">function_hash</span><span class="p">,</span> <span class="n">lookup_key</span><span class="o">=</span><span class="n">lookup_key</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">best_config</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="n">_DEBUG_XTUNE</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">is_initialized</span><span class="p">()</span> <span class="ow">or</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">get_rank</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_XTUNE_PRINT_AUTOTUNING</span> <span class="ow">and</span> <span class="p">(</span>
+                <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">is_initialized</span><span class="p">()</span> <span class="ow">or</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">get_rank</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span>
+            <span class="p">):</span>
                 <span class="nb">print</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;config </span><span class="si">{</span><span class="n">best_config</span><span class="si">}</span><span class="s2"> achieved the best time (</span><span class="si">{</span><span class="n">best_time</span><span class="si">}</span><span class="s2"> sec) for </span><span class="si">{</span><span class="n">lookup_key</span><span class="si">}</span><span class="s2"> for &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;function </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -394,17 +396,21 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_xtune</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">XTuneConfig</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">XTuneConfig</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]:</span>
         <span class="n">best_config</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">best_time</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
-
-        <span class="n">configs</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">)</span> <span class="k">if</span> <span class="n">_DEBUG_XTUNE</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">configs</span>
         <span class="n">timed_configs</span> <span class="o">=</span> <span class="p">[]</span>
 
-        <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="n">configs</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">is_condition_valid</span><span class="p">(</span>
                 <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span>
                     <span class="n">config</span><span class="o">=</span><span class="n">XTuneConfig</span><span class="p">({}),</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">override_allowed</span><span class="o">=</span><span class="kc">False</span>
                 <span class="p">)</span>
             <span class="p">):</span>
+                <span class="k">if</span> <span class="n">_XTUNE_PRINT_AUTOTUNING</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping config </span><span class="si">{</span><span class="n">config</span><span class="si">}</span><span class="s2"> for function </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
                 <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">_XTUNE_PRINT_AUTOTUNING</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Autotuning function </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> with config </span><span class="si">{</span><span class="n">config</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
             <span class="n">elapsed_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_benchmark</span><span class="p">(</span>
                 <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">override_allowed</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
@@ -581,7 +587,9 @@
 <span class="sd">    :type warmup_iterations: int</span>
 <span class="sd">    :param benchmark_iterations: iterations for benchmarking. Defaults to 10.</span>
 <span class="sd">    :type benchmark_iterations: int</span>
-<span class="sd">    :param reset_to_zero: A dictionary mapping tensor argument names to an optional callable condition. The specified tensors will be zeroed out after each benchmark iteration if the condition (if provided) returns True.</span>
+<span class="sd">    :param reset_to_zero: A dictionary mapping tensor argument names to an optional callable condition. The</span>
+<span class="sd">        specified tensors will be zeroed out after each benchmark iteration if the condition (if provided) returns</span>
+<span class="sd">        True.</span>
 <span class="sd">    :type reset_to_zero: dict</span>
 <span class="sd">    :return: autotuned version of the function</span>
 <span class="sd">    :rtype: _XTune</span>

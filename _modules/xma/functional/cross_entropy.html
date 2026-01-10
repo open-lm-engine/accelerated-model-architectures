@@ -266,7 +266,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">KernelBackend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...custom_op</span><span class="w"> </span><span class="kn">import</span> <span class="n">CustomOp</span><span class="p">,</span> <span class="n">ctx_needs_gradients</span><span class="p">,</span> <span class="n">ctx_save_for_backward</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">get_num_elements_and_hidden_size</span><span class="p">,</span> <span class="n">is_triton_available</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">is_triton_available</span>
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
@@ -345,9 +345,7 @@
     <span class="k">assert</span> <span class="n">reduction</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;sum&quot;</span><span class="p">,</span> <span class="s2">&quot;mean&quot;</span><span class="p">]</span>
     <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;x should be 2 dimensional&quot;</span>
     <span class="k">assert</span> <span class="n">labels</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;labels should be 1 dimensional&quot;</span>
-    <span class="k">assert</span> <span class="p">(</span>
-        <span class="n">labels</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">get_num_elements_and_hidden_size</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="p">),</span> <span class="s2">&quot;x and labels have different number of elements along batch dimension&quot;</span>
+    <span class="k">assert</span> <span class="n">labels</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s2">&quot;x and labels have different number of elements along batch dimension&quot;</span>
 
     <span class="n">x</span> <span class="o">=</span> <span class="n">_CrossEntropy</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
         <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="n">reduction</span><span class="p">,</span> <span class="n">logits_multiplier</span><span class="o">=</span><span class="n">logits_multiplier</span><span class="p">,</span> <span class="n">kernel_backend</span><span class="o">=</span><span class="n">kernel_backend</span>

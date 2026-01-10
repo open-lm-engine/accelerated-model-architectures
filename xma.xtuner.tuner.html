@@ -277,7 +277,9 @@
 <li><p><strong>functional_triggers</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Callable</em><em>]</em>) – key, function mapping. change in the function outputs will trigger autotuning.</p></li>
 <li><p><strong>warmup_iterations</strong> (<em>int</em>) – iterations for warmup. Defaults to 5.</p></li>
 <li><p><strong>benchmark_iterations</strong> (<em>int</em>) – iterations for benchmarking. Defaults to 10.</p></li>
-<li><p><strong>reset_to_zero</strong> (<em>dict</em>) – A dictionary mapping tensor argument names to an optional callable condition. The specified tensors will be zeroed out after each benchmark iteration if the condition (if provided) returns True.</p></li>
+<li><p><strong>reset_to_zero</strong> (<em>dict</em>) – A dictionary mapping tensor argument names to an optional callable condition. The
+specified tensors will be zeroed out after each benchmark iteration if the condition (if provided) returns
+True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
