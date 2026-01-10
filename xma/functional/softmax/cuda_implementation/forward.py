@@ -22,21 +22,14 @@ class SoftmaxForwardCUDAKernel:
     ) -> SoftmaxForwardCUDAKernel:
         self.N = N
         self.dtype = dtype
-        self.BLOCK_SIZE = BLOCK_SIZE
+
         self.NUM_THREADS_N = NUM_THREADS_N
+        self.NUM_THREADS_M = BLOCK_SIZE // NUM_THREADS_N
 
-        self._set_tv_layout()
+        self.BLOCK_SIZE = BLOCK_SIZE
+        assert self.BLOCK_SIZE == self.NUM_THREADS_M * self.NUM_THREADS_N
 
-    def _set_tv_layout(self, num_copy_bits: int = 128) -> None:
-        vector_size = num_copy_bits // self.dtype.width
-        N_vec = self.N // vector_size
-
-        NUM_BLOCKS_N = cute.ceil_div(N_vec, self.NUM_THREADS_N)
-        self.tiler_mn = (self.BLOCK_SIZE // self.NUM_THREADS_N, self.N)
-        self.tv_layout = cute.make_layout(
-            ((self.NUM_THREADS_N, self.BLOCK_SIZE // self.NUM_THREADS_N), (vector_size, NUM_BLOCKS_N)),
-            stride=((vector_size * self.BLOCK_SIZE // self.NUM_THREADS_N), ()),
-        )
+        self.tiler_mn = (self.NUM_THREADS_M, self.N)
 
     @cute.kernel
     def kernel(
