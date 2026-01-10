@@ -7,7 +7,6 @@ from collections import defaultdict
 from typing import Any, Callable
 
 import torch
-from tqdm import tqdm
 
 from ..accelerator import Accelerator
 from ..utils import get_boolean_env_variable
