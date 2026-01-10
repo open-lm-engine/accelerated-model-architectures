@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size, is_triton_available
+from ...utils import empty_like_contiguous, is_triton_available
 
 
 if is_triton_available():
