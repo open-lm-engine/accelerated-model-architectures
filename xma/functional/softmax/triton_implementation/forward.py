@@ -155,27 +155,20 @@ def _autotuned_softmax_forward_triton(
     B, H = x.size()
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
 
+    kwargs = {
+        "x_ptr": x,
+        "x_stride": x.stride(),
+        "y_ptr": y,
+        "y_stride": y.stride(),
+        "logits_multiplier": logits_multiplier,
+        "B": B,
+        "H": H,
+    }
+
     if use_online_softmax:
-        online_softmax_forward_triton_kernel[GRID](
-            x_ptr=x,
-            x_stride=x.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            H=H,
-        )
+        online_softmax_forward_triton_kernel[GRID](**kwargs)
     else:
-        softmax_forward_triton_kernel[GRID](
-            x_ptr=x,
-            x_stride=x.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            H=H,
-            BLOCK_SIZE_H=get_next_power_of_2(H),
-        )
+        softmax_forward_triton_kernel[GRID](**kwargs, BLOCK_SIZE_H=get_next_power_of_2(H))
 
 
 @xma_op(mutates_args={"y"})
