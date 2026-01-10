@@ -80,12 +80,15 @@ class SoftmaxForwardCUDAKernel:
         kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
+_CACHE = {}
+
+
 @xma_op(mutates_args={"y"})
 def softmax_forward_cuda(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
     N = x.size(1)
 
     key = (x.dtype, N, logits_multiplier is None)
-    function = softmax_forward_cuda.cache.get(key, None)
+    function = _CACHE.get(key, None)
 
     if function is None:
         divisibility = math.gcd(16 // x.dtype.itemsize, N)
@@ -100,10 +103,7 @@ def softmax_forward_cuda(x: torch.Tensor, y: torch.Tensor, logits_multiplier: fl
         ]
 
         function = SoftmaxForwardCUDAKernel(N=N, dtype=get_cute_dtype_from_torch_dtype(x.dtype))
-        function = cute.compile(function, x, y, logits_multiplier)
-        softmax_forward_cuda.cache[key] = function
+        function = cute.compile(function, _x, _y, logits_multiplier, options="--enable-tvm-ffi")
+        _CACHE[key] = function
 
     function(x, y, logits_multiplier)
-
-
-softmax_forward_cuda.cache = {}
