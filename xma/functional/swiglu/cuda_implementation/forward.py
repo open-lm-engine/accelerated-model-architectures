@@ -52,7 +52,7 @@ class SwiGLUForwardCUDAKernel:
         rU = cute.make_rmem_tensor_like(tU)
         rY = cute.make_rmem_tensor_like(tY)
 
-        rC = cute.make_rmem_tensor(rG.shape, Boolean)
+        rC = cute.make_rmem_tensor(tC.shape, Boolean)
         for i in range_constexpr(cute.size(rC)):
             rC[i] = cute.elem_less(tC[i], shape)
 
