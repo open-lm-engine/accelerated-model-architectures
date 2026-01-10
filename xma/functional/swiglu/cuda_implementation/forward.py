@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import math
+
 import torch
 
 import cutlass.cute as cute
@@ -112,12 +114,14 @@ def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> No
     function = _CACHE.get(key, None)
 
     if function is None:
+        N = g.size(1)
+        divisibility = math.gcd(16 // key.itemsize, N)
+
         _g, _u, _y = [
             get_fake_cute_tensor(
                 dtype=i.dtype,
-                shape=(cute.sym_int(divisibility=1), cute.sym_int(divisibility=1)),
-                divisibility=1,
-                leading_dim=-1,
+                shape=(cute.sym_int(), cute.sym_int(divisibility=divisibility)),
+                divisibility=divisibility,
             )
             for i in (g, u, y)
         ]
