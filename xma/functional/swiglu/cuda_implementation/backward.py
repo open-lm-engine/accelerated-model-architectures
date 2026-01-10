@@ -11,7 +11,7 @@ from cutlass import Boolean, Float32, range_constexpr
 
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
 from ....custom_op import xma_op
-from ....cute_dsl_utils import get_fake_cute_tensor, sigmoid
+from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 
 class SwiGLUBackwardCUDAKernel:
@@ -143,14 +143,14 @@ _CACHE = {}
 def swiglu_backward_cuda(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
+    g, u, dy, dg, du = [torch_tensor_to_cute_tensor(i, leading_dim=-1) for i in (g, u, dy, dg, du)]
+
     key = g.dtype
     function = _CACHE.get(key, None)
 
     if function is None:
-        _g, _u, _dy, _dg, _du = [get_fake_cute_tensor(i, leading_dim=-1) for i in (g, u, dy, dg, du)]
-
         function = SwiGLUBackwardCUDAKernel()
-        function = cute.compile(function, _g, _u, _dy, _dg, _du, options="--enable-tvm-ffi")
+        function = cute.compile(function, g, u, dy, dg, du, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
     function(g, u, dy, dg, du)
