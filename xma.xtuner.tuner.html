@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="xma.xtuner.parameter" href="xma.xtuner.parameter.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.cutotune.config - XMA documentation</title>
+        <title>xma.xtuner.tuner - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -215,9 +215,16 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Utilities</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">xma.xtuner.tuner</a></li>
+</ul>
+</li>
 </ul>
 
 </div>
@@ -238,7 +245,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="_sources/xma.cutotune.config.rst.txt" title="View this page">
+  <a class="muted-link" href="_sources/xma.xtuner.tuner.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -256,28 +263,31 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.cutotune.config">
-<span id="xma-cutotune-config"></span><h1>xma.cutotune.config<a class="headerlink" href="#module-xma.cutotune.config" title="Link to this heading">¶</a></h1>
-<dl class="py class">
-<dt class="sig sig-object py" id="xma.cutotune.config.CutoTuneConfig">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">CutoTuneConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">condition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/cutotune/config.html#CutoTuneConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.cutotune.config.CutoTuneConfig" title="Link to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="py method">
-<dt class="sig sig-object py" id="xma.cutotune.config.CutoTuneConfig.get_key_values">
-<span class="sig-name descname"><span class="pre">get_key_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/xma/cutotune/config.html#CutoTuneConfig.get_key_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.cutotune.config.CutoTuneConfig.get_key_values" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="xma.cutotune.config.CutoTuneConfig.is_condition_valid">
-<span class="sig-name descname"><span class="pre">is_condition_valid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/xma/cutotune/config.html#CutoTuneConfig.is_condition_valid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.cutotune.config.CutoTuneConfig.is_condition_valid" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
+          <section id="module-xma.xtuner.tuner">
+<span id="xma-xtuner-tuner"></span><h1>xma.xtuner.tuner<a class="headerlink" href="#module-xma.xtuner.tuner" title="Link to this heading">¶</a></h1>
 <dl class="py function">
-<dt class="sig sig-object py" id="xma.cutotune.config.get_cartesian_product_cutotune_configs">
-<span class="sig-name descname"><span class="pre">get_cartesian_product_cutotune_configs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">condition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#xma.cutotune.config.CutoTuneConfig" title="xma.cutotune.config.CutoTuneConfig"><span class="pre">CutoTuneConfig</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/cutotune/config.html#get_cartesian_product_cutotune_configs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.cutotune.config.get_cartesian_product_cutotune_configs" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt class="sig sig-object py" id="xma.xtuner.tuner.xtune">
+<span class="sig-name descname"><span class="pre">xtune</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">configs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig" title="xma.xtuner.config.XTuneConfig"><span class="pre">XTuneConfig</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">triggers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">functional_triggers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">benchmark_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reset_to_zero</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">_XTune</span></span></span><a class="reference internal" href="_modules/xma/xtuner/tuner.html#xtune"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.xtuner.tuner.xtune" title="Link to this definition">¶</a></dt>
+<dd><p>autotuner for any function or kernel</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>configs</strong> (<em>list</em><em>[</em><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig" title="xma.xtuner.config.XTuneConfig"><em>XTuneConfig</em></a><em>]</em>) – list of configs to autotune over</p></li>
+<li><p><strong>triggers</strong> (<em>set</em><em>[</em><em>str</em><em>]</em>) – change in these parameters will trigger autotuning</p></li>
+<li><p><strong>functional_triggers</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Callable</em><em>]</em>) – key, function mapping. change in the function outputs will trigger autotuning.</p></li>
+<li><p><strong>warmup_iterations</strong> (<em>int</em>) – iterations for warmup. Defaults to 5.</p></li>
+<li><p><strong>benchmark_iterations</strong> (<em>int</em>) – iterations for benchmarking. Defaults to 10.</p></li>
+<li><p><strong>reset_to_zero</strong> (<em>dict</em>) – A dictionary mapping tensor argument names to an optional callable condition. The specified tensors will be zeroed out after each benchmark iteration if the condition (if provided) returns True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>autotuned version of the function</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>_XTune</p>
+</dd>
+</dl>
+</dd></dl>
 
 </section>
 
@@ -287,7 +297,17 @@
         
         <div class="related-pages">
           
-          
+          <a class="prev-page" href="xma.xtuner.parameter.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">xma.xtuner.parameter</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -318,13 +338,8 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">xma.cutotune.config</a><ul>
-<li><a class="reference internal" href="#xma.cutotune.config.CutoTuneConfig"><code class="docutils literal notranslate"><span class="pre">CutoTuneConfig</span></code></a><ul>
-<li><a class="reference internal" href="#xma.cutotune.config.CutoTuneConfig.get_key_values"><code class="docutils literal notranslate"><span class="pre">CutoTuneConfig.get_key_values()</span></code></a></li>
-<li><a class="reference internal" href="#xma.cutotune.config.CutoTuneConfig.is_condition_valid"><code class="docutils literal notranslate"><span class="pre">CutoTuneConfig.is_condition_valid()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#xma.cutotune.config.get_cartesian_product_cutotune_configs"><code class="docutils literal notranslate"><span class="pre">get_cartesian_product_cutotune_configs()</span></code></a></li>
+<li><a class="reference internal" href="#">xma.xtuner.tuner</a><ul>
+<li><a class="reference internal" href="#xma.xtuner.tuner.xtune"><code class="docutils literal notranslate"><span class="pre">xtune()</span></code></a></li>
 </ul>
 </li>
 </ul>

@@ -216,6 +216,13 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
+</ul>
+</li>
 </ul>
 
 </div>
@@ -293,12 +300,12 @@
 </li>
         <li><a href="xma.jit.html#xma.jit.cpp_jit">cpp_jit() (in module xma.jit)</a>
 </li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.cpu">cpu (Accelerator attribute)</a>
 </li>
         <li><a href="xma.functional.cross_entropy.html#xma.functional.cross_entropy.cross_entropy">cross_entropy() (in module xma.functional.cross_entropy)</a>
 </li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.custom_op.html#xma.custom_op.ctx_needs_gradients">ctx_needs_gradients() (in module xma.custom_op)</a>
 </li>
         <li><a href="xma.custom_op.html#xma.custom_op.ctx_save_for_backward">ctx_save_for_backward() (in module xma.custom_op)</a>
@@ -310,12 +317,6 @@
 </li>
         </ul></li>
         <li><a href="xma.custom_op.html#xma.custom_op.CustomOp">CustomOp (class in xma.custom_op)</a>
-</li>
-        <li><a href="xma.cutotune.tuner.html#xma.cutotune.tuner.cutotune">cutotune() (in module xma.cutotune.tuner)</a>
-</li>
-        <li><a href="xma.cutotune.config.html#xma.cutotune.config.CutoTuneConfig">CutoTuneConfig (class in xma.cutotune.config)</a>
-</li>
-        <li><a href="xma.cutotune.parameter.html#xma.cutotune.parameter.CutoTuneParameter">CutoTuneParameter (class in xma.cutotune.parameter)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -405,7 +406,7 @@
 </li>
         <li><a href="xma.utils.env.html#xma.utils.env.get_boolean_env_variable">get_boolean_env_variable() (in module xma.utils.env)</a>
 </li>
-        <li><a href="xma.cutotune.config.html#xma.cutotune.config.get_cartesian_product_cutotune_configs">get_cartesian_product_cutotune_configs() (in module xma.cutotune.config)</a>
+        <li><a href="xma.xtuner.config.html#xma.xtuner.config.get_cartesian_product_xtune_configs">get_cartesian_product_xtune_configs() (in module xma.xtuner.config)</a>
 </li>
         <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.get_compatible_accelerator">get_compatible_accelerator() (KernelBackend method)</a>
 </li>
@@ -413,17 +414,17 @@
 </li>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_current_device">get_current_device() (Accelerator static method)</a>
 </li>
-        <li><a href="xma.cutotune.cache.html#xma.cutotune.cache.get_cutotune_cache">get_cutotune_cache() (in module xma.cutotune.cache)</a>
+        <li><a href="xma.cute_dsl_utils.constants.html#xma.cute_dsl_utils.constants.get_cute_dtype_from_torch_dtype">get_cute_dtype_from_torch_dtype() (in module xma.cute_dsl_utils.constants)</a>
 </li>
         <li><a href="xma.cute_dsl_utils.utils.html#xma.cute_dsl_utils.utils.get_fake_cute_tensor">get_fake_cute_tensor() (in module xma.cute_dsl_utils.utils)</a>
 </li>
         <li><a href="xma.inductor.html#xma.inductor.get_fused_residual_add_rmsnorm_replacer">get_fused_residual_add_rmsnorm_replacer() (in module xma.inductor)</a>
 </li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_kernel_backend">get_kernel_backend() (Accelerator static method)</a>
 </li>
-        <li><a href="xma.cutotune.config.html#xma.cutotune.config.CutoTuneConfig.get_key_values">get_key_values() (CutoTuneConfig method)</a>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.get_key_values">get_key_values() (XTuneConfig method)</a>
 </li>
         <li><a href="xma.math.html#xma.math.get_next_power_of_2">get_next_power_of_2() (in module xma.math)</a>
 </li>
@@ -438,6 +439,8 @@
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_sm_count">get_sm_count() (Accelerator static method)</a>
 </li>
         <li><a href="xma.utils.settings.html#xma.utils.settings.get_triton_num_warps">get_triton_num_warps() (in module xma.utils.settings)</a>
+</li>
+        <li><a href="xma.xtuner.cache.html#xma.xtuner.cache.get_xtune_cache">get_xtune_cache() (in module xma.xtuner.cache)</a>
 </li>
         <li><a href="xma.layers.gru.html#xma.layers.gru.GRU">GRU (class in xma.layers.gru)</a>
 </li>
@@ -455,7 +458,7 @@
 </li>
         <li><a href="xma.inductor.html#xma.inductor.init_inductor">init_inductor() (in module xma.inductor)</a>
 </li>
-        <li><a href="xma.cutotune.config.html#xma.cutotune.config.CutoTuneConfig.is_condition_valid">is_condition_valid() (CutoTuneConfig method)</a>
+        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.is_condition_valid">is_condition_valid() (XTuneConfig method)</a>
 </li>
         <li><a href="xma.counters.html#xma.counters.is_counter_enabled">is_counter_enabled() (in module xma.counters)</a>
 </li>
@@ -527,19 +530,11 @@
 </li>
           <li><a href="xma.cute_dsl_utils.html#module-xma.cute_dsl_utils">xma.cute_dsl_utils</a>
 </li>
+          <li><a href="xma.cute_dsl_utils.constants.html#module-xma.cute_dsl_utils.constants">xma.cute_dsl_utils.constants</a>
+</li>
           <li><a href="xma.cute_dsl_utils.math.html#module-xma.cute_dsl_utils.math">xma.cute_dsl_utils.math</a>
 </li>
           <li><a href="xma.cute_dsl_utils.utils.html#module-xma.cute_dsl_utils.utils">xma.cute_dsl_utils.utils</a>
-</li>
-          <li><a href="xma.cutotune.html#module-xma.cutotune">xma.cutotune</a>
-</li>
-          <li><a href="xma.cutotune.cache.html#module-xma.cutotune.cache">xma.cutotune.cache</a>
-</li>
-          <li><a href="xma.cutotune.config.html#module-xma.cutotune.config">xma.cutotune.config</a>
-</li>
-          <li><a href="xma.cutotune.parameter.html#module-xma.cutotune.parameter">xma.cutotune.parameter</a>
-</li>
-          <li><a href="xma.cutotune.tuner.html#module-xma.cutotune.tuner">xma.cutotune.tuner</a>
 </li>
           <li><a href="xma.functional.html#module-xma.functional">xma.functional</a>
 </li>
@@ -676,6 +671,16 @@
           <li><a href="xma.utils.settings.html#module-xma.utils.settings">xma.utils.settings</a>
 </li>
           <li><a href="xma.utils.tensor.html#module-xma.utils.tensor">xma.utils.tensor</a>
+</li>
+          <li><a href="xma.xtuner.html#module-xma.xtuner">xma.xtuner</a>
+</li>
+          <li><a href="xma.xtuner.cache.html#module-xma.xtuner.cache">xma.xtuner.cache</a>
+</li>
+          <li><a href="xma.xtuner.config.html#module-xma.xtuner.config">xma.xtuner.config</a>
+</li>
+          <li><a href="xma.xtuner.parameter.html#module-xma.xtuner.parameter">xma.xtuner.parameter</a>
+</li>
+          <li><a href="xma.xtuner.tuner.html#module-xma.xtuner.tuner">xma.xtuner.tuner</a>
 </li>
         </ul></li>
     </ul></td>
@@ -909,6 +914,13 @@
 </li>
         </ul></li>
         <li>
+    xma.cute_dsl_utils.constants
+
+        <ul>
+          <li><a href="xma.cute_dsl_utils.constants.html#module-xma.cute_dsl_utils.constants">module</a>
+</li>
+        </ul></li>
+        <li>
     xma.cute_dsl_utils.math
 
         <ul>
@@ -920,41 +932,6 @@
 
         <ul>
           <li><a href="xma.cute_dsl_utils.utils.html#module-xma.cute_dsl_utils.utils">module</a>
-</li>
-        </ul></li>
-        <li>
-    xma.cutotune
-
-        <ul>
-          <li><a href="xma.cutotune.html#module-xma.cutotune">module</a>
-</li>
-        </ul></li>
-        <li>
-    xma.cutotune.cache
-
-        <ul>
-          <li><a href="xma.cutotune.cache.html#module-xma.cutotune.cache">module</a>
-</li>
-        </ul></li>
-        <li>
-    xma.cutotune.config
-
-        <ul>
-          <li><a href="xma.cutotune.config.html#module-xma.cutotune.config">module</a>
-</li>
-        </ul></li>
-        <li>
-    xma.cutotune.parameter
-
-        <ul>
-          <li><a href="xma.cutotune.parameter.html#module-xma.cutotune.parameter">module</a>
-</li>
-        </ul></li>
-        <li>
-    xma.cutotune.tuner
-
-        <ul>
-          <li><a href="xma.cutotune.tuner.html#module-xma.cutotune.tuner">module</a>
 </li>
         </ul></li>
         <li>
@@ -1153,8 +1130,6 @@
           <li><a href="xma.functional.softmax.triton_implementation.backward.html#module-xma.functional.softmax.triton_implementation.backward">module</a>
 </li>
         </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li>
     xma.functional.softmax.triton_implementation.forward
 
@@ -1190,6 +1165,8 @@
           <li><a href="xma.functional.swiglu.cuda_implementation.forward.html#module-xma.functional.swiglu.cuda_implementation.forward">module</a>
 </li>
         </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li>
     xma.functional.swiglu.nki_implementation
 
@@ -1435,9 +1412,50 @@
           <li><a href="xma.utils.tensor.html#module-xma.utils.tensor">module</a>
 </li>
         </ul></li>
+        <li>
+    xma.xtuner
+
+        <ul>
+          <li><a href="xma.xtuner.html#module-xma.xtuner">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.xtuner.cache
+
+        <ul>
+          <li><a href="xma.xtuner.cache.html#module-xma.xtuner.cache">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.xtuner.config
+
+        <ul>
+          <li><a href="xma.xtuner.config.html#module-xma.xtuner.config">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.xtuner.parameter
+
+        <ul>
+          <li><a href="xma.xtuner.parameter.html#module-xma.xtuner.parameter">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.xtuner.tuner
+
+        <ul>
+          <li><a href="xma.xtuner.tuner.html#module-xma.xtuner.tuner">module</a>
+</li>
+        </ul></li>
         <li><a href="xma.custom_op.html#xma.custom_op.xma_op">xma_op() (in module xma.custom_op)</a>
 </li>
         <li><a href="xma.module.html#xma.module.XMAModule">XMAModule (class in xma.module)</a>
+</li>
+        <li><a href="xma.xtuner.tuner.html#xma.xtuner.tuner.xtune">xtune() (in module xma.xtuner.tuner)</a>
+</li>
+        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig">XTuneConfig (class in xma.xtuner.config)</a>
+</li>
+        <li><a href="xma.xtuner.parameter.html#xma.xtuner.parameter.XTuneParameter">XTuneParameter (class in xma.xtuner.parameter)</a>
 </li>
     </ul></td>
   </tr></table>

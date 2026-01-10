@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.cutotune.config - XMA documentation</title>
+        <title>xma.xtuner.config - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -217,6 +217,13 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../xma.counters.html">xma.counters</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.cache.html">xma.xtuner.cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.config.html">xma.xtuner.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
+</ul>
+</li>
 </ul>
 
 </div>
@@ -249,7 +256,7 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <h1>Source code for xma.cutotune.config</h1><div class="highlight"><pre>
+          <h1>Source code for xma.xtuner.config</h1><div class="highlight"><pre>
 <span></span><span class="c1"># **************************************************</span>
 <span class="c1"># Copyright (c) 2025, Mayank Mishra</span>
 <span class="c1"># **************************************************</span>
@@ -258,21 +265,21 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
 
 
-<div class="viewcode-block" id="CutoTuneConfig">
-<a class="viewcode-back" href="../../../xma.cutotune.config.html#xma.cutotune.config.CutoTuneConfig">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">CutoTuneConfig</span><span class="p">:</span>
+<div class="viewcode-block" id="XTuneConfig">
+<a class="viewcode-back" href="../../../xma.xtuner.config.html#xma.xtuner.config.XTuneConfig">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">XTuneConfig</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">condition</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">condition</span> <span class="o">=</span> <span class="n">condition</span>
 
-<div class="viewcode-block" id="CutoTuneConfig.get_key_values">
-<a class="viewcode-back" href="../../../xma.cutotune.config.html#xma.cutotune.config.CutoTuneConfig.get_key_values">[docs]</a>
+<div class="viewcode-block" id="XTuneConfig.get_key_values">
+<a class="viewcode-back" href="../../../xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.get_key_values">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_key_values</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span></div>
 
 
-<div class="viewcode-block" id="CutoTuneConfig.is_condition_valid">
-<a class="viewcode-back" href="../../../xma.cutotune.config.html#xma.cutotune.config.CutoTuneConfig.is_condition_valid">[docs]</a>
+<div class="viewcode-block" id="XTuneConfig.is_condition_valid">
+<a class="viewcode-back" href="../../../xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.is_condition_valid">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_condition_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="c1"># note that here we override the values from the args passed by the user</span>
         <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_key_values</span><span class="p">())</span>
@@ -284,17 +291,15 @@
 
 
 
-<div class="viewcode-block" id="get_cartesian_product_cutotune_configs">
-<a class="viewcode-back" href="../../../xma.cutotune.config.html#xma.cutotune.config.get_cartesian_product_cutotune_configs">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_cartesian_product_cutotune_configs</span><span class="p">(</span>
-    <span class="n">condition</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">]</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CutoTuneConfig</span><span class="p">]:</span>
+<div class="viewcode-block" id="get_cartesian_product_xtune_configs">
+<a class="viewcode-back" href="../../../xma.xtuner.config.html#xma.xtuner.config.get_cartesian_product_xtune_configs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_cartesian_product_xtune_configs</span><span class="p">(</span><span class="n">condition</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">XTuneConfig</span><span class="p">]:</span>
     <span class="n">configs</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">all_values</span> <span class="o">=</span> <span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
 
     <span class="k">for</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">all_values</span><span class="p">:</span>
         <span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">values</span><span class="p">)}</span>
-        <span class="n">config</span> <span class="o">=</span> <span class="n">CutoTuneConfig</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="n">condition</span><span class="p">)</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">XTuneConfig</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="n">condition</span><span class="p">)</span>
         <span class="n">configs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">configs</span></div>

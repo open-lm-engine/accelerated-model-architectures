@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.cutotune.tuner - XMA documentation</title>
+        <title>xma.cute_dsl_utils.constants - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -218,6 +218,13 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
+</ul>
+</li>
 </ul>
 
 </div>
@@ -238,7 +245,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="_sources/xma.cutotune.tuner.rst.txt" title="View this page">
+  <a class="muted-link" href="_sources/xma.cute_dsl_utils.constants.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -256,11 +263,11 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.cutotune.tuner">
-<span id="xma-cutotune-tuner"></span><h1>xma.cutotune.tuner<a class="headerlink" href="#module-xma.cutotune.tuner" title="Link to this heading">¶</a></h1>
+          <section id="module-xma.cute_dsl_utils.constants">
+<span id="xma-cute-dsl-utils-constants"></span><h1>xma.cute_dsl_utils.constants<a class="headerlink" href="#module-xma.cute_dsl_utils.constants" title="Link to this heading">¶</a></h1>
 <dl class="py function">
-<dt class="sig sig-object py" id="xma.cutotune.tuner.cutotune">
-<span class="sig-name descname"><span class="pre">cutotune</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">configs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="xma.cutotune.config.html#xma.cutotune.config.CutoTuneConfig" title="xma.cutotune.config.CutoTuneConfig"><span class="pre">CutoTuneConfig</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">triggers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">functional_triggers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">benchmark_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reset_to_zero</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">_CutoTune</span></span></span><a class="reference internal" href="_modules/xma/cutotune/tuner.html#cutotune"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.cutotune.tuner.cutotune" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="xma.cute_dsl_utils.constants.get_cute_dtype_from_torch_dtype">
+<span class="sig-name descname"><span class="pre">get_cute_dtype_from_torch_dtype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dtype</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">type</span><span class="p"><span class="pre">[</span></span><span class="pre">cutlass.Numeric</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/cute_dsl_utils/constants.html#get_cute_dtype_from_torch_dtype"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.cute_dsl_utils.constants.get_cute_dtype_from_torch_dtype" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </section>
@@ -302,8 +309,8 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">xma.cutotune.tuner</a><ul>
-<li><a class="reference internal" href="#xma.cutotune.tuner.cutotune"><code class="docutils literal notranslate"><span class="pre">cutotune()</span></code></a></li>
+<li><a class="reference internal" href="#">xma.cute_dsl_utils.constants</a><ul>
+<li><a class="reference internal" href="#xma.cute_dsl_utils.constants.get_cute_dtype_from_torch_dtype"><code class="docutils literal notranslate"><span class="pre">get_cute_dtype_from_torch_dtype()</span></code></a></li>
 </ul>
 </li>
 </ul>

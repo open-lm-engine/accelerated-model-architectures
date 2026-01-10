@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.xtuner.cache" href="xma.xtuner.cache.html"><link rel="prev" title="xma.counters" href="xma.counters.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.cutotune.cache - XMA documentation</title>
+        <title>xma.xtuner - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -215,9 +215,16 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Utilities</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
+<li class="toctree-l1 current has-children current-page"><a class="current reference internal" href="#">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
+</ul>
+</li>
 </ul>
 
 </div>
@@ -238,7 +245,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="_sources/xma.cutotune.cache.rst.txt" title="View this page">
+  <a class="muted-link" href="_sources/xma.xtuner.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -251,27 +258,65 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.cutotune.cache">
-<span id="xma-cutotune-cache"></span><h1>xma.cutotune.cache<a class="headerlink" href="#module-xma.cutotune.cache" title="Link to this heading">¶</a></h1>
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.cutotune.cache.get_cutotune_cache">
-<span class="sig-name descname"><span class="pre">get_cutotune_cache</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">_CutoTuneCache</span></span></span><a class="reference internal" href="_modules/xma/cutotune/cache.html#get_cutotune_cache"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.cutotune.cache.get_cutotune_cache" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</section>
+          <section id="xma-xtuner">
+<h1>xma.xtuner<a class="headerlink" href="#xma-xtuner" title="Link to this heading">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html#xma.xtuner.cache.get_xtune_cache"><code class="docutils literal notranslate"><span class="pre">get_xtune_cache()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig"><code class="docutils literal notranslate"><span class="pre">XTuneConfig</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.get_key_values"><code class="docutils literal notranslate"><span class="pre">XTuneConfig.get_key_values()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.is_condition_valid"><code class="docutils literal notranslate"><span class="pre">XTuneConfig.is_condition_valid()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.get_cartesian_product_xtune_configs"><code class="docutils literal notranslate"><span class="pre">get_cartesian_product_xtune_configs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html#xma.xtuner.parameter.XTuneParameter"><code class="docutils literal notranslate"><span class="pre">XTuneParameter</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html#xma.xtuner.tuner.xtune"><code class="docutils literal notranslate"><span class="pre">xtune()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+<span class="target" id="module-xma.xtuner"></span></section>
 
         </article>
       </div>
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="xma.xtuner.cache.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">xma.xtuner.cache</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="xma.counters.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">xma.counters</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -290,27 +335,8 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">xma.cutotune.cache</a><ul>
-<li><a class="reference internal" href="#xma.cutotune.cache.get_cutotune_cache"><code class="docutils literal notranslate"><span class="pre">get_cutotune_cache()</span></code></a></li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>
