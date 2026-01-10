@@ -137,11 +137,9 @@ class _XTune:
     def _xtune(self, *args, **kwargs) -> tuple[XTuneConfig, float, list[tuple[XTuneConfig, float]]]:
         best_config = None
         best_time = float("inf")
-
-        configs = tqdm(self.configs) if _XTUNE_PRINT_AUTOTUNING else self.configs
         timed_configs = []
 
-        for config in configs:
+        for config in self.configs:
             if not config.is_condition_valid(
                 **self._get_function_arguments(
                     config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
