@@ -142,7 +142,10 @@ def online_softmax_forward_triton_kernel(
         y_ptrs += BLOCK_SIZE_H * y_stride[1]
 
 
-@xtune(configs=[XTuneConfig({"use_online_softmax": False}), XTuneConfig({"use_online_softmax": True})])
+@xtune(
+    configs=[XTuneConfig({"use_online_softmax": False}), XTuneConfig({"use_online_softmax": True})],
+    functional_triggers={"H": lambda **kwargs: get_next_power_of_2(kwargs["x"].size(1))},
+)
 def _autotuned_softmax_forward_triton(
     x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None, use_online_softmax: bool
 ) -> None:
