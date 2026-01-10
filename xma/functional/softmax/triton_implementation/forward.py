@@ -37,6 +37,7 @@ def softmax_forward_triton_kernel(
     x = tl.load(
         x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1], mask=MASK_BH, other=-float("inf")
     )
+
     x = x.to(tl.float32)
 
     if logits_multiplier is not None:
