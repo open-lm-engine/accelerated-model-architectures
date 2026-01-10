@@ -31,12 +31,9 @@ class SoftmaxForwardCUDAKernel:
 
         self.NUM_WARPS = self.BLOCK_SIZE // WARP_SIZE
         self.NUM_WARPS_N = max(self.NUM_THREADS_N // WARP_SIZE, 1)
-        self.NUM_WARPS_M = self.NUM_WARPS // self.NUM_THREADS_N
+        self.NUM_WARPS_M = self.NUM_WARPS // self.NUM_WARPS_N
 
         self.tiler_mn = (self.NUM_THREADS_M, self.N)
-
-    def _get_reduction_buffer_layout(self, tv_layout: cute.Layout) -> cute.Layout:
-        return cute.make_ordered_layout((self.NUM_WARPS_M, self.NUM_WARPS_N), (1, 0))
 
     @cute.kernel
     def kernel(
@@ -54,10 +51,12 @@ class SoftmaxForwardCUDAKernel:
         tv_layout = tiled_copy.layout_tv_tiled
         block_coord = ((None, None), BLOCK_ID)
 
-        cX = cute.make_identity_tensor(shape)
-
         bX = gX[block_coord]
         bY = gY[block_coord]
+
+        cX = cute.make_identity_tensor(shape)
+        cX = cute.zipped_divide(cX, self.tiler_mn)
+        cX = cX[block_coord]
 
         shared_memory = SmemAllocator()
 
@@ -66,8 +65,16 @@ class SoftmaxForwardCUDAKernel:
         )
 
         sR = shared_memory.allocate_tensor(
-            Float32, layout=self._get_reduction_buffer_layout(tv_layout), byte_alignment=16
+            Float32, layout=cute.make_ordered_layout((self.NUM_WARPS_M, self.NUM_WARPS_N), (1, 0)), byte_alignment=16
         )
+
+        thr_copy = tiled_copy.get_slice(THREAD_ID)
+
+        tXgX = thr_copy.partition_S(gX)
+        tXsX = thr_copy.partition_D(sX)
+        tXgY = thr_copy.partition_D(gY)
+        tXcX = thr_copy.partition_S(cX)
+        tXrX = cute.make_rmem_tensor_like(tXgX)
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
