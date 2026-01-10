@@ -19,7 +19,43 @@ def softmax_forward_triton_kernel(
     y_stride,
     logits_multiplier,
     B,
-    H,
+    H: tl.constexpr,
+    BLOCK_SIZE_B: tl.constexpr,
+    BLOCK_SIZE_H: tl.constexpr,
+):
+    BLOCK_ID = tl.program_id(0)
+
+    BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
+
+    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+
+    x = tl.load(
+        x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1], mask=MASK_BH, other=-float("inf")
+    )
+    x = x.to(tl.float32)
+
+    if logits_multiplier is not None:
+        x *= logits_multiplier
+
+    x = tl.exp(x)
+    x /= tl.sum(x, axis=1, keep_dims=True)
+
+    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], x, mask=MASK_BH)
+
+
+@triton.jit
+def online_softmax_forward_triton_kernel(
+    x_ptr,
+    x_stride,
+    y_ptr,
+    y_stride,
+    logits_multiplier,
+    B,
+    H: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -80,6 +116,9 @@ def softmax_forward_triton_kernel(
         BLOCK_H += BLOCK_SIZE_H
         x_ptrs += BLOCK_SIZE_H * x_stride[1]
         y_ptrs += BLOCK_SIZE_H * y_stride[1]
+
+
+def _autotuned_softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None: ...
 
 
 @xma_op(mutates_args={"y"})
