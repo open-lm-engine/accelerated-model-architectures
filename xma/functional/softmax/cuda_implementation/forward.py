@@ -3,6 +3,8 @@
 # **************************************************
 from __future__ import annotations
 
+import math
+
 import torch
 
 import cutlass.cute as cute
@@ -11,7 +13,7 @@ from cutlass.utils import SmemAllocator
 
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
 from ....custom_op import xma_op
-from ....cute_dsl_utils import torch_tensor_to_cute_tensor
+from ....cute_dsl_utils import get_cute_dtype_from_torch_dtype, get_fake_cute_tensor
 
 
 class SoftmaxForwardCUDAKernel:
@@ -80,14 +82,24 @@ class SoftmaxForwardCUDAKernel:
 
 @xma_op(mutates_args={"y"})
 def softmax_forward_cuda(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
-    x = torch_tensor_to_cute_tensor(x, leading_dim=-1)
-    y = torch_tensor_to_cute_tensor(y, leading_dim=-1)
+    N = x.size(1)
 
-    key = (x.element_type, x.shape[1], logits_multiplier is None)
+    key = (x.dtype, N, logits_multiplier is None)
     function = softmax_forward_cuda.cache.get(key, None)
 
     if function is None:
-        function = SoftmaxForwardCUDAKernel(N=x.shape[1], dtype=x.element_type)
+        divisibility = math.gcd(16 // x.dtype.itemsize, N)
+
+        _x, _y = [
+            get_fake_cute_tensor(
+                dtype=i.dtype,
+                shape=(cute.sym_int(), cute.sym_int(divisibility=divisibility)),
+                divisibility=divisibility,
+            )
+            for i in (x, y)
+        ]
+
+        function = SoftmaxForwardCUDAKernel(N=N, dtype=get_cute_dtype_from_torch_dtype(x.dtype))
         function = cute.compile(function, x, y, logits_multiplier)
         softmax_forward_cuda.cache[key] = function
 
