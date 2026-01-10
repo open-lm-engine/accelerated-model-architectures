@@ -140,6 +140,9 @@ class _XTune:
         timed_configs = []
 
         for config in self.configs:
+            if _XTUNE_PRINT_AUTOTUNING:
+                print(f"Autotuning function {self.function.__name__} with config {config}")
+
             if not config.is_condition_valid(
                 **self._get_function_arguments(
                     config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
