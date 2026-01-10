@@ -8,7 +8,6 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
-from ....utils import get_num_elements_and_hidden_size
 from ....xtuner import XTuneConfig, xtune
 
 
@@ -147,7 +146,7 @@ def online_softmax_forward_triton_kernel(
 def _autotuned_softmax_forward_triton(
     x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None, use_online_softmax: bool
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(x)
+    B, H = x.size()
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
 
     if use_online_softmax:
