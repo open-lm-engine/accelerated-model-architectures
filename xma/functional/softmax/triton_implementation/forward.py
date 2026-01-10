@@ -144,7 +144,7 @@ def online_softmax_forward_triton_kernel(
 
 @xtune(
     configs=[
-        XTuneConfig({"use_online_softmax": False}, condition=lambda **kwargs: kwargs["dx"].size(1) <= 1024),
+        XTuneConfig({"use_online_softmax": False}, condition=lambda **kwargs: kwargs["x"].size(1) <= 1024),
         XTuneConfig({"use_online_softmax": True}),
     ],
     functional_triggers={"H": lambda **kwargs: get_next_power_of_2(kwargs["x"].size(1))},
