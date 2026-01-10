@@ -327,21 +327,23 @@
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">g</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
 
 
+<span class="n">_CACHE</span> <span class="o">=</span> <span class="kc">None</span>
+
+
 <span class="nd">@xma_op</span><span class="p">(</span><span class="n">mutates_args</span><span class="o">=</span><span class="p">{},</span> <span class="n">fake_func</span><span class="o">=</span><span class="n">_fake_func</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">swiglu_backward_pallas</span><span class="p">(</span><span class="n">g</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">u</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
     <span class="k">assert</span> <span class="n">g</span><span class="o">.</span><span class="n">is_contiguous</span><span class="p">()</span>
     <span class="k">assert</span> <span class="n">u</span><span class="o">.</span><span class="n">is_contiguous</span><span class="p">()</span>
     <span class="k">assert</span> <span class="n">dy</span><span class="o">.</span><span class="n">is_contiguous</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="n">swiglu_backward_pallas</span><span class="o">.</span><span class="n">cache</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">swiglu_backward_pallas</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">make_kernel_from_pallas</span><span class="p">(</span>
+    <span class="k">global</span> <span class="n">_CACHE</span>
+
+    <span class="k">if</span> <span class="n">_CACHE</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_CACHE</span> <span class="o">=</span> <span class="n">make_kernel_from_pallas</span><span class="p">(</span>
             <span class="n">swiglu_backward_pallas_jit</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="p">[(</span><span class="n">g</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span> <span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">dtype</span><span class="p">)]</span>
         <span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">swiglu_backward_pallas</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
-
-
-<span class="n">swiglu_backward_pallas</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">_CACHE</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
 </pre></div>
         </article>
       </div>

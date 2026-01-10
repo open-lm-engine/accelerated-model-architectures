@@ -259,12 +259,34 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">cutlass.cute</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cute</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cutlass.cute.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">from_dlpack</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">..cute_dsl_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_cute_dtype_from_torch_dtype</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_alignment</span>
+
+
+<div class="viewcode-block" id="get_fake_cute_tensor">
+<a class="viewcode-back" href="../../../xma.cute_dsl_utils.utils.html#xma.cute_dsl_utils.utils.get_fake_cute_tensor">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_fake_cute_tensor</span><span class="p">(</span>
+    <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">divisibility</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">leading_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">cute</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">leading_dim</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">leading_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">+</span> <span class="n">leading_dim</span>
+
+    <span class="n">stride</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="mi">1</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">leading_dim</span> <span class="k">else</span> <span class="n">cute</span><span class="o">.</span><span class="n">sym_int64</span><span class="p">(</span><span class="n">divisibility</span><span class="o">=</span><span class="n">divisibility</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))</span>
+
+    <span class="n">tensor</span> <span class="o">=</span> <span class="n">cute</span><span class="o">.</span><span class="n">runtime</span><span class="o">.</span><span class="n">make_fake_tensor</span><span class="p">(</span>
+        <span class="n">get_cute_dtype_from_torch_dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">),</span> <span class="n">shape</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span> <span class="n">assumed_align</span><span class="o">=</span><span class="n">divisibility</span> <span class="o">*</span> <span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span> <span class="o">//</span> <span class="mi">8</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tensor</span></div>
+
 
 
 <div class="viewcode-block" id="torch_tensor_to_cute_tensor">
 <a class="viewcode-back" href="../../../xma.cute_dsl_utils.utils.html#xma.cute_dsl_utils.utils.torch_tensor_to_cute_tensor">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">torch_tensor_to_cute_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">leading_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">cute</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">leading_dim</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">leading_dim</span> <span class="o">+=</span> <span class="n">x</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span>
+
     <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
     <span class="n">x</span> <span class="o">=</span> <span class="n">from_dlpack</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">assumed_align</span><span class="o">=</span><span class="n">get_alignment</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
 

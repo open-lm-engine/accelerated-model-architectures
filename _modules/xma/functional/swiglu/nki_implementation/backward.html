@@ -297,6 +297,9 @@
 
 
 
+<span class="n">_CACHE</span> <span class="o">=</span> <span class="p">{}</span>
+
+
 <span class="nd">@xma_op</span><span class="p">(</span><span class="n">mutates_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dg&quot;</span><span class="p">,</span> <span class="s2">&quot;du&quot;</span><span class="p">})</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">swiglu_backward_nki</span><span class="p">(</span>
     <span class="n">g</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">u</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dg</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">du</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
@@ -307,7 +310,7 @@
     <span class="n">B</span><span class="p">,</span> <span class="n">H</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
 
     <span class="n">compile_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-    <span class="n">kernel</span> <span class="o">=</span> <span class="n">swiglu_backward_nki</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">compile_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">kernel</span> <span class="o">=</span> <span class="n">_CACHE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">compile_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">kernel</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">kernel</span> <span class="o">=</span> <span class="n">TorchNeuronNKIKernel</span><span class="p">(</span>
@@ -317,12 +320,9 @@
             <span class="n">return_tensor_overrides</span><span class="o">=</span><span class="p">(</span><span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="p">),</span>
         <span class="p">)</span>
 
-        <span class="n">swiglu_backward_nki</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="n">compile_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kernel</span>
+        <span class="n">_CACHE</span><span class="p">[</span><span class="n">compile_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kernel</span>
 
     <span class="n">kernel</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="p">)</span>
-
-
-<span class="n">swiglu_backward_nki</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
 </pre></div>
         </article>
       </div>
