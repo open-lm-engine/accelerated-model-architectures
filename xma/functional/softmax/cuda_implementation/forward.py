@@ -59,7 +59,7 @@ class SoftmaxForwardCUDAKernel:
         shared_memory = SmemAllocator()
 
         sX = shared_memory.allocate_tensor(
-            gX.element_type, cute.make_ordered_layout(self.tiler_mn, order=(1, 0)), byte_alignment=16
+            gX.element_type, layout=cute.make_ordered_layout(self.tiler_mn, order=(1, 0)), byte_alignment=16
         )
 
         sR = shared_memory.allocate_tensor(
