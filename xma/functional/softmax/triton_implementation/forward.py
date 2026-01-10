@@ -9,6 +9,7 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import get_num_elements_and_hidden_size
+from ....xtuner import XTuneConfig, xtune
 
 
 @triton.jit
@@ -118,28 +119,38 @@ def online_softmax_forward_triton_kernel(
         y_ptrs += BLOCK_SIZE_H * y_stride[1]
 
 
-def _autotuned_softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None: ...
+@xtune(configs=[XTuneConfig({"use_online_softmax": False}), XTuneConfig({"use_online_softmax": True})])
+def _autotuned_softmax_forward_triton(
+    x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None, use_online_softmax: bool
+) -> None:
+    B, H = get_num_elements_and_hidden_size(x)
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
+
+    if use_online_softmax:
+        online_softmax_forward_triton_kernel[GRID](
+            x_ptr=x,
+            x_stride=x.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
+            logits_multiplier=logits_multiplier,
+            B=B,
+            H=H,
+        )
+    else:
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+
+        softmax_forward_triton_kernel[GRID](
+            x_ptr=x,
+            x_stride=x.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
+            logits_multiplier=logits_multiplier,
+            B=B,
+            H=H,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )
 
 
 @xma_op(mutates_args={"y"})
 def softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
-    if x.dim() == 1:
-        B = 1
-        H = x.size(-1)
-    else:
-        B, H = get_num_elements_and_hidden_size(x)
-
-    BLOCK_SIZE_B = 1
-    BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if x.dtype == torch.float32 else 8192)
-
-    softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
-        x_ptr=x,
-        x_stride=x.stride(),
-        y_ptr=y,
-        y_stride=y.stride(),
-        logits_multiplier=logits_multiplier,
-        B=B,
-        H=H,
-        BLOCK_SIZE_B=BLOCK_SIZE_B,
-        BLOCK_SIZE_H=BLOCK_SIZE_H,
-    )
+    _autotuned_softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
