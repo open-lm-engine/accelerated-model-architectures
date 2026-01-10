@@ -8,7 +8,7 @@ import math
 import torch
 
 import cutlass.cute as cute
-from cutlass import Boolean, Float32, Numeric, range_constexpr
+from cutlass import Boolean, Float32, Numeric, const_expr, range_constexpr
 from cutlass.utils import SmemAllocator
 
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
@@ -25,6 +25,8 @@ class SoftmaxForwardCUDAKernel:
         self.BLOCK_SIZE = BLOCK_SIZE
         self.NUM_THREADS_N = NUM_THREADS_N
 
+        self.tiler_mn = (self.BLOCK_SIZE // self.NUM_THREADS_N, self.N)
+
     @cute.kernel
     def kernel(
         self,
@@ -34,7 +36,6 @@ class SoftmaxForwardCUDAKernel:
         copy_atom: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
-        tiler_mn: cute.Shape,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
@@ -49,38 +50,34 @@ class SoftmaxForwardCUDAKernel:
         shared_memory = SmemAllocator()
 
         sX = shared_memory.allocate_tensor(
-            gX.element_type, cute.make_ordered_layout(tiler_mn, order=(1, 0)), byte_alignment=16
+            gX.element_type, cute.make_ordered_layout(self.tiler_mn, order=(1, 0)), byte_alignment=16
         )
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, logits_multiplier: float | None) -> None:
-        vector_size = 128 // mX.element_type.width
+        vector_size = const_expr(128 // mX.element_type.width)
 
         thr_layout = cute.make_ordered_layout(
             (self.BLOCK_SIZE // self.NUM_THREADS_N, self.NUM_THREADS_N), order=(1, 0)
         )
         val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
-        tiler_mn = (self.BLOCK_SIZE // self.NUM_THREADS_N, self.N)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mX.element_type, num_bits_per_copy=128)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout=thr_layout, val_layout=val_layout)
 
-        gX = cute.zipped_divide(mX, tiler_mn)
-        gY = cute.zipped_divide(mY, tiler_mn)
+        gX = cute.zipped_divide(mX, self.tiler_mn)
+        gY = cute.zipped_divide(mY, self.tiler_mn)
 
-        NUM_BLOCKS = cute.ceil_div(mX.shape[0], tiler_mn[0])
+        NUM_BLOCKS = cute.ceil_div(mX.shape[0], self.tiler_mn[0])
 
-        kernel = self.kernel(
+        self.kernel(
             gX=gX,
             gY=gY,
             logits_multiplier=logits_multiplier,
             copy_atom=copy_atom,
             tiled_copy=tiled_copy,
             shape=mX.shape,
-            tiler_mn=tiler_mn,
-        )
-
-        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
+        ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
 
 
 _CACHE = {}
