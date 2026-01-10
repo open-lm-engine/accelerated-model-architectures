@@ -62,7 +62,7 @@ class SwiGLUBackwardCUDAKernel:
 
         rC = cute.make_rmem_tensor(tC.shape, Boolean)
         for i in range_constexpr(cute.size(rC)):
-            rC[i] = cute.elem_less(rC[i], shape)
+            rC[i] = cute.elem_less(tC[i], shape)
 
         is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
