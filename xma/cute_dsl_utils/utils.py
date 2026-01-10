@@ -20,7 +20,7 @@ def get_fake_cute_tensor(
     stride = tuple(1 if i == leading_dim else cute.sym_int64(divisibility=divisibility) for i in range(len(shape)))
 
     tensor = cute.runtime.make_fake_tensor(
-        get_cute_dtype_from_torch_dtype(dtype), shape, stride=stride, assumed_align=divisibility * dtype.itemsize // 8
+        get_cute_dtype_from_torch_dtype(dtype), shape, stride=stride, assumed_align=divisibility * dtype.itemsize
     )
 
     return tensor
