@@ -322,7 +322,9 @@ def xtune(
     :type warmup_iterations: int
     :param benchmark_iterations: iterations for benchmarking. Defaults to 10.
     :type benchmark_iterations: int
-    :param reset_to_zero: these parameters are reset to 0 after autotuning finishes.
+    :param reset_to_zero: A dictionary mapping tensor argument names to an optional callable condition. The
+        specified tensors will be zeroed out after each benchmark iteration if the condition (if provided) returns
+        True.
     :type reset_to_zero: dict
     :return: autotuned version of the function
     :rtype: _XTune
