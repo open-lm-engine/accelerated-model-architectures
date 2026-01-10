@@ -56,7 +56,7 @@ class SwiGLUForwardCUDAKernel:
         for i in range_constexpr(cute.size(rC)):
             rC[i] = cute.elem_less(tC[i], shape)
 
-        is_within_boundary = cute.elem_less(rC[cute.size(rC) - 1], shape)
+        is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
         if is_within_boundary:
             cute.copy(copy_atom, tG, rG)
