@@ -146,3 +146,4 @@ Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested
 
    xma.accelerator
    xma.counters
+   xma.xtuner
