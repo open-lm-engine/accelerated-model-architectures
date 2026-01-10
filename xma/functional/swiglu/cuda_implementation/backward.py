@@ -145,7 +145,7 @@ def swiglu_backward_cuda(
 ) -> None:
     g, u, dy, dg, du = [torch_tensor_to_cute_tensor(i, leading_dim=-1) for i in (g, u, dy, dg, du)]
 
-    key = g.dtype
+    key = g.element_type
     function = _CACHE.get(key, None)
 
     if function is None:
