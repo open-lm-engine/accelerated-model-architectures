@@ -133,31 +133,22 @@ def _autotuned_softmax_backward_triton(
     B, H = dx.size()
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
 
+    kwargs = {
+        "y_ptr": y,
+        "y_stride": y.stride(),
+        "dy_ptr": dy,
+        "dy_stride": dy.stride(),
+        "dx_ptr": dx,
+        "dx_stride": dx.stride(),
+        "logits_multiplier": logits_multiplier,
+        "B": B,
+        "H": H,
+    }
+
     if use_online_softmax:
-        online_softmax_backward_triton_kernel[GRID](
-            y_ptr=y,
-            y_stride=y.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            dx_ptr=dx,
-            dx_stride=dx.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            H=H,
-        )
+        online_softmax_backward_triton_kernel[GRID](**kwargs)
     else:
-        softmax_backward_triton_kernel[GRID](
-            y_ptr=y,
-            y_stride=y.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            dx_ptr=dx,
-            dx_stride=dx.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            H=H,
-            BLOCK_SIZE_H=get_next_power_of_2(H),
-        )
+        softmax_backward_triton_kernel[GRID](**kwargs, BLOCK_SIZE_H=get_next_power_of_2(H))
 
 
 @xma_op(mutates_args={"dx"})
