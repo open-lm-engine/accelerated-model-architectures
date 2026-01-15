@@ -210,10 +210,7 @@ def output_forward_triton_kernel(
     BLOCK_V = BLOCK_ID_V * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
 
     MASK_S = BLOCK_S < S
-    MASK_K = BLOCK_K < K
     MASK_V = BLOCK_V < V
-
-    MASK_KV = MASK_K[:, None] & MASK_V[None, :]
 
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
@@ -286,6 +283,9 @@ def output_forward_triton_kernel(
     y = tl.zeros((BLOCK_SIZE_S, BLOCK_SIZE_V), dtype=tl.float32)
 
     for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
+        MASK_K = BLOCK_K < K
+        MASK_KV = MASK_K[:, None] & MASK_V[None, :]
+
         q = tl.load(q_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
         k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
         h = tl.load(h_ptrs, mask=MASK_KV)
