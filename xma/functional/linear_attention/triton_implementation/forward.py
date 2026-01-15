@@ -104,14 +104,13 @@ def recurrent_state_forward_triton_kernel(
         k_ptrs = k_ptr + BLOCK[:, None] * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
         v_ptrs = v_ptr + BLOCK[:, None] * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
 
-        if h_ptr is not None:
-            h_ptrs = (
-                h_ptr
-                + BLOCK[:, None] * h_stride[0]
-                + BLOCK_ID_N * h_stride[1]
-                + BLOCK_K[:, None] * h_stride[2]
-                + BLOCK_V[None, :] * h_stride[3]
-            )
+        h_ptrs = (
+            h_ptr
+            + BLOCK[:, None] * h_stride[0]
+            + BLOCK_ID_N * h_stride[1]
+            + BLOCK_K[:, None] * h_stride[2]
+            + BLOCK_V[None, :] * h_stride[3]
+        )
     else:
         k_ptrs = (
             k_ptr
@@ -129,14 +128,13 @@ def recurrent_state_forward_triton_kernel(
             + BLOCK_V[None, :] * v_stride[3]
         )
 
-        if h_ptr is not None:
-            h_ptrs = (
-                h_ptr
-                + BLOCK_ID_B * h_stride[0]
-                + BLOCK_ID_N * h_stride[2]
-                + BLOCK_K[:, None] * h_stride[3]
-                + BLOCK_V[None, :] * h_stride[4]
-            )
+        h_ptrs = (
+            h_ptr
+            + BLOCK_ID_B * h_stride[0]
+            + BLOCK_ID_N * h_stride[2]
+            + BLOCK_K[:, None] * h_stride[3]
+            + BLOCK_V[None, :] * h_stride[4]
+        )
 
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
@@ -182,18 +180,136 @@ def output_forward_triton_kernel(
     h_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    NUM_CHUNKS,
     S,
     N: tl.constexpr,
     K: tl.constexpr,
     V: tl.constexpr,
+    Gq: tl.constexpr,
     Gk: tl.constexpr,
     Gv: tl.constexpr,
     BLOCK_SIZE_S: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
     CHUNK_SIZE: tl.constexpr,
-): ...
+):
+    tl.static_assert(CHUNK_SIZE % BLOCK_SIZE_S == 0)
+
+    BLOCK_ID_BN = tl.program_id(0)
+    BLOCK_ID_S = tl.program_id(1)
+    BLOCK_ID_V = tl.program_id(2)
+
+    BLOCK_ID_B = BLOCK_ID_BN // N
+    BLOCK_ID_N = BLOCK_ID_BN % N
+
+    BLOCK_ID_Nq = BLOCK_ID_N // Gq
+    BLOCK_ID_Nk = BLOCK_ID_N // Gk
+    BLOCK_ID_Nv = BLOCK_ID_N // Gv
+
+    BLOCK_S = BLOCK_ID_S * BLOCK_SIZE_S + tl.arange(0, BLOCK_SIZE_S)
+    BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
+    BLOCK_V = BLOCK_ID_V * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
+
+    MASK_S = BLOCK_S < S
+    MASK_K = BLOCK_K < K
+    MASK_V = BLOCK_V < V
+
+    MASK_KV = MASK_K[:, None] & MASK_V[None, :]
+
+    if h0_ptr is None:
+        h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
+    else:
+        h = tl.load(
+            h0_ptr
+            + BLOCK_ID_B * h0_stride[0]
+            + BLOCK_ID_N * h0_stride[1]
+            + BLOCK_K[:, None] * h0_stride[2]
+            + BLOCK_V[None, :] * h0_stride[3],
+            mask=MASK_KV,
+        ).to(tl.float32)
+
+    IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+
+    if IS_VARLEN:
+        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
+        start = tl.load(cu_seqlens_ptrs)
+        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
+
+        S = end - start
+        BLOCK = start + BLOCK_S
+
+        q_ptrs = q_ptr + BLOCK[:, None] * q_stride[0] + BLOCK_ID_Nq * q_stride[1] + BLOCK_K[None, :] * q_stride[2]
+        k_ptrs = k_ptr + BLOCK[:, None] * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
+        v_ptrs = v_ptr + BLOCK[:, None] * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
+
+        h_ptrs = (
+            h_ptr
+            + BLOCK_ID_S * h_stride[0]
+            + BLOCK_ID_N * h_stride[1]
+            + BLOCK_K[:, None] * h_stride[2]
+            + BLOCK_V[None, :] * h_stride[3]
+        )
+    else:
+        q_ptrs = (
+            q_ptr
+            + BLOCK_ID_B * q_stride[0]
+            + BLOCK_S[:, None] * q_stride[1]
+            + BLOCK_ID_Nq * q_stride[2]
+            + BLOCK_K[None, :] * q_stride[3]
+        )
+
+        k_ptrs = (
+            k_ptr
+            + BLOCK_ID_B * k_stride[0]
+            + BLOCK_S[:, None] * k_stride[1]
+            + BLOCK_ID_Nk * k_stride[2]
+            + BLOCK_K[None, :] * k_stride[3]
+        )
+
+        v_ptrs = (
+            v_ptr
+            + BLOCK_ID_B * v_stride[0]
+            + BLOCK_S[:, None] * v_stride[1]
+            + BLOCK_ID_Nv * v_stride[2]
+            + BLOCK_V[None, :] * v_stride[3]
+        )
+
+        h_ptrs = (
+            h_ptr
+            + BLOCK_ID_B * h_stride[0]
+            + BLOCK_ID_S * h_stride[1]
+            + BLOCK_ID_N * h_stride[2]
+            + BLOCK_K[:, None] * h_stride[3]
+            + BLOCK_V[None, :] * h_stride[4]
+        )
+
+    q = tl.load(q_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
+    k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
+    v = tl.load(v_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
+    h = tl.load(h_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
+
+    y = matmul(q, h)
+
+    h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
+    h *= s[:, None] <= s[None, :]
+    h = matmul(A=h, B=v, C=y, output_dtype=h.dtype)
+
+    if h_ptr is not None and ((s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S):
+        tl.store(h_ptrs, h, mask=MASK_KV)
+        h_ptrs += h_stride[1 - IS_VARLEN]
+
+    BLOCK_S += BLOCK_SIZE_S
+    k_ptrs += BLOCK_SIZE_S * k_stride[1 - IS_VARLEN]
+    v_ptrs += BLOCK_SIZE_S * v_stride[1 - IS_VARLEN]
+
+    tl.store(
+        ht_ptr
+        + BLOCK_ID_B * ht_stride[0]
+        + BLOCK_ID_N * ht_stride[1]
+        + BLOCK_K[:, None] * ht_stride[2]
+        + BLOCK_V[None, :] * ht_stride[3],
+        h,
+        mask=MASK_KV,
+    )
 
 
 @xma_op(mutates_args={"y", "h", "ht"})
