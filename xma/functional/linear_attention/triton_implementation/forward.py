@@ -282,16 +282,23 @@ def output_forward_triton_kernel(
             + BLOCK_V[None, :] * h_stride[4]
         )
 
-    q = tl.load(q_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
-    k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
     v = tl.load(v_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
-    h = tl.load(h_ptrs, mask=MASK_KV)
+    y = tl.zeros((BLOCK_SIZE_S, BLOCK_SIZE_V), dtype=tl.float32)
 
-    y = matmul(A=q, B=h, C=None, output_dtype=q.dtype)
+    for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
+        q = tl.load(q_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
+        k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
+        h = tl.load(h_ptrs, mask=MASK_KV)
 
-    h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
-    h *= s[:, None] <= s[None, :]
-    h = matmul(A=h, B=v, C=y, output_dtype=h.dtype)
+        y = matmul(A=q, B=h, C=y, output_dtype=q.dtype)
+
+        h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
+        h *= BLOCK_S[:, None] <= BLOCK_S[None, :]
+        y = matmul(A=h, B=v, C=y, output_dtype=h.dtype)
+
+        BLOCK_K += BLOCK_SIZE_K
+        q_ptrs += BLOCK_SIZE_K * q_stride[2]
+        k_ptrs += BLOCK_SIZE_K * k_stride[2]
 
     if h_ptr is not None and ((s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S):
         tl.store(h_ptrs, h, mask=MASK_KV)
