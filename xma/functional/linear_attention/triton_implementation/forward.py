@@ -297,16 +297,8 @@ def output_forward_triton_kernel(
         y = matmul(A=h, B=v, C=y, output_dtype=y.dtype)
 
         BLOCK_K += BLOCK_SIZE_K
-        q_ptrs += BLOCK_SIZE_K * q_stride[2]
-        k_ptrs += BLOCK_SIZE_K * k_stride[2]
-
-    if h_ptr is not None and ((s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S):
-        tl.store(h_ptrs, h, mask=MASK_KV)
-        h_ptrs += h_stride[1 - IS_VARLEN]
-
-    BLOCK_S += BLOCK_SIZE_S
-    k_ptrs += BLOCK_SIZE_S * k_stride[1 - IS_VARLEN]
-    v_ptrs += BLOCK_SIZE_S * v_stride[1 - IS_VARLEN]
+        q_ptrs += BLOCK_SIZE_K * q_stride[2 - IS_VARLEN]
+        k_ptrs += BLOCK_SIZE_K * k_stride[2 - IS_VARLEN]
 
     tl.store(
         ht_ptr
