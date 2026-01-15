@@ -287,7 +287,7 @@ def output_forward_triton_kernel(
     v = tl.load(v_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
     h = tl.load(h_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
 
-    y = matmul(q, h)
+    y = matmul(A=q, B=h, C=None, output_dtype=q.dtype)
 
     h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
     h *= s[:, None] <= s[None, :]
