@@ -215,7 +215,6 @@ def linear_attention_forward_triton(
         _, Nk, K = k.size()
 
     Nv, V = v.size()[-2:]
-    NUM_CHUNKS = h.size(1)
     N = h.size(2)
 
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
