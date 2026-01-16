@@ -15,7 +15,7 @@ from ..test_commons import TestCommons
 _SEED = 42
 
 
-def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
+def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
     result = [(7, 9, 3, 3, 3)]
 
     base = [8, 4, 3, 3, 3]
