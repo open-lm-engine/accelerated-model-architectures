@@ -18,7 +18,6 @@ class _LinearAttention(CustomOp):
         k: torch.Tensor,
         v: torch.Tensor,
         h0: torch.Tensor | None,
-        y: torch.Tensor,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
         CHUNK_SIZE: int,
