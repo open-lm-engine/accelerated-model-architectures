@@ -9,6 +9,7 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_powers_of_2
 from ....triton_utils import matmul
+from ..utils import _get_num_heads
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -371,16 +372,16 @@ def linear_attention_forward_triton(
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
 ) -> None:
+    Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
+
     if cu_seqlens is None:
-        B, S, Nk, K = k.size()
+        B, S, _, K = k.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
-        _, Nk, K = k.size()
+        K = k.size(-1)
 
-    Nq = q.size(-2)
-    Nv, V = v.size()[-2:]
-    N = h.size(2)
+    V = v.size(-1)
 
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
