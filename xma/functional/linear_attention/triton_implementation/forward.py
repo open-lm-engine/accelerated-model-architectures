@@ -15,15 +15,15 @@ def _get_autotune_configs() -> list[triton.Config]:
     configs = []
     for num_warps in get_powers_of_2(4, 8):
         for num_stages in range(1, 5):
-            for BLOCK_SIZE_K in get_powers_of_2(32, 64):
-                for BLOCK_SIZE_V in get_powers_of_2(32, 64):
-                    for BLOCK_SIZE_S in [1] + get_powers_of_2(16, 64):
+            for BLOCK_SIZE_S in [1] + get_powers_of_2(16, 64):
+                for BLOCK_SIZE_K in get_powers_of_2(32, 64):
+                    for BLOCK_SIZE_V in get_powers_of_2(32, 64):
                         configs.append(
                             triton.Config(
                                 {
+                                    "BLOCK_SIZE_S": BLOCK_SIZE_S,
                                     "BLOCK_SIZE_K": BLOCK_SIZE_K,
                                     "BLOCK_SIZE_V": BLOCK_SIZE_V,
-                                    "BLOCK_SIZE_S": BLOCK_SIZE_S,
                                 },
                                 num_stages=num_stages,
                                 num_warps=num_warps,
@@ -378,12 +378,15 @@ def linear_attention_forward_triton(
         S = None
         _, Nk, K = k.size()
 
+    Nq = q.size(-2)
     Nv, V = v.size()[-2:]
     N = h.size(2)
 
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
     recurrent_state_forward_triton_kernel[GRID](
+        q_ptr=q,
+        q_stride=q.stride(),
         k_ptr=k,
         k_stride=k.stride(),
         v_ptr=v,
@@ -392,6 +395,8 @@ def linear_attention_forward_triton(
         h0_stride=None if h0 is None else h0.stride(),
         h_ptr=h,
         h_stride=None if h is None else h.stride(),
+        ht_ptr=ht,
+        ht_stride=ht.stride(),
         y_ptr=y,
         y_stride=y.stride(),
         cu_seqlens_ptr=cu_seqlens,
@@ -400,6 +405,7 @@ def linear_attention_forward_triton(
         N=N,
         K=K,
         V=V,
+        Gq=N // Nq,
         Gk=N // Nk,
         Gv=N // Nv,
         CHUNK_SIZE=CHUNK_SIZE,
