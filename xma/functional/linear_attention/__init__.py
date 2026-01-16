@@ -90,7 +90,7 @@ class _LinearAttention(CustomOp):
         V = v.size(-1)
         NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
 
-        y = torch.empty(B, S, N, V)
+        y = torch.empty(B, S, N, V, dtype=k.dtype, device=k.device)
         h = torch.empty(B, NUM_CHUNKS, N, K, V, dtype=k.dtype, device=k.device)
         ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device)
 
