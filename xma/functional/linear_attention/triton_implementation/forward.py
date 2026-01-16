@@ -33,7 +33,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["CHUNK_SIZE"])
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def recurrent_state_forward_triton_kernel(
     k_ptr,
@@ -178,6 +178,8 @@ def output_forward_triton_kernel(
     h0_stride,
     h_ptr,
     h_stride,
+    y_ptr,
+    y_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
     S,
@@ -237,6 +239,7 @@ def output_forward_triton_kernel(
         q_ptrs = q_ptr + BLOCK[:, None] * q_stride[0] + BLOCK_ID_Nq * q_stride[1] + BLOCK_K[None, :] * q_stride[2]
         k_ptrs = k_ptr + BLOCK[:, None] * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
         v_ptrs = v_ptr + BLOCK[:, None] * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
+        y_ptrs = y_ptr + BLOCK[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_V[None, :] * y_stride[2]
 
         h_ptrs = (
             h_ptr
@@ -270,6 +273,14 @@ def output_forward_triton_kernel(
             + BLOCK_V[None, :] * v_stride[3]
         )
 
+        y_ptrs = (
+            y_ptr
+            + BLOCK_ID_B * y_stride[0]
+            + BLOCK_ID_S * y_stride[1]
+            + BLOCK_ID_N * y_stride[2]
+            + BLOCK_V[None, :] * y_stride[3]
+        )
+
         h_ptrs = (
             h_ptr
             + BLOCK_ID_B * h_stride[0]
@@ -299,16 +310,7 @@ def output_forward_triton_kernel(
         BLOCK_K += BLOCK_SIZE_K
         q_ptrs += BLOCK_SIZE_K * q_stride[2 - IS_VARLEN]
         k_ptrs += BLOCK_SIZE_K * k_stride[2 - IS_VARLEN]
-
-    tl.store(
-        ht_ptr
-        + BLOCK_ID_B * ht_stride[0]
-        + BLOCK_ID_N * ht_stride[1]
-        + BLOCK_K[:, None] * ht_stride[2]
-        + BLOCK_V[None, :] * ht_stride[3],
-        h,
-        mask=MASK_KV,
-    )
+        y_ptrs += BLOCK_SIZE_K * y_stride[2 - IS_VARLEN]
 
 
 @xma_op(mutates_args={"y", "h", "ht"})
@@ -319,6 +321,7 @@ def linear_attention_forward_triton(
     h0: torch.Tensor | None,
     h: torch.Tensor,
     ht: torch.Tensor,
+    y: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
 ) -> None:
@@ -343,8 +346,8 @@ def linear_attention_forward_triton(
         h0_stride=None if h0 is None else h0.stride(),
         h_ptr=h,
         h_stride=None if h is None else h.stride(),
-        ht_ptr=ht,
-        ht_stride=ht.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
         S=S,
