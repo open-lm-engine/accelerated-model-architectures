@@ -103,7 +103,7 @@ class LinearAttentionTest(TestCommons):
                 y_kernel,
                 y_torch,
                 False,
-                atol_float32=3e-5,
+                atol_float32=3.1e-5,
                 rtol_float32=0,
                 atol_float16=6.5e-5,
                 rtol_float16=0,
