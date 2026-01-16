@@ -35,11 +35,12 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 
 @triton.jit
-def _compute_output(q, k, v, h, BLOCK_S):
+def _compute_output(q, k, v, h, CAUSAL_MASK):
+    CAUSAL_MASK
     y = matmul(A=q, B=h, C=None, output_dtype=q.dtype)
 
     h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
-    h *= BLOCK_S[:, None] >= BLOCK_S[None, :]
+    h *= CAUSAL_MASK
     y = matmul(A=h, B=v, C=y, output_dtype=y.dtype)
 
     return y
@@ -204,7 +205,8 @@ def recurrent_state_forward_triton_kernel(
             q = tl.load(q_ptrs, mask=MASK_SK)
             q_ptrs += BLOCK_SIZE_S * q_stride[1 - IS_VARLEN]
 
-            y = _compute_output(q=q, k=k, v=v, h=h, BLOCK_S=BLOCK_S)
+            CAUSAL_MASK = (BLOCK_S[:, None] >= BLOCK_S[None, :]) & (MASK_S[:, None] & MASK_S[None, :])
+            y = _compute_output(q=q, k=k, v=v, h=h, CAUSAL_MASK=CAUSAL_MASK)
 
             tl.store(y_ptrs, y, mask=MASK_SV)
             y_ptrs += BLOCK_SIZE_S * y_stride[1 - IS_VARLEN]
