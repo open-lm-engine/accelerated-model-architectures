@@ -36,7 +36,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.jit
 def _compute_output(q, k, h, BLOCK_S):
-    y = matmul(A=q, B=h, C=y, output_dtype=y.dtype)
+    y = matmul(A=q, B=h, C=None, output_dtype=y.dtype)
 
     h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
     h *= BLOCK_S[:, None] <= BLOCK_S[None, :]
