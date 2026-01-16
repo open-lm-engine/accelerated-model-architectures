@@ -33,6 +33,17 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
+@triton.jit
+def _compute_output(q, k, h, BLOCK_S):
+    y = matmul(A=q, B=h, C=y, output_dtype=y.dtype)
+
+    h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
+    h *= BLOCK_S[:, None] <= BLOCK_S[None, :]
+    y = matmul(A=h, B=v, C=y, output_dtype=y.dtype)
+
+    return y
+
+
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def recurrent_state_forward_triton_kernel(
@@ -48,6 +59,8 @@ def recurrent_state_forward_triton_kernel(
     h_stride,
     ht_ptr,
     ht_stride,
+    y_ptr,
+    y_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
     S,
@@ -63,6 +76,11 @@ def recurrent_state_forward_triton_kernel(
     CHUNK_SIZE: tl.constexpr,
 ):
     tl.static_assert(CHUNK_SIZE % BLOCK_SIZE_S == 0)
+
+    if q_ptr is not None:
+        tl.static_assert(y_ptr is not None)
+    else:
+        tl.static_assert(y_ptr is None)
 
     BLOCK_ID_BN = tl.program_id(0)
     BLOCK_ID_K = tl.program_id(1)
@@ -167,6 +185,12 @@ def recurrent_state_forward_triton_kernel(
 
         if q_ptr is not None:
             q = tl.load(q_ptrs, mask=MASK_SK)
+
+            y = _compute_output(q=q, k=k, h=h, BLOCK_S=BLOCK_S)
+            tl.store(y_ptrs, y, mask=MASK_SV)
+
+            q_ptrs += BLOCK_SIZE_S * q_stride[1 - IS_VARLEN]
+            y_ptrs += BLOCK_SIZE_S * y_stride[1 - IS_VARLEN]
 
         if h_ptr is not None and ((s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S):
             tl.store(h_ptrs, h, mask=MASK_KV)
