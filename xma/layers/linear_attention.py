@@ -74,9 +74,9 @@ class LinearAttention(nn.Module):
             kernel_backend=kernel_backend,
         )
 
-        # input = input.flatten(-2, -1)
+        input = input.flatten(-2, -1)
         input_state = input_state.flatten(-2, -1)
 
-        # input = self.output_projection(input)
+        input = self.output_projection(input)
 
         return input, input_state
