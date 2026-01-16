@@ -36,6 +36,8 @@ def _get_autotune_configs() -> list[triton.Config]:
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def recurrent_state_forward_triton_kernel(
+    q_ptr,
+    q_stride,
     k_ptr,
     k_stride,
     v_ptr,
@@ -52,6 +54,7 @@ def recurrent_state_forward_triton_kernel(
     N: tl.constexpr,
     K: tl.constexpr,
     V: tl.constexpr,
+    Gq: tl.constexpr,
     Gk: tl.constexpr,
     Gv: tl.constexpr,
     BLOCK_SIZE_S: tl.constexpr,
@@ -68,6 +71,7 @@ def recurrent_state_forward_triton_kernel(
     BLOCK_ID_B = BLOCK_ID_BN // N
     BLOCK_ID_N = BLOCK_ID_BN % N
 
+    BLOCK_ID_Nq = BLOCK_ID_N // Gq
     BLOCK_ID_Nk = BLOCK_ID_N // Gk
     BLOCK_ID_Nv = BLOCK_ID_N // Gv
 
@@ -101,6 +105,9 @@ def recurrent_state_forward_triton_kernel(
         S = end - start
         BLOCK = start + BLOCK_S
 
+        if q_ptr is not None:
+            q_ptrs = q_ptr + BLOCK[:, None] * q_stride[0] + BLOCK_ID_Nq * q_stride[1] + BLOCK_K[None, :] * q_stride[2]
+
         k_ptrs = k_ptr + BLOCK[:, None] * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
         v_ptrs = v_ptr + BLOCK[:, None] * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
 
@@ -112,6 +119,15 @@ def recurrent_state_forward_triton_kernel(
             + BLOCK_V[None, :] * h_stride[3]
         )
     else:
+        if q_ptr is not None:
+            q_ptrs = (
+                q_ptr
+                + BLOCK_ID_B * q_stride[0]
+                + BLOCK_S[:, None] * q_stride[1]
+                + BLOCK_ID_Nq * q_stride[2]
+                + BLOCK_K[None, :] * q_stride[3]
+            )
+
         k_ptrs = (
             k_ptr
             + BLOCK_ID_B * k_stride[0]
@@ -141,10 +157,16 @@ def recurrent_state_forward_triton_kernel(
     for s in range(1, NUM_BLOCKS_S + 1):
         MASK_S = BLOCK_S < S
 
-        k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
-        v = tl.load(v_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
+        MASK_SK = MASK_S[:, None] & MASK_K[None, :]
+        MASK_SV = MASK_S[:, None] & MASK_V[None, :]
+
+        k = tl.load(k_ptrs, mask=MASK_SK)
+        v = tl.load(v_ptrs, mask=MASK_SV)
 
         h = matmul(A=k.T, B=v, C=h, output_dtype=h.dtype)
+
+        if q_ptr is not None:
+            q = tl.load(q_ptrs, mask=MASK_SK)
 
         if h_ptr is not None and ((s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S):
             tl.store(h_ptrs, h, mask=MASK_KV)
