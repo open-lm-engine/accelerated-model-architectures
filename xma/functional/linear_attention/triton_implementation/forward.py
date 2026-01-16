@@ -39,7 +39,7 @@ def _compute_output(q, k, v, h, BLOCK_S):
     y = matmul(A=q, B=h, C=None, output_dtype=q.dtype)
 
     h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
-    h *= BLOCK_S[:, None] <= BLOCK_S[None, :]
+    h *= BLOCK_S[:, None] >= BLOCK_S[None, :]
     y = matmul(A=h, B=v, C=y, output_dtype=y.dtype)
 
     return y
