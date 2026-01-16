@@ -37,6 +37,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 @triton.jit
 def _compute_output(q, k, v, h, BLOCK_S):
     y = matmul(A=q, B=h, C=None, output_dtype=q.dtype)
+
     h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
     h *= BLOCK_S[:, None] <= BLOCK_S[None, :]
     y = matmul(A=h, B=v, C=y, output_dtype=y.dtype)
@@ -136,6 +137,9 @@ def recurrent_state_forward_triton_kernel(
             + BLOCK_K[:, None] * h_stride[2]
             + BLOCK_V[None, :] * h_stride[3]
         )
+
+        if y_ptr is not None:
+            y_ptrs = y_ptr + BLOCK[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_V[None, :] * y_stride[2]
     else:
         if q_ptr is not None:
             q_ptrs = (
@@ -169,6 +173,15 @@ def recurrent_state_forward_triton_kernel(
             + BLOCK_K[:, None] * h_stride[3]
             + BLOCK_V[None, :] * h_stride[4]
         )
+
+        if y_ptr is not None:
+            y_ptrs = (
+                y_ptr
+                + BLOCK_ID_B * y_stride[0]
+                + BLOCK_S[:, None] * y_stride[1]
+                + BLOCK_ID_Nv * y_stride[2]
+                + BLOCK_V[None, :] * y_stride[3]
+            )
 
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
