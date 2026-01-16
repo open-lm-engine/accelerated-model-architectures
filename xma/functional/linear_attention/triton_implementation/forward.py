@@ -35,7 +35,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 
 @triton.jit
-def _compute_output(q, k, h, BLOCK_S):
+def _compute_output(q, k, v, h, BLOCK_S):
     y = matmul(A=q, B=h, C=None, output_dtype=y.dtype)
 
     h = matmul(A=q, B=k.T, C=None, output_dtype=h.dtype)
@@ -187,7 +187,7 @@ def recurrent_state_forward_triton_kernel(
         if q_ptr is not None:
             q = tl.load(q_ptrs, mask=MASK_SK)
 
-            y = _compute_output(q=q, k=k, h=h, BLOCK_S=BLOCK_S)
+            y = _compute_output(q=q, k=k, v=v, h=h, BLOCK_S=BLOCK_S)
             tl.store(y_ptrs, y, mask=MASK_SV)
 
             q_ptrs += BLOCK_SIZE_S * q_stride[1 - IS_VARLEN]
