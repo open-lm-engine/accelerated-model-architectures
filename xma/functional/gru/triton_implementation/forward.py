@@ -112,24 +112,14 @@ def gru_forward_triton_kernel(
     xr_ptrs = xr_ptr + BLOCK * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[N_DIM] + BLOCK_H[None, :] * xr_stride[H_DIM]
     y_ptrs = y_ptr + BLOCK * y_stride[0] + BLOCK_ID_N * y_stride[N_DIM] + BLOCK_H[None, :] * y_stride[H_DIM]
 
-    if IS_VARLEN:
-        if z_ptr is not None:
-            z_ptrs = z_ptr + start * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
+    if z_ptr is not None:
+        z_ptrs = z_ptr + BLOCK * z_stride[0] + BLOCK_ID_N * z_stride[N_DIM] + BLOCK_H[None, :] * z_stride[H_DIM]
 
-        if r_ptr is not None:
-            r_ptrs = r_ptr + start * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
+    if r_ptr is not None:
+        r_ptrs = r_ptr + BLOCK * r_stride[0] + BLOCK_ID_N * r_stride[N_DIM] + BLOCK_H[None, :] * r_stride[H_DIM]
 
-        if f_ptr is not None:
-            f_ptrs = f_ptr + start * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
-    else:
-        if z_ptr is not None:
-            z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
-
-        if r_ptr is not None:
-            r_ptrs = r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_ID_N * r_stride[2] + BLOCK_H[None, :] * r_stride[3]
-
-        if f_ptr is not None:
-            f_ptrs = f_ptr + BLOCK_B[:, None] * f_stride[0] + BLOCK_ID_N * f_stride[2] + BLOCK_H[None, :] * f_stride[3]
+    if f_ptr is not None:
+        f_ptrs = f_ptr + BLOCK * f_stride[0] + BLOCK_ID_N * f_stride[N_DIM] + BLOCK_H[None, :] * f_stride[H_DIM]
 
     for _ in range(S):
         MASK = ((START < END) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
