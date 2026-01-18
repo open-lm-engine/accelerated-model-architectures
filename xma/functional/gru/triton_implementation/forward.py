@@ -160,7 +160,7 @@ def gru_forward_triton_kernel(
         y_ptrs += y_stride[S_DIM]
 
         if IS_VARLEN:
-            start += 1
+            START += 1
 
 
 @xma_op(mutates_args={"f", "r", "z", "y"})
