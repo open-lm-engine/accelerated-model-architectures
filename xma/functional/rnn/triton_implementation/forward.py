@@ -79,15 +79,15 @@ def rnn_forward_triton_kernel(
     H_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
-        start, end = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
+        START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
         S = max_seqlen
 
-    BLOCK = start if IS_VARLEN else BLOCK_B[:, None]
+    BLOCK = START if IS_VARLEN else BLOCK_B[:, None]
     x_ptrs = x_ptr + BLOCK * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
     y_ptrs = y_ptr + BLOCK * y_stride[0] + BLOCK_ID_N * y_stride[N_DIM] + BLOCK_H[None, :] * y_stride[H_DIM]
 
     for _ in range(S):
-        MASK = ((start < end) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
+        MASK = ((START < END) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         x = tl.load(x_ptrs, mask=MASK)
         x_ptrs += x_stride[S_DIM]
@@ -99,7 +99,7 @@ def rnn_forward_triton_kernel(
         y_ptrs += y_stride[S_DIM]
 
         if IS_VARLEN:
-            start += 1
+            START += 1
 
 
 @xma_op(mutates_args={"y"})
