@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_utils import clamp, matmul, tanh_backward
+from ....triton_utils import clamp, get_start_end, matmul, tanh_backward
 from .forward import _get_autotune_configs
 
 
@@ -75,12 +75,9 @@ def rnn_backward_triton_kernel(
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
-        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
-        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
-        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
-
-        S = max_seqlen
+        start, end = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
         end -= 1
+        S = max_seqlen
 
         y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
         dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
