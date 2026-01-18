@@ -117,6 +117,9 @@ def recurrent_state_forward_triton_kernel(
         ).to(tl.float32)
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    N_DIM: tl.constexpr = 2 - IS_VARLEN
+    K_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
@@ -126,65 +129,45 @@ def recurrent_state_forward_triton_kernel(
         S = end - start
         BLOCK = start + BLOCK_S
 
-    if IS_VARLEN:
-        if q_ptr is not None:
-            q_ptrs = q_ptr + BLOCK[:, None] * q_stride[0] + BLOCK_ID_Nq * q_stride[1] + BLOCK_K[None, :] * q_stride[2]
+    _B = BLOCK[:, None] if IS_VARLEN else BLOCK_ID_B
+    _S = 0 if IS_VARLEN else BLOCK_S[:, None]
 
-        k_ptrs = k_ptr + BLOCK[:, None] * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
-        v_ptrs = v_ptr + BLOCK[:, None] * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
-
-        h_ptrs = (
-            h_ptr
-            + BLOCK[:, None] * h_stride[0]
-            + BLOCK_ID_N * h_stride[1]
-            + BLOCK_K[:, None] * h_stride[2]
-            + BLOCK_V[None, :] * h_stride[3]
+    if q_ptr is not None:
+        q_ptrs = (
+            q_ptr
+            + _B * q_stride[0]
+            + _S * q_stride[S_DIM]
+            + BLOCK_ID_Nq * q_stride[N_DIM]
+            + BLOCK_K[None, :] * q_stride[K_DIM]
         )
 
-        if y_ptr is not None:
-            y_ptrs = y_ptr + BLOCK[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_V[None, :] * y_stride[2]
-    else:
-        if q_ptr is not None:
-            q_ptrs = (
-                q_ptr
-                + BLOCK_ID_B * q_stride[0]
-                + BLOCK_S[:, None] * q_stride[1]
-                + BLOCK_ID_Nq * q_stride[2]
-                + BLOCK_K[None, :] * q_stride[3]
-            )
+    k_ptrs = (
+        k_ptr
+        + _B * k_stride[0]
+        + _S * k_stride[S_DIM]
+        + BLOCK_ID_Nk * k_stride[N_DIM]
+        + BLOCK_K[None, :] * k_stride[K_DIM]
+    )
+    v_ptrs = (
+        v_ptr
+        + _B * v_stride[0]
+        + _S * v_stride[S_DIM]
+        + BLOCK_ID_Nv * v_stride[N_DIM]
+        + BLOCK_V[None, :] * v_stride[K_DIM]
+    )
 
-        k_ptrs = (
-            k_ptr
-            + BLOCK_ID_B * k_stride[0]
-            + BLOCK_S[:, None] * k_stride[1]
-            + BLOCK_ID_Nk * k_stride[2]
-            + BLOCK_K[None, :] * k_stride[3]
+    if y_ptr is not None:
+        y_ptrs = (
+            y_ptr + _B * y_stride[0] + _S * y_stride[S_DIM] + BLOCK_ID_N * y_stride[1] + BLOCK_V[None, :] * y_stride[2]
         )
 
-        v_ptrs = (
-            v_ptr
-            + BLOCK_ID_B * v_stride[0]
-            + BLOCK_S[:, None] * v_stride[1]
-            + BLOCK_ID_Nv * v_stride[2]
-            + BLOCK_V[None, :] * v_stride[3]
-        )
-
-        h_ptrs = (
-            h_ptr
-            + BLOCK_ID_B * h_stride[0]
-            + BLOCK_ID_N * h_stride[2]
-            + BLOCK_K[:, None] * h_stride[3]
-            + BLOCK_V[None, :] * h_stride[4]
-        )
-
-        if y_ptr is not None:
-            y_ptrs = (
-                y_ptr
-                + BLOCK_ID_B * y_stride[0]
-                + BLOCK_S[:, None] * y_stride[1]
-                + BLOCK_ID_Nv * y_stride[2]
-                + BLOCK_V[None, :] * y_stride[3]
-            )
+    h_ptrs = (
+        h_ptr
+        + _B * h_stride[0]
+        + BLOCK_ID_N * h_stride[2]
+        + BLOCK_K[:, None] * h_stride[3]
+        + BLOCK_V[None, :] * h_stride[4]
+    )
 
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
