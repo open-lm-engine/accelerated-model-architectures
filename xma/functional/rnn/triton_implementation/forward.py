@@ -82,19 +82,9 @@ def rnn_forward_triton_kernel(
         start, end = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
         S = max_seqlen
 
-    x_ptrs = (
-        x_ptr
-        + (start if IS_VARLEN else BLOCK_B[:, None]) * x_stride[0]
-        + BLOCK_ID_Nx * x_stride[N_DIM]
-        + BLOCK_H[None, :] * x_stride[H_DIM]
-    )
-
-    y_ptrs = (
-        y_ptr
-        + (start if IS_VARLEN else BLOCK_B[:, None]) * y_stride[0]
-        + BLOCK_ID_N * y_stride[N_DIM]
-        + BLOCK_H[None, :] * y_stride[H_DIM]
-    )
+    BLOCK = start if IS_VARLEN else BLOCK_B[:, None]
+    x_ptrs = x_ptr + BLOCK * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
+    y_ptrs = y_ptr + BLOCK * y_stride[0] + BLOCK_ID_N * y_stride[N_DIM] + BLOCK_H[None, :] * y_stride[H_DIM]
 
     for _ in range(S):
         MASK = ((start < end) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
