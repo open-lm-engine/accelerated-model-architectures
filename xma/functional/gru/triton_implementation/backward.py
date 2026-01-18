@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_utils import clamp, matmul, sigmoid, sigmoid_backward, tanh, tanh_backward
+from ....triton_utils import clamp, get_start_end, matmul, sigmoid, sigmoid_backward, tanh, tanh_backward
 from ...rnn.triton_implementation.backward import _get_autotune_configs
 from ..utils import _get_num_heads
 from .forward import _get_autotune_configs
@@ -126,36 +126,33 @@ def gru_backward_triton_kernel(
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
-        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
-        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
-        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
-
+        START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
+        END -= 1
         S = max_seqlen
-        end -= 1
 
         if z_ptr is None:
             tl.static_assert(x_ptr is not None)
-            x_ptrs = x_ptr + end * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
+            x_ptrs = x_ptr + END * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
         else:
-            z_ptrs = z_ptr + end * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
+            z_ptrs = z_ptr + END * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
 
         if f_ptr is None:
             tl.static_assert(xf_ptr is not None)
-            xf_ptrs = xf_ptr + end * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
+            xf_ptrs = xf_ptr + END * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
         else:
-            f_ptrs = f_ptr + end * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
+            f_ptrs = f_ptr + END * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
 
         if r_ptr is None:
             tl.static_assert(xr_ptr is not None)
-            xr_ptrs = xr_ptr + end * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
+            xr_ptrs = xr_ptr + END * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
         else:
-            r_ptrs = r_ptr + end * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
+            r_ptrs = r_ptr + END * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
 
-        y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-        dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
-        dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_Nxf * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
-        dxr_ptrs = dxr_ptr + end * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
-        dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
+        y_ptrs = y_ptr + END * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
+        dx_ptrs = dx_ptr + END * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
+        dxf_ptrs = dxf_ptr + END * dxf_stride[0] + BLOCK_ID_Nxf * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
+        dxr_ptrs = dxr_ptr + END * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
+        dy_ptrs = dy_ptr + END * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
     else:
         if z_ptr is None:
             tl.static_assert(x_ptr is not None)
@@ -257,11 +254,11 @@ def gru_backward_triton_kernel(
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
+        MASK = ((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
         y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
-            y_prev = tl.where(end > start, tl.load(y_ptrs, mask=MASK), h0)
+            y_prev = tl.where(END > START, tl.load(y_ptrs, mask=MASK), h0)
         elif s == 0:
             y_prev = h0
         else:
@@ -350,7 +347,7 @@ def gru_backward_triton_kernel(
         dy_ptrs -= dy_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
-            end -= 1
+            END -= 1
 
     if dh0_ptr is not None:
         tl.store(
