@@ -121,7 +121,7 @@ def linear_attention(
     key: torch.Tensor,
     value: torch.Tensor,
     input_state: torch.Tensor | None,
-    attention_multiplier: float | None,
+    attention_multiplier: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
     CHUNK_SIZE: int = 64,
