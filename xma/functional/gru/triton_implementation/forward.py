@@ -125,39 +125,39 @@ def gru_forward_triton_kernel(
         MASK = ((START < END) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         x = tl.load(xr_ptrs, mask=MASK)
-        xr_ptrs += xr_stride[1 - IS_VARLEN]
+        xr_ptrs += xr_stride[S_DIM]
 
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
         r = sigmoid(r, output_dtype=x.dtype)
 
         if r_ptr is not None:
             tl.store(r_ptrs, r, mask=MASK)
-            r_ptrs += r_stride[1 - IS_VARLEN]
+            r_ptrs += r_stride[S_DIM]
 
         x = tl.load(x_ptrs, mask=MASK)
-        x_ptrs += x_stride[1 - IS_VARLEN]
+        x_ptrs += x_stride[S_DIM]
 
         z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
         z = tanh(z, output_dtype=x.dtype)
 
         if z_ptr is not None:
             tl.store(z_ptrs, z, mask=MASK)
-            z_ptrs += z_stride[1 - IS_VARLEN]
+            z_ptrs += z_stride[S_DIM]
 
         x = tl.load(xf_ptrs, mask=MASK)
-        xf_ptrs += xf_stride[1 - IS_VARLEN]
+        xf_ptrs += xf_stride[S_DIM]
 
         f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
         f = sigmoid(f, output_dtype=x.dtype)
 
         if f_ptr is not None:
             tl.store(f_ptrs, f, mask=MASK)
-            f_ptrs += f_stride[1 - IS_VARLEN]
+            f_ptrs += f_stride[S_DIM]
 
         h = f * h + (1 - f) * z
 
         tl.store(y_ptrs, h, mask=MASK)
-        y_ptrs += y_stride[1 - IS_VARLEN]
+        y_ptrs += y_stride[S_DIM]
 
         if IS_VARLEN:
             start += 1
