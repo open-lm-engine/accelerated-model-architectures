@@ -154,100 +154,81 @@ def gru_backward_triton_kernel(
             + BLOCK_H[None, :] * z_stride[H_DIM]
         )
 
-    if IS_VARLEN:
-        if f_ptr is None:
-            tl.static_assert(xf_ptr is not None)
-            xf_ptrs = xf_ptr + BLOCK * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
-        else:
-            f_ptrs = f_ptr + BLOCK * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
-
-        if r_ptr is None:
-            tl.static_assert(xr_ptr is not None)
-            xr_ptrs = xr_ptr + BLOCK * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
-        else:
-            r_ptrs = r_ptr + BLOCK * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
-
-        y_ptrs = y_ptr + BLOCK * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-        dx_ptrs = dx_ptr + BLOCK * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
-        dxf_ptrs = dxf_ptr + BLOCK * dxf_stride[0] + BLOCK_ID_Nxf * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
-        dxr_ptrs = dxr_ptr + BLOCK * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
-        dy_ptrs = dy_ptr + BLOCK * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
+    if f_ptr is None:
+        tl.static_assert(xf_ptr is not None)
+        xf_ptrs = (
+            xf_ptr
+            + BLOCK * xf_stride[0]
+            + S_LAST * xf_stride[S_DIM]
+            + BLOCK_ID_Nxf * xf_stride[N_DIM]
+            + BLOCK_H[None, :] * xf_stride[H_DIM]
+        )
     else:
-        if f_ptr is None:
-            tl.static_assert(xf_ptr is not None)
-            xf_ptrs = (
-                xf_ptr
-                + BLOCK * xf_stride[0]
-                + (S - 1) * xf_stride[1]
-                + BLOCK_ID_Nxf * xf_stride[2]
-                + BLOCK_H[None, :] * xf_stride[3]
-            )
-        else:
-            f_ptrs = (
-                f_ptr
-                + BLOCK * f_stride[0]
-                + (S - 1) * f_stride[1]
-                + BLOCK_ID_N * f_stride[2]
-                + BLOCK_H[None, :] * f_stride[3]
-            )
-
-        if r_ptr is None:
-            tl.static_assert(xr_ptr is not None)
-            xr_ptrs = (
-                xr_ptr
-                + BLOCK * xr_stride[0]
-                + (S - 1) * xr_stride[1]
-                + BLOCK_ID_Nxr * xr_stride[2]
-                + BLOCK_H[None, :] * xr_stride[3]
-            )
-        else:
-            r_ptrs = (
-                r_ptr
-                + BLOCK * r_stride[0]
-                + (S - 1) * r_stride[1]
-                + BLOCK_ID_N * r_stride[2]
-                + BLOCK_H[None, :] * r_stride[3]
-            )
-
-        y_ptrs = (
-            y_ptr
-            + BLOCK * y_stride[0]
-            + (S - 1) * y_stride[1]
-            + BLOCK_ID_N * y_stride[2]
-            + BLOCK_H[None, :] * y_stride[3]
+        f_ptrs = (
+            f_ptr
+            + BLOCK * f_stride[0]
+            + S_LAST * f_stride[S_DIM]
+            + BLOCK_ID_N * f_stride[N_DIM]
+            + BLOCK_H[None, :] * f_stride[H_DIM]
         )
 
-        dx_ptrs = (
-            dx_ptr
-            + BLOCK * dx_stride[0]
-            + (S - 1) * dx_stride[1]
-            + BLOCK_ID_Nx * dx_stride[2]
-            + BLOCK_H[None, :] * dx_stride[3]
+    if r_ptr is None:
+        tl.static_assert(xr_ptr is not None)
+        xr_ptrs = (
+            xr_ptr
+            + BLOCK * xr_stride[0]
+            + S_LAST * xr_stride[S_DIM]
+            + BLOCK_ID_Nxr * xr_stride[N_DIM]
+            + BLOCK_H[None, :] * xr_stride[H_DIM]
+        )
+    else:
+        r_ptrs = (
+            r_ptr
+            + BLOCK * r_stride[0]
+            + S_LAST * r_stride[S_DIM]
+            + BLOCK_ID_N * r_stride[N_DIM]
+            + BLOCK_H[None, :] * r_stride[H_DIM]
         )
 
-        dxf_ptrs = (
-            dxf_ptr
-            + BLOCK * dxf_stride[0]
-            + (S - 1) * dxf_stride[1]
-            + BLOCK_ID_Nxf * dxf_stride[2]
-            + BLOCK_H[None, :] * dxf_stride[3]
-        )
+    y_ptrs = (
+        y_ptr
+        + BLOCK * y_stride[0]
+        + S_LAST * y_stride[S_DIM]
+        + BLOCK_ID_N * y_stride[N_DIM]
+        + BLOCK_H[None, :] * y_stride[H_DIM]
+    )
 
-        dxr_ptrs = (
-            dxr_ptr
-            + BLOCK * dxr_stride[0]
-            + (S - 1) * dxr_stride[1]
-            + BLOCK_ID_Nxr * dxr_stride[2]
-            + BLOCK_H[None, :] * dxr_stride[3]
-        )
+    dx_ptrs = (
+        dx_ptr
+        + BLOCK * dx_stride[0]
+        + S_LAST * dx_stride[S_DIM]
+        + BLOCK_ID_Nx * dx_stride[N_DIM]
+        + BLOCK_H[None, :] * dx_stride[H_DIM]
+    )
 
-        dy_ptrs = (
-            dy_ptr
-            + BLOCK * dy_stride[0]
-            + (S - 1) * dy_stride[1]
-            + BLOCK_ID_N * dy_stride[2]
-            + BLOCK_H[None, :] * dy_stride[3]
-        )
+    dxf_ptrs = (
+        dxf_ptr
+        + BLOCK * dxf_stride[0]
+        + S_LAST * dxf_stride[S_DIM]
+        + BLOCK_ID_Nxf * dxf_stride[N_DIM]
+        + BLOCK_H[None, :] * dxf_stride[H_DIM]
+    )
+
+    dxr_ptrs = (
+        dxr_ptr
+        + BLOCK * dxr_stride[0]
+        + S_LAST * dxr_stride[S_DIM]
+        + BLOCK_ID_Nxr * dxr_stride[N_DIM]
+        + BLOCK_H[None, :] * dxr_stride[H_DIM]
+    )
+
+    dy_ptrs = (
+        dy_ptr
+        + BLOCK * dy_stride[0]
+        + S_LAST * dy_stride[S_DIM]
+        + BLOCK_ID_N * dy_stride[N_DIM]
+        + BLOCK_H[None, :] * dy_stride[H_DIM]
+    )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
