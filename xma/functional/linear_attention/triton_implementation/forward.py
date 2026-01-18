@@ -62,6 +62,7 @@ def recurrent_state_forward_triton_kernel(
     ht_stride,
     y_ptr,
     y_stride,
+    attention_multiplier,
     cu_seqlens_ptr,
     cu_seqlens_stride,
     S,
@@ -203,8 +204,15 @@ def recurrent_state_forward_triton_kernel(
         if q_ptr is not None:
             q = tl.load(q_ptrs, mask=MASK_SK)
 
-            CAUSAL_MASK = (BLOCK_S[:, None] >= BLOCK_S[None, :]) & (MASK_S[:, None] & MASK_S[None, :])
-            y = _compute_output(q=q, k=k, v=v, h=h, CAUSAL_MASK=CAUSAL_MASK)
+            y = _compute_output(
+                q=q,
+                k=k,
+                v=v,
+                h=h,
+                CAUSAL_MASK=(BLOCK_S[:, None] >= BLOCK_S[None, :]) & (MASK_S[:, None] & MASK_S[None, :]),
+            )
+
+            y *= attention_multiplier
 
             tl.store(y_ptrs, y, mask=MASK_SV)
 
@@ -383,6 +391,7 @@ def linear_attention_forward_triton(
     h: torch.Tensor,
     ht: torch.Tensor,
     y: torch.Tensor,
+    attention_multiplier: float,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
 ) -> None:
@@ -414,6 +423,7 @@ def linear_attention_forward_triton(
         ht_stride=ht.stride(),
         y_ptr=y,
         y_stride=y.stride(),
+        attention_multiplier=attention_multiplier,
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
         S=S,

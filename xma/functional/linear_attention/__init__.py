@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import math
+
 import torch
 
 from ...accelerator import KernelBackend
@@ -18,6 +20,7 @@ class _LinearAttention(CustomOp):
         k: torch.Tensor,
         v: torch.Tensor,
         h0: torch.Tensor | None,
+        attention_multiplier: float,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
         CHUNK_SIZE: int,
@@ -68,6 +71,8 @@ class _LinearAttention(CustomOp):
 
                 h0[unfinished] = h
 
+        y = y * attention_multiplier
+
         return y, h0
 
     @staticmethod
@@ -77,6 +82,7 @@ class _LinearAttention(CustomOp):
         k: torch.Tensor,
         v: torch.Tensor,
         h0: torch.Tensor | None,
+        attention_multiplier: float,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
         CHUNK_SIZE: int,
@@ -95,7 +101,16 @@ class _LinearAttention(CustomOp):
         ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device)
 
         linear_attention_forward_triton(
-            q=q, k=k, v=v, h0=h0, h=h, ht=ht, y=y, cu_seqlens=cu_seqlens, CHUNK_SIZE=CHUNK_SIZE
+            q=q,
+            k=k,
+            v=v,
+            h0=h0,
+            h=h,
+            ht=ht,
+            y=y,
+            attention_multiplier=attention_multiplier,
+            cu_seqlens=cu_seqlens,
+            CHUNK_SIZE=CHUNK_SIZE,
         )
 
         return y, ht
@@ -106,6 +121,7 @@ def linear_attention(
     key: torch.Tensor,
     value: torch.Tensor,
     input_state: torch.Tensor | None,
+    attention_multiplier: float | None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
     CHUNK_SIZE: int = 64,
@@ -141,11 +157,15 @@ def linear_attention(
     if input_state is not None:
         assert input_state.size() == (B, N, K, V)
 
+    if attention_multiplier is None:
+        attention_multiplier = 1 / math.sqrt(K)
+
     output, input_state = _LinearAttention.run(
         q=query,
         k=key,
         v=value,
         h0=input_state,
+        attention_multiplier=attention_multiplier,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
         CHUNK_SIZE=CHUNK_SIZE,
