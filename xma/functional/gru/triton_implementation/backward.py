@@ -248,26 +248,37 @@ def gru_backward_triton_kernel(
 
         if r_ptr is None:
             x = tl.load(xr_ptrs, mask=MASK)
+            xr_ptrs -= xr_stride[S_DIM]
+
             r = matmul(A=y_prev, B=Wr, C=x, output_dtype=tl.float32)
             r = sigmoid(r, output_dtype=x.dtype)
         else:
             r = tl.load(r_ptrs, mask=MASK)
+            r_ptrs -= r_stride[S_DIM]
 
         if z_ptr is None:
             x = tl.load(x_ptrs, mask=MASK)
+            x_ptrs -= x_stride[S_DIM]
+
             z = matmul(A=y_prev * r, B=W, C=x, output_dtype=tl.float32)
             z = tanh(z, output_dtype=x.dtype)
         else:
             z = tl.load(z_ptrs, mask=MASK)
+            z_ptrs -= z_stride[S_DIM]
 
         if f_ptr is None:
             x = tl.load(xf_ptrs, mask=MASK)
+            xf_ptrs -= xf_stride[S_DIM]
+
             f = matmul(A=y_prev, B=Wf, C=x, output_dtype=tl.float32)
             f = sigmoid(f, output_dtype=x.dtype)
         else:
             f = tl.load(f_ptrs, mask=MASK)
+            f_ptrs -= f_stride[S_DIM]
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
+        dy_ptrs -= dy_stride[S_DIM]
+
         dh = f * dy
         dz = dy * (1 - f)
         df = dy * (y_prev - z)
@@ -285,6 +296,7 @@ def gru_backward_triton_kernel(
         else:
             tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
 
+        dx_ptrs -= dx_stride[S_DIM]
         dh += drh * r
 
         dxf = df * sigmoid_backward(f)
@@ -295,6 +307,8 @@ def gru_backward_triton_kernel(
             tl.store(dxf_ptrs, dxf, mask=MASK)
         else:
             tl.atomic_add(dxf_ptrs, dxf, mask=MASK, sem="relaxed")
+
+        dxf_ptrs -= dxf_stride[S_DIM]
 
         dxr = drh * y_prev * sigmoid_backward(r)
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
@@ -307,26 +321,7 @@ def gru_backward_triton_kernel(
         else:
             tl.atomic_add(dxr_ptrs, dxr, mask=MASK, sem="relaxed")
 
-        if z_ptr is None:
-            x_ptrs -= x_stride[S_DIM]
-        else:
-            z_ptrs -= z_stride[S_DIM]
-
-        if f_ptr is None:
-            xf_ptrs -= xf_stride[S_DIM]
-        else:
-            f_ptrs -= f_stride[S_DIM]
-
-        if r_ptr is None:
-            xr_ptrs -= xr_stride[S_DIM]
-        else:
-            r_ptrs -= r_stride[S_DIM]
-
-        dx_ptrs -= dx_stride[S_DIM]
-        dxf_ptrs -= dxf_stride[S_DIM]
         dxr_ptrs -= dxr_stride[S_DIM]
-
-        dy_ptrs -= dy_stride[S_DIM]
 
         if IS_VARLEN:
             END -= 1
