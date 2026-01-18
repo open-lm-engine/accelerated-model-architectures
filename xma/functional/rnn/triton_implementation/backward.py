@@ -83,11 +83,12 @@ def rnn_backward_triton_kernel(
         S = max_seqlen
 
     BLOCK = end if IS_VARLEN else BLOCK_B[:, None]
+    S_LAST = S - 1 if IS_VARLEN else 0
 
     y_ptrs = (
         y_ptr
         + BLOCK * y_stride[0]
-        + (S - 1) * y_stride[S_DIM] * S_DIM
+        + S_LAST * y_stride[S_DIM]
         + BLOCK_ID_N * y_stride[N_DIM]
         + BLOCK_H[None, :] * y_stride[H_DIM]
     )
@@ -95,7 +96,7 @@ def rnn_backward_triton_kernel(
     dx_ptrs = (
         dx_ptr
         + BLOCK * dx_stride[0]
-        + (S - 1) * dx_stride[S_DIM] * S_DIM
+        + S_LAST * dx_stride[S_DIM]
         + BLOCK_ID_N * dx_stride[N_DIM]
         + BLOCK_H[None, :] * dx_stride[H_DIM]
     )
@@ -103,7 +104,7 @@ def rnn_backward_triton_kernel(
     dy_ptrs = (
         dy_ptr
         + BLOCK * dy_stride[0]
-        + (S - 1) * dy_stride[S_DIM] * S_DIM
+        + S_LAST * dy_stride[S_DIM]
         + BLOCK_ID_N * dy_stride[N_DIM]
         + BLOCK_H[None, :] * dy_stride[H_DIM]
     )
