@@ -97,7 +97,7 @@ def rnn_backward_triton_kernel(
         dx_ptr
         + BLOCK * dx_stride[0]
         + S_LAST * dx_stride[S_DIM]
-        + BLOCK_ID_N * dx_stride[N_DIM]
+        + BLOCK_ID_Nx * dx_stride[N_DIM]
         + BLOCK_H[None, :] * dx_stride[H_DIM]
     )
 
