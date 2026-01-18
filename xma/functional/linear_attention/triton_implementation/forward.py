@@ -103,6 +103,7 @@ def recurrent_state_forward_triton_kernel(
     MASK_V = BLOCK_V < V
 
     MASK_KV = MASK_K[:, None] & MASK_V[None, :]
+    CAUSAL_MASK = BLOCK_S[:, None] >= BLOCK_S[None, :]
 
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
@@ -198,7 +199,7 @@ def recurrent_state_forward_triton_kernel(
                 k=k,
                 v=v,
                 h=h,
-                CAUSAL_MASK=(BLOCK_S[:, None] >= BLOCK_S[None, :]) & (MASK_S[:, None] & MASK_S[None, :]),
+                CAUSAL_MASK=CAUSAL_MASK & MASK_S[:, None],
             )
 
             y *= attention_multiplier
