@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_utils import matmul, sigmoid, tanh
+from ....triton_utils import get_start_end, matmul, sigmoid, tanh
 from ...rnn.triton_implementation.forward import _get_autotune_configs
 from ..utils import _get_num_heads
 
@@ -97,15 +97,19 @@ def gru_forward_triton_kernel(
         )
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    N_DIM: tl.constexpr = 2 - IS_VARLEN
+    H_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
-        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
-        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
-        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
-
+        START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
         S = max_seqlen
 
-        x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
+    BLOCK = START if IS_VARLEN else BLOCK_B[:, None]
+
+    x_ptrs = x_ptr + BLOCK * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
+
+    if IS_VARLEN:
         xf_ptrs = xf_ptr + start * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
         xr_ptrs = xr_ptr + start * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
 
@@ -120,7 +124,6 @@ def gru_forward_triton_kernel(
 
         y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
     else:
-        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_Nx * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
         xf_ptrs = (
             xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
         )
@@ -140,7 +143,7 @@ def gru_forward_triton_kernel(
         y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
 
     for _ in range(S):
-        MASK = ((start < end) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
+        MASK = ((START < END) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         x = tl.load(xr_ptrs, mask=MASK)
         xr_ptrs += xr_stride[1 - IS_VARLEN]
