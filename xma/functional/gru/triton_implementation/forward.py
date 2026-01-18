@@ -108,11 +108,10 @@ def gru_forward_triton_kernel(
     BLOCK = START if IS_VARLEN else BLOCK_B[:, None]
 
     x_ptrs = x_ptr + BLOCK * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
+    xf_ptrs = xf_ptr + BLOCK * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[N_DIM] + BLOCK_H[None, :] * xf_stride[H_DIM]
+    xr_ptrs = xr_ptr + BLOCK * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[N_DIM] + BLOCK_H[None, :] * xr_stride[H_DIM]
 
     if IS_VARLEN:
-        xf_ptrs = xf_ptr + start * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
-        xr_ptrs = xr_ptr + start * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
-
         if z_ptr is not None:
             z_ptrs = z_ptr + start * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
 
@@ -124,13 +123,6 @@ def gru_forward_triton_kernel(
 
         y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
     else:
-        xf_ptrs = (
-            xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
-        )
-        xr_ptrs = (
-            xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[2] + BLOCK_H[None, :] * xr_stride[3]
-        )
-
         if z_ptr is not None:
             z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
 
