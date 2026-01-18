@@ -73,6 +73,9 @@ def rnn_backward_triton_kernel(
         )
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    N_DIM: tl.constexpr = 2 - IS_VARLEN
+    H_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
         start, end = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
@@ -83,35 +86,33 @@ def rnn_backward_triton_kernel(
         dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
 
-        MASK = (end >= start) & MASK_H[None, :]
-    else:
-        y_ptrs = (
-            y_ptr
-            + BLOCK_B[:, None] * y_stride[0]
-            + (S - 1) * y_stride[1]
-            + BLOCK_ID_N * y_stride[2]
-            + BLOCK_H[None, :] * y_stride[3]
-        )
+    BLOCK = end if IS_VARLEN else BLOCK_B[:, None]
 
-        dx_ptrs = (
-            dx_ptr
-            + BLOCK_B[:, None] * dx_stride[0]
-            + (S - 1) * dx_stride[1]
-            + BLOCK_ID_Nx * dx_stride[2]
-            + BLOCK_H[None, :] * dx_stride[3]
-        )
+    y_ptrs = (
+        y_ptr
+        + BLOCK * y_stride[0]
+        + (S - 1) * y_stride[S_DIM] * S_DIM
+        + BLOCK_ID_N * y_stride[N_DIM]
+        + BLOCK_H[None, :] * y_stride[H_DIM]
+    )
 
-        dy_ptrs = (
-            dy_ptr
-            + BLOCK_B[:, None] * dy_stride[0]
-            + (S - 1) * dy_stride[1]
-            + BLOCK_ID_N * dy_stride[2]
-            + BLOCK_H[None, :] * dy_stride[3]
-        )
+    dx_ptrs = (
+        dx_ptr
+        + BLOCK * dx_stride[0]
+        + (S - 1) * dx_stride[S_DIM] * S_DIM
+        + BLOCK_ID_N * dx_stride[N_DIM]
+        + BLOCK_H[None, :] * dx_stride[H_DIM]
+    )
 
-        MASK = MASK_BH
+    dy_ptrs = (
+        dy_ptr
+        + BLOCK * dy_stride[0]
+        + (S - 1) * dy_stride[S_DIM] * S_DIM
+        + BLOCK_ID_N * dy_stride[N_DIM]
+        + BLOCK_H[None, :] * dy_stride[H_DIM]
+    )
 
-    y = tl.load(y_ptrs, mask=MASK)
+    y = tl.load(y_ptrs, mask=((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -119,7 +120,7 @@ def rnn_backward_triton_kernel(
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
-        y_ptrs -= y_stride[1 - IS_VARLEN]
+        y_ptrs -= y_stride[S_DIM]
 
         if IS_VARLEN:
             y_prev = tl.where(end > start, tl.load(y_ptrs, mask=MASK), h0)
@@ -145,8 +146,8 @@ def rnn_backward_triton_kernel(
         else:
             tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
 
-        dx_ptrs -= dx_stride[1 - IS_VARLEN]
-        dy_ptrs -= dy_stride[1 - IS_VARLEN]
+        dx_ptrs -= dx_stride[S_DIM]
+        dy_ptrs -= dy_stride[S_DIM]
 
         if IS_VARLEN:
             end -= 1
