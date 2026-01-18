@@ -83,7 +83,7 @@ def rnn_backward_triton_kernel(
         S = max_seqlen
 
     BLOCK = end if IS_VARLEN else BLOCK_B[:, None]
-    S_LAST = S - 1 if IS_VARLEN else 0
+    S_LAST = 0 if IS_VARLEN else S - 1
 
     y_ptrs = (
         y_ptr
