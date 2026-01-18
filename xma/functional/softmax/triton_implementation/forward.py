@@ -126,6 +126,7 @@ def online_softmax_forward_triton_kernel(
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
         x = tl.load(x_ptrs, mask=MASK_BH)
+        x_ptrs += BLOCK_SIZE_H * x_stride[1]
 
         x = x.to(tl.float32)
         if logits_multiplier is not None:
@@ -136,10 +137,9 @@ def online_softmax_forward_triton_kernel(
         x /= Z
 
         tl.store(y_ptrs, x, mask=MASK_BH)
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
 
         BLOCK_H += BLOCK_SIZE_H
-        x_ptrs += BLOCK_SIZE_H * x_stride[1]
-        y_ptrs += BLOCK_SIZE_H * y_stride[1]
 
 
 @xtune(
