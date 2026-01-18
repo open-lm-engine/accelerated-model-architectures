@@ -74,6 +74,9 @@ def rnn_forward_triton_kernel(
         )
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    N_DIM: tl.constexpr = 2 - IS_VARLEN
+    H_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
@@ -82,11 +85,15 @@ def rnn_forward_triton_kernel(
 
         S = max_seqlen
 
-        x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
-        y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
+        x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
+        y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[N_DIM] + BLOCK_H[None, :] * y_stride[H_DIM]
     else:
-        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_Nx * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
-        y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
+        x_ptrs = (
+            x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
+        )
+        y_ptrs = (
+            y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[N_DIM] + BLOCK_H[None, :] * y_stride[H_DIM]
+        )
 
     for _ in range(S):
         MASK = ((start < end) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
