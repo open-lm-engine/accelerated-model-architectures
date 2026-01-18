@@ -237,7 +237,7 @@ def gru_backward_triton_kernel(
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         MASK = ((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
-        y_ptrs -= y_stride[1 - IS_VARLEN]
+        y_ptrs -= y_stride[S_DIM]
 
         if IS_VARLEN:
             y_prev = tl.where(END > START, tl.load(y_ptrs, mask=MASK), h0)
@@ -308,25 +308,25 @@ def gru_backward_triton_kernel(
             tl.atomic_add(dxr_ptrs, dxr, mask=MASK, sem="relaxed")
 
         if z_ptr is None:
-            x_ptrs -= x_stride[1 - IS_VARLEN]
+            x_ptrs -= x_stride[S_DIM]
         else:
-            z_ptrs -= z_stride[1 - IS_VARLEN]
+            z_ptrs -= z_stride[S_DIM]
 
         if f_ptr is None:
-            xf_ptrs -= xf_stride[1 - IS_VARLEN]
+            xf_ptrs -= xf_stride[S_DIM]
         else:
-            f_ptrs -= f_stride[1 - IS_VARLEN]
+            f_ptrs -= f_stride[S_DIM]
 
         if r_ptr is None:
-            xr_ptrs -= xr_stride[1 - IS_VARLEN]
+            xr_ptrs -= xr_stride[S_DIM]
         else:
-            r_ptrs -= r_stride[1 - IS_VARLEN]
+            r_ptrs -= r_stride[S_DIM]
 
-        dx_ptrs -= dx_stride[1 - IS_VARLEN]
-        dxf_ptrs -= dxf_stride[1 - IS_VARLEN]
-        dxr_ptrs -= dxr_stride[1 - IS_VARLEN]
+        dx_ptrs -= dx_stride[S_DIM]
+        dxf_ptrs -= dxf_stride[S_DIM]
+        dxr_ptrs -= dxr_stride[S_DIM]
 
-        dy_ptrs -= dy_stride[1 - IS_VARLEN]
+        dy_ptrs -= dy_stride[S_DIM]
 
         if IS_VARLEN:
             END -= 1
