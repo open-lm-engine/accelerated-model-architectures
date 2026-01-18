@@ -36,11 +36,11 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.jit
 def _compute_output(q, k, v, h, CAUSAL_MASK):
-    y = matmul(A=q, B=h.to(q.dtype), C=None, output_dtype=tl.float32)
+    a = matmul(A=q, B=k.T, C=None, output_dtype=q.dtype)
+    a = tl.where(CAUSAL_MASK, a, 0)
+    y = matmul(A=a, B=v, C=None, output_dtype=tl.float32)
 
-    h = matmul(A=q, B=k.T, C=None, output_dtype=q.dtype)
-    h = tl.where(CAUSAL_MASK, h, 0)
-    y = matmul(A=h, B=v, C=y, output_dtype=y.dtype)
+    y = matmul(A=q, B=h.to(q.dtype), C=y, output_dtype=tl.float32)
 
     return y
 
