@@ -184,12 +184,6 @@ def recurrent_state_forward_triton_kernel(
         v = tl.load(v_ptrs, mask=MASK_SV)
         v_ptrs += BLOCK_SIZE_S * v_stride[S_DIM]
 
-        h = matmul(A=k.T, B=v, C=h, output_dtype=h.dtype)
-
-        if h_ptr is not None and ((s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S):
-            tl.store(h_ptrs, h, mask=MASK_KV)
-            h_ptrs += h_stride[S_DIM]
-
         if q_ptr is not None:
             q = tl.load(q_ptrs, mask=MASK_SK)
             q_ptrs += BLOCK_SIZE_S * q_stride[S_DIM]
@@ -206,6 +200,12 @@ def recurrent_state_forward_triton_kernel(
 
             tl.store(y_ptrs, y, mask=MASK_SV)
             y_ptrs += BLOCK_SIZE_S * y_stride[S_DIM]
+
+        h = matmul(A=k.T, B=v, C=h, output_dtype=h.dtype)
+
+        if h_ptr is not None and ((s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S):
+            tl.store(h_ptrs, h, mask=MASK_KV)
+            h_ptrs += h_stride[S_DIM]
 
         BLOCK_S += BLOCK_SIZE_S
 
