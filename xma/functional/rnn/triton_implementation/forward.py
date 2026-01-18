@@ -92,11 +92,12 @@ def rnn_forward_triton_kernel(
         MASK = ((start < end) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         x = tl.load(x_ptrs, mask=MASK)
+        x_ptrs += x_stride[1 - IS_VARLEN]
+
         h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
         h = tanh(h, output_dtype=x.dtype)
-        tl.store(y_ptrs, h, mask=MASK)
 
-        x_ptrs += x_stride[1 - IS_VARLEN]
+        tl.store(y_ptrs, h, mask=MASK)
         y_ptrs += y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
