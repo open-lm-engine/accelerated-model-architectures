@@ -147,7 +147,7 @@ def rnn_backward_triton_kernel(
         dy_ptrs -= dy_stride[S_DIM]
 
         if IS_VARLEN:
-            end -= 1
+            END -= 1
 
     if dh0_ptr is not None:
         tl.store(
