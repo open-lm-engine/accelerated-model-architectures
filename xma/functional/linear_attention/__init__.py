@@ -128,12 +128,6 @@ def linear_attention(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    expected_dim = 3 + (cu_seqlens is None)
-
-    assert query.dim() == expected_dim
-    assert key.dim() == expected_dim
-    assert value.dim() == expected_dim
-
     if cu_seqlens is None:
         assert max_seqlen is None
         B, S, _, K = query.size()
@@ -145,13 +139,15 @@ def linear_attention(
         B = cu_seqlens.size(0) - 1
 
     V = value.size(-1)
-    Nq, _, Nv, N = _get_num_heads(q=query, k=key, v=value, run_check=True)
+    Nq, Nk, Nv, N = _get_num_heads(q=query, k=key, v=value, run_check=True)
 
     if cu_seqlens is None:
         assert query.size() == (B, S, Nq, K)
+        assert key.size() == (B, S, Nk, K)
         assert value.size() == (B, S, Nv, V)
     else:
         assert query.size() == (T, Nq, K)
+        assert key.size() == (T, Nk, K)
         assert value.size() == (T, Nv, V)
 
     if input_state is not None:
