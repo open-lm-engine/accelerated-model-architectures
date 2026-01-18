@@ -134,14 +134,27 @@ def gru_backward_triton_kernel(
         S = max_seqlen
 
     BLOCK = END if IS_VARLEN else BLOCK_B[:, None]
+    S_LAST = 0 if IS_VARLEN else S - 1
+
+    if z_ptr is None:
+        tl.static_assert(x_ptr is not None)
+        x_ptrs = (
+            x_ptr
+            + BLOCK * x_stride[0]
+            + S_LAST * x_stride[S_DIM]
+            + BLOCK_ID_Nx * x_stride[N_DIM]
+            + BLOCK_H[None, :] * x_stride[H_DIM]
+        )
+    else:
+        z_ptrs = (
+            z_ptr
+            + BLOCK * z_stride[0]
+            + S_LAST * z_stride[S_DIM]
+            + BLOCK_ID_N * z_stride[N_DIM]
+            + BLOCK_H[None, :] * z_stride[H_DIM]
+        )
 
     if IS_VARLEN:
-        if z_ptr is None:
-            tl.static_assert(x_ptr is not None)
-            x_ptrs = x_ptr + BLOCK * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
-        else:
-            z_ptrs = z_ptr + BLOCK * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
-
         if f_ptr is None:
             tl.static_assert(xf_ptr is not None)
             xf_ptrs = xf_ptr + BLOCK * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
@@ -160,24 +173,6 @@ def gru_backward_triton_kernel(
         dxr_ptrs = dxr_ptr + BLOCK * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
         dy_ptrs = dy_ptr + BLOCK * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
     else:
-        if z_ptr is None:
-            tl.static_assert(x_ptr is not None)
-            x_ptrs = (
-                x_ptr
-                + BLOCK * x_stride[0]
-                + (S - 1) * x_stride[1]
-                + BLOCK_ID_Nx * x_stride[2]
-                + BLOCK_H[None, :] * x_stride[3]
-            )
-        else:
-            z_ptrs = (
-                z_ptr
-                + BLOCK * z_stride[0]
-                + (S - 1) * z_stride[1]
-                + BLOCK_ID_N * z_stride[2]
-                + BLOCK_H[None, :] * z_stride[3]
-            )
-
         if f_ptr is None:
             tl.static_assert(xf_ptr is not None)
             xf_ptrs = (
