@@ -127,6 +127,8 @@ def rnn_backward_triton_kernel(
             y_prev = tl.load(y_ptrs, mask=MASK)
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
+        dy_ptrs -= dy_stride[S_DIM]
+
         dx = dy * tanh_backward(y)
 
         _dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
@@ -144,7 +146,6 @@ def rnn_backward_triton_kernel(
             tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
 
         dx_ptrs -= dx_stride[S_DIM]
-        dy_ptrs -= dy_stride[S_DIM]
 
         if IS_VARLEN:
             END -= 1
