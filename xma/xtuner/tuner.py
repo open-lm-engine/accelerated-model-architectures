@@ -107,7 +107,7 @@ class XTunedFunction:
         for variable_name in kwargs:
             is_tuneable_variable = variable_name in self.xtuneable_parameters
 
-            if isinstance(kwargs.get(variable_name), XTuneParameter) or is_tuneable_variable:
+            if isinstance(kwargs.get(variable_name), XTuneParameter):
                 assert is_tuneable_variable, "argument with XTuneParameter() value should be a tuned parameter"
                 num_xtune_parameters_found += 1
             elif is_tuneable_variable:
