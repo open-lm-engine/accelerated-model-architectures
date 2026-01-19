@@ -167,13 +167,14 @@ def recurrent_state_forward_triton_kernel(
             + BLOCK_V[None, :] * y_stride[K_DIM]
         )
 
-    h_ptrs = (
-        h_ptr
-        + _B * h_stride[0]
-        + BLOCK_ID_N * h_stride[2]
-        + BLOCK_K[:, None] * h_stride[3]
-        + BLOCK_V[None, :] * h_stride[4]
-    )
+    if h_ptr is not None:
+        h_ptrs = (
+            h_ptr
+            + _B * h_stride[0]
+            + BLOCK_ID_N * h_stride[2]
+            + BLOCK_K[:, None] * h_stride[3]
+            + BLOCK_V[None, :] * h_stride[4]
+        )
 
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
