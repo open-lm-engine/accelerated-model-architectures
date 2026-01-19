@@ -101,7 +101,10 @@ def groupXtY_triton_kernel(
 
 @xma_op(mutates_args={"DW"})
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
-    grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
+    grid = lambda kwargs: (
+        E * ceil_divide(kwargs["K"], kwargs["BLOCK_K"]),
+        ceil_divide(kwargs["N"], kwargs["BLOCK_N"]),
+    )
 
     groupXtY_triton_kernel[grid](
         # DY_ptr, stride_dym, stride_dyk,

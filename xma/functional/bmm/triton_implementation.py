@@ -165,8 +165,8 @@ def bmm_triton(
 
     N = B.size(1 if is_B_transposed else 2)
 
-    GRID = lambda meta: (
-        ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),
+    GRID = lambda kwargs: (
+        ceil_divide(M, kwargs["BLOCK_SIZE_M"]) * ceil_divide(N, kwargs["BLOCK_SIZE_N"]),
         L,
     )
 
