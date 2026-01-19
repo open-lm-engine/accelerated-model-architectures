@@ -34,17 +34,6 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.jit
-def _compute_output(q, k, v, h, CAUSAL_MASK):
-    qk = matmul(A=q, B=k.T, C=None, output_dtype=q.dtype)
-    qk = tl.where(CAUSAL_MASK, qk, 0)
-    y = matmul(A=qk, B=v, C=None, output_dtype=tl.float32)
-
-    y = matmul(A=q, B=h.to(q.dtype), C=y, output_dtype=tl.float32)
-
-    return y
-
-
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def recurrent_state_forward_triton_kernel(
@@ -337,6 +326,9 @@ def output_forward_triton_kernel(
         mask=MASK_SV,
     )
 
+    qk = tl.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), dtype=tl.float32)
+    y = tl.zeros((BLOCK_SIZE_S, BLOCK_SIZE_V), dtype=tl.float32)
+
     for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
         MASK_K = BLOCK_K < K
 
@@ -359,10 +351,14 @@ def output_forward_triton_kernel(
         k = tl.load(k_ptrs, mask=MASK_SK)
         k_ptrs += BLOCK_SIZE_S * k_stride[S_DIM]
 
-        y = _compute_output(q=q, k=k, v=v, h=h, CAUSAL_MASK=CAUSAL_MASK & MASK_S[:, None] & MASK_S[None, :])
+        y = matmul(A=q, B=h, C=y, output_dtype=y.dtype)
+        qk = matmul(A=q, B=k.T, C=qk, output_dtype=qk.dtype)
 
         BLOCK_K += BLOCK_SIZE_K
 
+    qk = tl.where(CAUSAL_MASK, qk, 0)
+
+    y = matmul(A=qk, B=v, C=y, output_dtype=tl.float32)
     y *= attention_multiplier
 
     tl.store(
@@ -371,8 +367,8 @@ def output_forward_triton_kernel(
         + _S * y_stride[S_DIM]
         + BLOCK_ID_N * y_stride[N_DIM]
         + BLOCK_V[None, :] * y_stride[K_DIM],
-        h,
-        mask=MASK_KV,
+        y,
+        mask=MASK_SV,
     )
 
 
