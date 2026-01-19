@@ -187,7 +187,6 @@ def recurrent_state_forward_triton_kernel(
             q_ptrs += BLOCK_SIZE_S * q_stride[S_DIM]
 
             y = _compute_output(q=q, k=k, v=v, h=h, CAUSAL_MASK=CAUSAL_MASK & MASK_S[:, None] & MASK_S[None, :])
-
             y *= attention_multiplier
 
             tl.store(y_ptrs, y, mask=MASK_SV)
