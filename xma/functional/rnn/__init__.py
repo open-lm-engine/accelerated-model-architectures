@@ -132,12 +132,10 @@ class _RNN(CustomOp):
 
         ht = y[:, -1] if cu_seqlens is None else y[cu_seqlens[1:] - 1]
 
-        return y, ht
+        return y, ht.detach()
 
     @staticmethod
     def backward(ctx, dy: torch.Tensor, dht: torch.Tensor | None) -> tuple[torch.Tensor]:
-        assert dht is None
-
         W, y, h0, cu_seqlens = ctx.saved_tensors
         Nx = ctx.Nx
         N = y.size(-2)
@@ -151,6 +149,7 @@ class _RNN(CustomOp):
             y=y,
             h0=h0,
             dy=dy,
+            dht=dht,
             dx=dx,
             dW=dW,
             dh0=dh0,
