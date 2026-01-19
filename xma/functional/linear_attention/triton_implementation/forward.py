@@ -13,7 +13,7 @@ from ....xtuner import XTuneConfig, xtune
 from ..utils import _get_num_heads
 
 
-def _get_autotune_configs() -> list[triton.Config]:
+def _get_autotune_configs__recurrent_state_forward_triton_kernel() -> list[triton.Config]:
     configs = []
     for num_warps in get_powers_of_2(4, 8):
         for num_stages in range(1, 5):
@@ -35,7 +35,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs__recurrent_state_forward_triton_kernel(), key=[])
 @triton.jit
 def recurrent_state_forward_triton_kernel(
     q_ptr,
@@ -213,7 +213,27 @@ def recurrent_state_forward_triton_kernel(
     )
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+def _get_autotune_configs__output_forward_triton_kernel() -> list[triton.Config]:
+    configs = []
+    for num_warps in get_powers_of_2(4, 8):
+        for num_stages in range(1, 5):
+            for BLOCK_SIZE_K in get_powers_of_2(32, 64):
+                for BLOCK_SIZE_V in get_powers_of_2(32, 64):
+                    configs.append(
+                        triton.Config(
+                            {
+                                "BLOCK_SIZE_K": BLOCK_SIZE_K,
+                                "BLOCK_SIZE_V": BLOCK_SIZE_V,
+                            },
+                            num_stages=num_stages,
+                            num_warps=num_warps,
+                        )
+                    )
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs__output_forward_triton_kernel(), key=[])
 @triton.jit
 def output_forward_triton_kernel(
     q_ptr,
