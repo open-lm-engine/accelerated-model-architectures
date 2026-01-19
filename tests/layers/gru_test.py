@@ -45,7 +45,6 @@ class GRUTest(TestCommons):
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
         input_shape: tuple[int, int, list[int]],
-        sequence_length: int,
         problem_shapes: tuple[int, int, int, int, int, int, int],
         has_input_state: bool,
         is_compiling: bool,
