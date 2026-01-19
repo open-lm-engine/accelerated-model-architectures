@@ -25,6 +25,7 @@ class _LinearAttention(CustomOp):
         CHUNK_SIZE: int,
         use_fused_kernel_in_forward: bool | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        assert use_fused_kernel_in_forward is None
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
         y_shape = list(v.size())
