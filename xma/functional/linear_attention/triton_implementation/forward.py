@@ -159,7 +159,11 @@ def recurrent_state_forward_triton_kernel(
 
     if y_ptr is not None:
         y_ptrs = (
-            y_ptr + _B * y_stride[0] + _S * y_stride[S_DIM] + BLOCK_ID_N * y_stride[1] + BLOCK_V[None, :] * y_stride[2]
+            y_ptr
+            + _B * y_stride[0]
+            + _S * y_stride[S_DIM]
+            + BLOCK_ID_N * y_stride[N_DIM]
+            + BLOCK_V[None, :] * y_stride[K_DIM]
         )
 
     h_ptrs = (
