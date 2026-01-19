@@ -66,7 +66,6 @@ class XTunedFunction:
     def _resolve_config(self, *args, **kwargs) -> dict:
         override_xtune_parameters = self._check_all_or_no_args_are_xtune_parameters(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
-
         best_config = self.function_cache.get(lookup_key, None)
 
         if best_config is None:
