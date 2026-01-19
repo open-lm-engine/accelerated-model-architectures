@@ -126,6 +126,7 @@ class _RNN(CustomOp):
         )
 
         ctx_save_for_backward(ctx, W, y, h0, cu_seqlens)
+
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.Nx = Nx
