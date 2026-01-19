@@ -175,7 +175,9 @@ def recurrent_state_forward_triton_kernel(
         + BLOCK_V[None, :] * h_stride[4]
     )
 
-    for s in range(1, tl.cdiv(S, BLOCK_SIZE_S) + 1):
+    NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
+
+    for s in range(1, NUM_BLOCKS_S + 1):
         MASK_S = BLOCK_S < S
 
         MASK_SK = MASK_S[:, None] & MASK_K[None, :]
