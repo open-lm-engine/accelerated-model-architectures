@@ -59,6 +59,8 @@ def gru_backward_triton_kernel(
     dh0_stride,
     dy_ptr,
     dy_stride,
+    dht_ptr,
+    dht_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
     max_seqlen,
@@ -95,7 +97,14 @@ def gru_backward_triton_kernel(
     MASK_BH = MASK_B[:, None] & MASK_H[None, :]
     MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
-    dh0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    if dht_ptr is None:
+        dht = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    else:
+        dht = tl.load(
+            dht_ptr + BLOCK_B[:, None] * dht_stride[0] + BLOCK_ID_N * dht_stride[1] + BLOCK_H[None, :] * dht_stride[2],
+            mask=MASK_BH,
+        )
+
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
@@ -232,7 +241,7 @@ def gru_backward_triton_kernel(
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
-        dh = dh0
+        dh = dht
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
@@ -314,7 +323,7 @@ def gru_backward_triton_kernel(
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
 
-        dh0 = tl.where(MASK, dh, dh0) if IS_VARLEN else dh
+        dht = tl.where(MASK, dh, dht) if IS_VARLEN else dh
 
         if Gxr == 1:
             tl.store(dxr_ptrs, dxr, mask=MASK)
@@ -329,7 +338,7 @@ def gru_backward_triton_kernel(
     if dh0_ptr is not None:
         tl.store(
             dh0_ptr + BLOCK_B[:, None] * dh0_stride[0] + BLOCK_ID_N * dh0_stride[1] + BLOCK_H[None, :] * dh0_stride[2],
-            dh0,
+            dht,
             mask=MASK_BH,
         )
 
@@ -373,6 +382,7 @@ def gru_backward_triton(
     z: torch.Tensor | None,
     h0: torch.Tensor | None,
     dy: torch.Tensor,
+    dht: torch.Tensor | None,
     dx: torch.Tensor,
     dW: torch.Tensor,
     dh0: torch.Tensor | None,
@@ -433,6 +443,8 @@ def gru_backward_triton(
         dh0_stride=None if dh0 is None else dh0.stride(),
         dy_ptr=dy,
         dy_stride=dy.stride(),
+        dht_ptr=dht,
+        dht_stride=None if dht is None else dht.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
         max_seqlen=max_seqlen,
