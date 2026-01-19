@@ -8,7 +8,6 @@ import torch
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients
-from ...math import ceil_divide
 from .triton_implementation import linear_attention_forward_triton
 from .utils import _get_num_heads
 

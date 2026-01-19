@@ -29,7 +29,7 @@ def _autotuned_linear_attention_forward_triton(
     attention_multiplier: float,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
-    use_fused_kernel_in_forward: XTuneParameter[bool],
+    use_fused_kernel_in_forward: bool,
 ) -> None:
     Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
