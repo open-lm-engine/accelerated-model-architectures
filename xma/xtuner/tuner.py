@@ -122,6 +122,7 @@ class XTunedFunction:
         assert (
             num_specified_parameters_found == 0
         ), "if one tuneable parameter is specified, all others must be specified"
+
         assert (
             num_xtune_parameters_found == n
         ), "all tuneable parameters should be set to XTuneParameter() if even one is set to XTuneParameter()"
