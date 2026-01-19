@@ -97,12 +97,14 @@ class XTunedFunction:
         for i in range(len(args)):
             variable_name = self.signature.args[i]
 
-            if isinstance(args[i], XTuneParameter) and variable_name in self.xtuneable_parameters:
+            if isinstance(args[i], XTuneParameter):
+                assert variable_name in self.xtuneable_parameters
                 num_xtune_overrideables += 1
 
         # accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function
         for variable_name in kwargs:
-            if isinstance(kwargs.get(variable_name), XTuneParameter) and variable_name in self.xtuneable_parameters:
+            if isinstance(kwargs.get(variable_name), XTuneParameter):
+                assert variable_name in self.xtuneable_parameters
                 num_xtune_overrideables += 1
 
         assert num_xtune_overrideables in [
