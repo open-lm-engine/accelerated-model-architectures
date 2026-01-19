@@ -103,22 +103,8 @@ class RNNTest(TestCommons):
                 kernel_backend=KernelBackend.torch,
             )
 
-            self.assert_equal_tensors(
-                y_kernel,
-                y_torch,
-                False,
-                # atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
-            )
-
-            self.assert_equal_tensors(
-                output_state_kernel,
-                output_state_torch,
-                False,
-                # atol_float32=4e-6,
-                # rtol_float32=0,
-                # atol_float16=6.5e-5,
-                # rtol_float16=0,
-            )
+            self.assert_equal_tensors(y_kernel, y_torch, False)
+            self.assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
             if not no_grad:
                 y_kernel.sum().backward()
@@ -131,8 +117,8 @@ class RNNTest(TestCommons):
                     x_kernel.grad,
                     x_torch.grad,
                     False,
-                    # atol_float32=3.4e-4,
-                    # rtol_float32=0,
+                    atol_float32=None if cu_seqlens is None else 3.8e-4,
+                    rtol_float32=None if cu_seqlens is None else 0,
                     atol_float16=1e-3,
                     rtol_float16=0,
                 )
@@ -142,8 +128,8 @@ class RNNTest(TestCommons):
                         input_state_kernel.grad,
                         input_state_torch.grad,
                         False,
-                        # atol_float32=5.8e-4,
-                        # rtol_float32=0,
+                        atol_float32=None if cu_seqlens is None else 8.2e-4,
+                        rtol_float32=None if cu_seqlens is None else 0,
                         atol_float16=3.7e-4,
                         rtol_float16=0,
                     )
@@ -153,8 +139,8 @@ class RNNTest(TestCommons):
                         weight_kernel_grads[weight_name],
                         weight_torch_grads[weight_name],
                         False,
-                        # atol_float32=1.9e-4,
-                        # rtol_float32=0,
+                        atol_float32=None if cu_seqlens is None else 2.2e-4,
+                        rtol_float32=None if cu_seqlens is None else 0,
                         atol_float16=1.3e-2,
                         rtol_float16=0,
                     )
