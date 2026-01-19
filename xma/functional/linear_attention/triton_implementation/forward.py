@@ -194,7 +194,11 @@ def recurrent_state_forward_triton_kernel(
             q = tl.load(q_ptrs, mask=MASK_SK)
             q_ptrs += BLOCK_SIZE_S * q_stride[S_DIM]
 
-            y = _compute_output(q=q, k=k, v=v, h=h, CAUSAL_MASK=CAUSAL_MASK & MASK_S[:, None] & MASK_S[None, :])
+            qk = matmul(A=q, B=k.T, C=None, output_dtype=q.dtype)
+            qk = tl.where(CAUSAL_MASK, qk, 0)
+
+            y = matmul(A=qk, B=v, C=None, output_dtype=tl.float32)
+            y = matmul(A=q, B=h.to(q.dtype), C=y, output_dtype=tl.float32)
             y *= attention_multiplier
 
             tl.store(y_ptrs, y, mask=MASK_SV)
