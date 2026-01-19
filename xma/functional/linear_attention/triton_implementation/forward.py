@@ -13,7 +13,10 @@ from .recurrent_state_forward import recurrent_state_forward_triton_kernel
 
 
 @xtune(
-    configs=[XTuneConfig({"use_fused_kernel": False}), XTuneConfig({"use_fused_kernel": True})],
+    configs=[
+        XTuneConfig({"use_fused_kernel_in_forward_in_forward": False}),
+        XTuneConfig({"use_fused_kernel_in_forward_in_forward": True}),
+    ],
     functional_triggers={
         "_": lambda **kwargs: (kwargs["q"].size(1) if kwargs["cu_seqlens"] is None else kwargs["max_seqlen"]) <= 64
     },
@@ -29,7 +32,7 @@ def _autotuned_linear_attention_forward_triton(
     attention_multiplier: float,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
-    use_fused_kernel: bool,
+    use_fused_kernel_in_forward: bool,
 ) -> None:
     Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
@@ -66,17 +69,17 @@ def _autotuned_linear_attention_forward_triton(
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
     recurrent_state_forward_triton_kernel[GRID](
-        q_ptr=q if use_fused_kernel else None,
-        q_stride=q.stride() if use_fused_kernel else None,
+        q_ptr=q if use_fused_kernel_in_forward else None,
+        q_stride=q.stride() if use_fused_kernel_in_forward else None,
         ht_ptr=ht,
         ht_stride=ht.stride(),
-        y_ptr=y if use_fused_kernel else None,
-        y_stride=y.stride() if use_fused_kernel else None,
+        y_ptr=y if use_fused_kernel_in_forward else None,
+        y_stride=y.stride() if use_fused_kernel_in_forward else None,
         CHUNK_SIZE=CHUNK_SIZE,
         **kwargs,
     )
 
-    if not use_fused_kernel:
+    if not use_fused_kernel_in_forward:
         NUM_CHUNKS = h.size(1)
         GRID = lambda kwargs: (B * N, NUM_CHUNKS + 1, ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
@@ -97,6 +100,7 @@ def linear_attention_forward_triton(
     attention_multiplier: float,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
+    use_fused_kernel_in_forward: bool | None,
 ) -> None:
     _autotuned_linear_attention_forward_triton(
         q=q,
@@ -109,4 +113,5 @@ def linear_attention_forward_triton(
         attention_multiplier=attention_multiplier,
         cu_seqlens=cu_seqlens,
         CHUNK_SIZE=CHUNK_SIZE,
+        use_fused_kernel_in_forward=use_fused_kernel_in_forward,
     )
