@@ -60,7 +60,7 @@ class XTunedFunction:
         self.function_cache = {}
 
     def __call__(self, *args, **kwargs) -> Any:
-        override_xtune_parameters = self._check_all_or_no_args_are_xtune_parameters(*args, **kwargs)
+        override_xtune_parameters = self._can_override_variables(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
         best_config = self.function_cache.get(lookup_key, None)
 
@@ -89,7 +89,7 @@ class XTunedFunction:
             )
         )
 
-    def _check_all_or_no_args_are_xtune_parameters(self, *args, **kwargs) -> bool:
+    def _can_override_variables(self, *args, **kwargs) -> bool:
         num_xtune_parameters_found = 0
         num_specified_parameters_found = 0
 
