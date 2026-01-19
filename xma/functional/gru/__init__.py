@@ -29,7 +29,7 @@ class _GRU(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
 
         y_shape = list(x.size())
@@ -104,7 +104,7 @@ class _GRU(CustomOp):
                 y[offset_unfinished] = h
                 h0[unfinished] = h
 
-        return y
+        return y, h0
 
     @staticmethod
     def forward(
@@ -120,7 +120,7 @@ class _GRU(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
         kernel_backend: KernelBackend,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
         Nx, Nxf, Nxr, _, _, _, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
@@ -170,10 +170,13 @@ class _GRU(CustomOp):
         ctx.gradient_clipping = gradient_clipping
         ctx.num_heads = Nx, Nxf, Nxr
 
-        return y
+        ht = y[:, -1] if cu_seqlens is None else y[cu_seqlens[1:] - 1]
+        ht = ht.detach()
+
+        return y, ht
 
     @staticmethod
-    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward(ctx, dy: torch.Tensor, dht: torch.Tensor | None) -> tuple[torch.Tensor | None]:
         W, Wf, f, Wr, r, z, y, h0, cu_seqlens, x, xf, xr = ctx.saved_tensors
         Nx, Nxf, Nxr = ctx.num_heads
 
@@ -204,6 +207,7 @@ class _GRU(CustomOp):
             z=z,
             h0=h0,
             dy=dy,
+            dht=dht,
             dx=dx,
             dW=dW,
             dh0=dh0,
@@ -305,7 +309,7 @@ def gru(
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
 
-    input = _GRU.run(
+    input, input_state = _GRU.run(
         x=input,
         W=weight,
         xf=forget_input,
@@ -318,7 +322,5 @@ def gru(
         max_seqlen=max_seqlen,
         kernel_backend=kernel_backend,
     )
-
-    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
     return input, input_state
