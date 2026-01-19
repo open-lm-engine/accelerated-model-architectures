@@ -48,11 +48,12 @@ def pack_unpack_sequence_triton_kernel(
             MASK = BLOCK < N
 
             x = tl.load(x_ptrs, mask=MASK)
+            x_ptrs += BLOCK_SIZE * x_stride[-1]
+
             tl.store(y_ptrs, x, mask=MASK)
+            y_ptrs += BLOCK_SIZE * y_stride[-1]
 
             BLOCK += BLOCK_SIZE
-            x_ptrs += BLOCK_SIZE * x_stride[-1]
-            y_ptrs += BLOCK_SIZE * y_stride[-1]
 
 
 @xma_op(mutates_args={"output"})

@@ -9,7 +9,6 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide
 from ....triton_utils import sigmoid
-from ....utils import get_num_elements_and_hidden_size
 from .forward import _get_autotune_configs
 
 
@@ -60,8 +59,8 @@ def swiglu_backward_triton_kernel(
 def swiglu_backward_triton(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(g)
-    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), ceil_divide(H, kwargs["BLOCK_SIZE_H"]))
+    B, H = g.size()
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
     swiglu_backward_triton_kernel[GRID](
         g_ptr=g,

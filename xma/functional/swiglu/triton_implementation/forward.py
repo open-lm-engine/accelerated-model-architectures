@@ -9,7 +9,6 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_powers_of_2
 from ....triton_utils import sigmoid
-from ....utils import get_num_elements_and_hidden_size
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -58,8 +57,8 @@ def swiglu_forward_triton_kernel(
 
 @xma_op(mutates_args={"y"})
 def swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
-    B, H = get_num_elements_and_hidden_size(g)
-    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), ceil_divide(H, kwargs["BLOCK_SIZE_H"]))
+    B, H = g.size()
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
     # second last stride can be used to iterate the token dimension
     swiglu_forward_triton_kernel[GRID](

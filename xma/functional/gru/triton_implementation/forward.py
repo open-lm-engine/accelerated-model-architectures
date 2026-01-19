@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_utils import matmul, sigmoid, tanh
+from ....triton_utils import get_start_end, matmul, sigmoid, tanh
 from ...rnn.triton_implementation.forward import _get_autotune_configs
 from ..utils import _get_num_heads
 
@@ -97,92 +97,70 @@ def gru_forward_triton_kernel(
         )
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    N_DIM: tl.constexpr = 2 - IS_VARLEN
+    H_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
-        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
-        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
-        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
-
+        START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
         S = max_seqlen
 
-        x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
-        xf_ptrs = xf_ptr + start * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
-        xr_ptrs = xr_ptr + start * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
+    BLOCK = START if IS_VARLEN else BLOCK_B[:, None]
 
-        if z_ptr is not None:
-            z_ptrs = z_ptr + start * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
+    x_ptrs = x_ptr + BLOCK * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
+    xf_ptrs = xf_ptr + BLOCK * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[N_DIM] + BLOCK_H[None, :] * xf_stride[H_DIM]
+    xr_ptrs = xr_ptr + BLOCK * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[N_DIM] + BLOCK_H[None, :] * xr_stride[H_DIM]
+    y_ptrs = y_ptr + BLOCK * y_stride[0] + BLOCK_ID_N * y_stride[N_DIM] + BLOCK_H[None, :] * y_stride[H_DIM]
 
-        if r_ptr is not None:
-            r_ptrs = r_ptr + start * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
+    if z_ptr is not None:
+        z_ptrs = z_ptr + BLOCK * z_stride[0] + BLOCK_ID_N * z_stride[N_DIM] + BLOCK_H[None, :] * z_stride[H_DIM]
 
-        if f_ptr is not None:
-            f_ptrs = f_ptr + start * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
+    if r_ptr is not None:
+        r_ptrs = r_ptr + BLOCK * r_stride[0] + BLOCK_ID_N * r_stride[N_DIM] + BLOCK_H[None, :] * r_stride[H_DIM]
 
-        y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-    else:
-        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_Nx * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
-        xf_ptrs = (
-            xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
-        )
-        xr_ptrs = (
-            xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[2] + BLOCK_H[None, :] * xr_stride[3]
-        )
-
-        if z_ptr is not None:
-            z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
-
-        if r_ptr is not None:
-            r_ptrs = r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_ID_N * r_stride[2] + BLOCK_H[None, :] * r_stride[3]
-
-        if f_ptr is not None:
-            f_ptrs = f_ptr + BLOCK_B[:, None] * f_stride[0] + BLOCK_ID_N * f_stride[2] + BLOCK_H[None, :] * f_stride[3]
-
-        y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
+    if f_ptr is not None:
+        f_ptrs = f_ptr + BLOCK * f_stride[0] + BLOCK_ID_N * f_stride[N_DIM] + BLOCK_H[None, :] * f_stride[H_DIM]
 
     for _ in range(S):
-        MASK = ((start < end) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
+        MASK = ((START < END) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         x = tl.load(xr_ptrs, mask=MASK)
+        xr_ptrs += xr_stride[S_DIM]
+
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
         r = sigmoid(r, output_dtype=x.dtype)
 
         if r_ptr is not None:
             tl.store(r_ptrs, r, mask=MASK)
+            r_ptrs += r_stride[S_DIM]
 
         x = tl.load(x_ptrs, mask=MASK)
+        x_ptrs += x_stride[S_DIM]
+
         z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
         z = tanh(z, output_dtype=x.dtype)
 
         if z_ptr is not None:
             tl.store(z_ptrs, z, mask=MASK)
+            z_ptrs += z_stride[S_DIM]
 
         x = tl.load(xf_ptrs, mask=MASK)
+        xf_ptrs += xf_stride[S_DIM]
+
         f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
         f = sigmoid(f, output_dtype=x.dtype)
 
         if f_ptr is not None:
             tl.store(f_ptrs, f, mask=MASK)
+            f_ptrs += f_stride[S_DIM]
 
         h = f * h + (1 - f) * z
+
         tl.store(y_ptrs, h, mask=MASK)
-
-        x_ptrs += x_stride[1 - IS_VARLEN]
-        xr_ptrs += xr_stride[1 - IS_VARLEN]
-        xf_ptrs += xf_stride[1 - IS_VARLEN]
-
-        if z_ptr is not None:
-            z_ptrs += z_stride[1 - IS_VARLEN]
-
-        if r_ptr is not None:
-            r_ptrs += r_stride[1 - IS_VARLEN]
-
-        if f_ptr is not None:
-            f_ptrs += f_stride[1 - IS_VARLEN]
-
-        y_ptrs += y_stride[1 - IS_VARLEN]
+        y_ptrs += y_stride[S_DIM]
 
         if IS_VARLEN:
-            start += 1
+            START += 1
 
 
 @xma_op(mutates_args={"f", "r", "z", "y"})

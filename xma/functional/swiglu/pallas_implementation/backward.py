@@ -72,18 +72,20 @@ def _fake_func(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torc
     return torch.empty_like(g), torch.empty_like(u)
 
 
+_CACHE = None
+
+
 @xma_op(mutates_args={}, fake_func=_fake_func)
 def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     assert g.is_contiguous()
     assert u.is_contiguous()
     assert dy.is_contiguous()
 
-    if swiglu_backward_pallas.cache is None:
-        swiglu_backward_pallas.cache = make_kernel_from_pallas(
+    global _CACHE
+
+    if _CACHE is None:
+        _CACHE = make_kernel_from_pallas(
             swiglu_backward_pallas_jit, lambda g, u, dy: [(g.shape, g.dtype), (g.shape, g.dtype)]
         )
 
-    return swiglu_backward_pallas.cache(g, u, dy)
-
-
-swiglu_backward_pallas.cache = None
+    return _CACHE(g, u, dy)

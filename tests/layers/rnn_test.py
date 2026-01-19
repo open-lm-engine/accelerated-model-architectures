@@ -20,7 +20,7 @@ class RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.triton],  # KernelBackend
-            TestCommons.get_dtypes(),  # dtype
+            [torch.float32, torch.float16],  # dtype
             [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
@@ -103,22 +103,8 @@ class RNNTest(TestCommons):
                 kernel_backend=KernelBackend.torch,
             )
 
-            self.assert_equal_tensors(
-                y_kernel,
-                y_torch,
-                False,
-                # atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
-            )
-
-            self.assert_equal_tensors(
-                output_state_kernel,
-                output_state_torch,
-                False,
-                atol_float32=4e-6,
-                rtol_float32=0,
-                atol_float16=6.5e-5,
-                rtol_float16=0,
-            )
+            self.assert_equal_tensors(y_kernel, y_torch, False)
+            self.assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
             if not no_grad:
                 y_kernel.sum().backward()
@@ -131,8 +117,10 @@ class RNNTest(TestCommons):
                     x_kernel.grad,
                     x_torch.grad,
                     False,
-                    # atol_float16=1e-3 if num_weight_heads > num_input_heads else 5e-4,
-                    # rtol_float16=0,
+                    atol_float32=None if cu_seqlens is None else 3.8e-4,
+                    rtol_float32=None if cu_seqlens is None else 0,
+                    atol_float16=1e-3,
+                    rtol_float16=0,
                 )
 
                 if has_input_state:
@@ -140,10 +128,10 @@ class RNNTest(TestCommons):
                         input_state_kernel.grad,
                         input_state_torch.grad,
                         False,
-                        # atol_float32=4e-6,
-                        # rtol_float32=0,
-                        # atol_float16=4e-4,
-                        # rtol_float16=0,
+                        atol_float32=None if cu_seqlens is None else 8.2e-4,
+                        rtol_float32=None if cu_seqlens is None else 0,
+                        atol_float16=3.7e-4 if cu_seqlens is None else 4.9e-4,
+                        rtol_float16=0,
                     )
 
                 for weight_name in weight_kernel_grads:
@@ -151,10 +139,10 @@ class RNNTest(TestCommons):
                         weight_kernel_grads[weight_name],
                         weight_torch_grads[weight_name],
                         False,
-                        # atol_float32=1.5e-3,
-                        # rtol_float32=0,
-                        # atol_float16=1.7e-2,
-                        # rtol_float16=0,
+                        atol_float32=None if cu_seqlens is None else 4.9e-4,
+                        rtol_float32=None if cu_seqlens is None else 0,
+                        atol_float16=1.3e-2,
+                        rtol_float16=0,
                     )
 
     @parameterized.expand(

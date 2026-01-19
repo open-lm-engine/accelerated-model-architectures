@@ -9,7 +9,6 @@ import triton.language as tl
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -81,7 +80,7 @@ def fused_residual_add_rmsnorm_forward_triton(
     xr: torch.Tensor | None,
     s: torch.Tensor | None,
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(x)
+    B, H = x.size()
 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)

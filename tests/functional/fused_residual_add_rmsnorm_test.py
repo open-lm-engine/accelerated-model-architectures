@@ -24,9 +24,6 @@ def _get_sizes() -> list[tuple]:
     for size in TestCommons.get_1d_tensor_sizes(max_offset=5):
         sizes.append((400, size))
 
-    # add extra check for 1D tensor
-    sizes.append((size,))
-
     return sizes
 
 

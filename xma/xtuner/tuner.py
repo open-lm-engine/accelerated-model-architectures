@@ -7,7 +7,6 @@ from collections import defaultdict
 from typing import Any, Callable
 
 import torch
-from tqdm import tqdm
 
 from ..accelerator import Accelerator
 from ..utils import get_boolean_env_variable
@@ -16,7 +15,7 @@ from .config import XTuneConfig
 from .parameter import XTuneParameter
 
 
-_DEBUG_XTUNE = get_boolean_env_variable("DEBUG_XTUNE", False)
+_XTUNE_PRINT_AUTOTUNING = get_boolean_env_variable("XTUNE_PRINT_AUTOTUNING", False)
 _SEPARATOR = "."
 _DEFAULT_WARMUP_ITERATIONS = 5
 _BENCHMARK_ITERATIONS = 10
@@ -79,7 +78,9 @@ class _XTune:
             self.function_cache[lookup_key] = best_config
             get_xtune_cache().add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
 
-            if _DEBUG_XTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
+            if _XTUNE_PRINT_AUTOTUNING and (
+                not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0
+            ):
                 print(
                     f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
                     f"function {self.function.__name__}"
@@ -135,17 +136,21 @@ class _XTune:
     def _xtune(self, *args, **kwargs) -> tuple[XTuneConfig, float, list[tuple[XTuneConfig, float]]]:
         best_config = None
         best_time = float("inf")
-
-        configs = tqdm(self.configs) if _DEBUG_XTUNE else self.configs
         timed_configs = []
 
-        for config in configs:
+        for config in self.configs:
             if not config.is_condition_valid(
                 **self._get_function_arguments(
                     config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
                 )
             ):
+                if _XTUNE_PRINT_AUTOTUNING:
+                    print(f"Skipping config {config} for function {self.function.__name__}")
+
                 continue
+
+            if _XTUNE_PRINT_AUTOTUNING:
+                print(f"Autotuning function {self.function.__name__} with config {config}")
 
             elapsed_time = self._run_benchmark(
                 **self._get_function_arguments(config=config, args=args, kwargs=kwargs, override_allowed=False),
@@ -320,7 +325,9 @@ def xtune(
     :type warmup_iterations: int
     :param benchmark_iterations: iterations for benchmarking. Defaults to 10.
     :type benchmark_iterations: int
-    :param reset_to_zero: these parameters are reset to 0 after autotuning finishes.
+    :param reset_to_zero: A dictionary mapping tensor argument names to an optional callable condition. The
+        specified tensors will be zeroed out after each benchmark iteration if the condition (if provided) returns
+        True.
     :type reset_to_zero: dict
     :return: autotuned version of the function
     :rtype: _XTune
