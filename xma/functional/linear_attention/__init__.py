@@ -57,19 +57,15 @@ class _LinearAttention(CustomOp):
 
         for s in range(S):
             if cu_seqlens is None:
-                h = h0 + k[:, s, ..., None] * v[:, s, :, None, :]
-                y[:, s] = (q[:, s, :, None, :] @ h.type_as(q)).squeeze(-2)
-
-                h0 = h
+                y[:, s] = (q[:, s, :, None, :] @ h0.type_as(q)).squeeze(-2)
+                h0 = h0 + k[:, s, ..., None] * v[:, s, :, None, :]
             else:
                 offset = start + s
                 unfinished = offset < end
                 offset_unfinished = offset[unfinished]
 
-                h = h0[unfinished] + k[offset_unfinished, ..., None] * v[offset_unfinished, :, None, :]
-                y[offset_unfinished] = (q[offset_unfinished, :, None, :] @ h.type_as(q)).squeeze(-2)
-
-                h0[unfinished] = h
+                y[offset_unfinished] = (q[offset_unfinished, :, None, :] @ h0[unfinished].type_as(q)).squeeze(-2)
+                h0[unfinished] = h0[unfinished] + k[offset_unfinished, ..., None] * v[offset_unfinished, :, None, :]
 
         y = y * attention_multiplier
 
