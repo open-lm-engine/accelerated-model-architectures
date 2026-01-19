@@ -119,6 +119,7 @@ def rnn_backward_triton_kernel(
     )
 
     y = tl.load(y_ptrs, mask=((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH)
+    y_ptrs -= y_stride[S_DIM]
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -126,7 +127,6 @@ def rnn_backward_triton_kernel(
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         MASK = ((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
-        y_ptrs -= y_stride[S_DIM]
 
         if IS_VARLEN:
             y_prev = tl.where(END > START, tl.load(y_ptrs, mask=MASK), h0)
@@ -134,6 +134,8 @@ def rnn_backward_triton_kernel(
             y_prev = h0
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
+
+        y_ptrs -= y_stride[S_DIM]
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
         dy_ptrs -= dy_stride[S_DIM]
