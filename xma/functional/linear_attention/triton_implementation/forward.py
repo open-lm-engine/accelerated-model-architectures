@@ -283,29 +283,6 @@ def output_forward_triton_kernel(
     MASK_SV = MASK_S[:, None] & MASK_V[None, :]
     CAUSAL_MASK = (BLOCK_S[:, None] >= BLOCK_S[None, :]) & MASK_S[:, None] & MASK_S[None, :]
 
-    if BLOCK_ID_S == 0:
-        if h0_ptr is None:
-            h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
-        else:
-            h = tl.load(
-                h0_ptr
-                + BLOCK_ID_B * h0_stride[0]
-                + BLOCK_ID_N * h0_stride[1]
-                + BLOCK_K[:, None] * h0_stride[2]
-                + BLOCK_V[None, :] * h0_stride[3],
-                mask=MASK_KV,
-            ).to(tl.float32)
-    else:
-        h = tl.load(
-            h_ptr
-            + BLOCK_ID_B * h_stride[0]
-            + (BLOCK_ID_S - 1) * h_stride[1]
-            + BLOCK_ID_N * h_stride[2]
-            + BLOCK_K[:, None] * h_stride[3]
-            + BLOCK_V[None, :] * h_stride[4],
-            mask=MASK_KV,
-        ).to(tl.float32)
-
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
     S_DIM: tl.constexpr = 1 - IS_VARLEN
     N_DIM: tl.constexpr = 2 - IS_VARLEN
@@ -356,15 +333,28 @@ def output_forward_triton_kernel(
         MASK_SK = MASK_S[:, None] & MASK_K[None, :]
         MASK_KV = MASK_K[:, None] & MASK_V[None, :]
 
-        h = tl.load(
-            h_ptr
-            + _B * h_stride[0]
-            + _S * h_stride[S_DIM]
-            + BLOCK_ID_N * h_stride[N_DIM]
-            + BLOCK_K[:, None] * h_stride[K_DIM]
-            + BLOCK_V[None, :] * h_stride[K_DIM + 1],
-            mask=MASK_KV,
-        )
+        if BLOCK_ID_S == 0:
+            if h0_ptr is None:
+                h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
+            else:
+                h = tl.load(
+                    h0_ptr
+                    + BLOCK_ID_B * h0_stride[0]
+                    + BLOCK_ID_N * h0_stride[1]
+                    + BLOCK_K[:, None] * h0_stride[2]
+                    + BLOCK_V[None, :] * h0_stride[3],
+                    mask=MASK_KV,
+                ).to(tl.float32)
+        else:
+            h = tl.load(
+                h_ptr
+                + BLOCK_ID_B * h_stride[0]
+                + (BLOCK_ID_S - 1) * h_stride[1]
+                + BLOCK_ID_N * h_stride[2]
+                + BLOCK_K[:, None] * h_stride[3]
+                + BLOCK_V[None, :] * h_stride[4],
+                mask=MASK_KV,
+            ).to(tl.float32)
 
         q = tl.load(q_ptrs, mask=MASK_SK)
         q_ptrs += BLOCK_SIZE_S * q_stride[S_DIM]
