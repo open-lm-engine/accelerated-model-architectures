@@ -14,8 +14,8 @@ from .recurrent_state_forward import recurrent_state_forward_triton_kernel
 
 @xtune(
     configs=[
-        XTuneConfig({"use_fused_kernel_in_forward_in_forward": False}),
-        XTuneConfig({"use_fused_kernel_in_forward_in_forward": True}),
+        XTuneConfig({"use_fused_kernel_in_forward": False}),
+        XTuneConfig({"use_fused_kernel_in_forward": True}),
     ],
     functional_triggers={
         "_": lambda **kwargs: (kwargs["q"].size(1) if kwargs["cu_seqlens"] is None else kwargs["max_seqlen"]) <= 64
