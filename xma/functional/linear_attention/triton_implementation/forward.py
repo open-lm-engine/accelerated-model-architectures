@@ -99,6 +99,9 @@ def linear_attention_forward_triton(
     CHUNK_SIZE: int,
     use_fused_kernel_in_forward: bool | None,
 ) -> None:
+    if use_fused_kernel_in_forward is None:
+        use_fused_kernel_in_forward = XTuneParameter()
+
     _autotuned_linear_attention_forward_triton(
         q=q,
         k=k,
