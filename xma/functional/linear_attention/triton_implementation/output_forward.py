@@ -129,9 +129,15 @@ def output_forward_triton_kernel(
         MASK_SK = MASK_S[:, None] & MASK_K[None, :]
         MASK_KV = MASK_K[:, None] & MASK_V[None, :]
 
+        q = tl.load(q_ptrs, mask=MASK_SK)
+        q_ptrs += BLOCK_SIZE_S * q_stride[S_DIM]
+
+        k = tl.load(k_ptrs, mask=MASK_SK)
+        k_ptrs += BLOCK_SIZE_S * k_stride[S_DIM]
+
         if BLOCK_ID_S == 0:
             if h0_ptr is None:
-                h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
+                h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=q.dtype)
             else:
                 h = tl.load(
                     h0_ptr
@@ -140,7 +146,7 @@ def output_forward_triton_kernel(
                     + BLOCK_K[:, None] * h0_stride[2]
                     + BLOCK_V[None, :] * h0_stride[3],
                     mask=MASK_KV,
-                ).to(tl.float32)
+                )
         else:
             h = tl.load(
                 h_ptr
@@ -150,13 +156,7 @@ def output_forward_triton_kernel(
                 + BLOCK_K[:, None] * h_stride[3]
                 + BLOCK_V[None, :] * h_stride[4],
                 mask=MASK_KV,
-            ).to(tl.float32)
-
-        q = tl.load(q_ptrs, mask=MASK_SK)
-        q_ptrs += BLOCK_SIZE_S * q_stride[S_DIM]
-
-        k = tl.load(k_ptrs, mask=MASK_SK)
-        k_ptrs += BLOCK_SIZE_S * k_stride[S_DIM]
+            )
 
         y = matmul(A=q, B=h, C=y, output_dtype=y.dtype)
         qk = matmul(A=q, B=k.T, C=qk, output_dtype=qk.dtype)
@@ -165,7 +165,7 @@ def output_forward_triton_kernel(
 
     qk = tl.where(CAUSAL_MASK, qk, 0)
 
-    y = matmul(A=qk, B=v, C=y, output_dtype=tl.float32)
+    y = matmul(A=qk.to(v.dtype), B=v, C=y, output_dtype=tl.float32)
     y *= attention_multiplier
 
     tl.store(
