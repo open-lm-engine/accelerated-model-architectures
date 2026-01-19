@@ -133,6 +133,8 @@ class RNNTest(TestCommons):
                     False,
                     # atol_float32=3.4e-4,
                     # rtol_float32=0,
+                    atol_float16=1e-3,
+                    rtol_float16=0,
                 )
 
                 if has_input_state:
@@ -142,8 +144,8 @@ class RNNTest(TestCommons):
                         False,
                         # atol_float32=5.8e-4,
                         # rtol_float32=0,
-                        # atol_float16=3.7e-4,
-                        # rtol_float16=0,
+                        atol_float16=3.7e-4,
+                        rtol_float16=0,
                     )
 
                 for weight_name in weight_kernel_grads:
@@ -153,8 +155,8 @@ class RNNTest(TestCommons):
                         False,
                         # atol_float32=1.9e-4,
                         # rtol_float32=0,
-                        # atol_float16=3.1e-4,
-                        # rtol_float16=0,
+                        atol_float16=1.3e-2,
+                        rtol_float16=0,
                     )
 
     @parameterized.expand(
