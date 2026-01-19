@@ -261,10 +261,16 @@
 <span class="c1"># Copyright (c) 2025, Mayank Mishra</span>
 <span class="c1"># **************************************************</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">TypeVar</span>
+
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)</span>
+
 
 <div class="viewcode-block" id="XTuneParameter">
 <a class="viewcode-back" href="../../../xma.xtuner.parameter.html#xma.xtuner.parameter.XTuneParameter">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">XTuneParameter</span><span class="p">:</span> <span class="o">...</span></div>
+<span class="k">class</span><span class="w"> </span><span class="nc">XTuneParameter</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Marker annotation for XTune parameters.&quot;&quot;&quot;</span></div>
 
 </pre></div>
         </article>
