@@ -21,7 +21,7 @@ class RNNTest(TestCommons):
         TestCommons.make_args_matrix(
             [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.float16],  # dtype
-            [(4, 1024, None)],  # B, S, cu_seqlens
+            [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
