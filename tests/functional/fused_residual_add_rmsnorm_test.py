@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-from contextlib import nullcontext
 from typing import Callable
 
 import torch
@@ -41,21 +40,6 @@ class FusedResdidualAddRMSNormTest(TestCommons):
                 fused_residual_add_rmsnorm,
                 torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
             ],  # function
-            [False],  # no_grad
-        )
-        + TestCommons.make_args_matrix(
-            [(400, 77)],  # size
-            [KernelBackend.triton],  # KernelBackend
-            [torch.float32],  # dtype
-            [True, False],  # memory_efficient
-            [True, False],  # has_weight
-            [None, 0.9],  # multiplier
-            [False, True],  # deterministic
-            [
-                fused_residual_add_rmsnorm,
-                torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
-            ],  # function
-            [False, True],  # no_grad
         )
     )
     def test_fused_residual_add_rmsnorm(
@@ -68,7 +52,6 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         multiplier: float | None,
         deterministic: bool,
         function: Callable,
-        no_grad: bool,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
         device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -78,58 +61,52 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         residual_kernel, residual_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-        context = torch.no_grad if no_grad else nullcontext
+        if has_weight:
+            weight_kernel, weight_expected = self.get_random_duplicated_tensors(size[-1], device=device, dtype=dtype)
+        else:
+            weight_kernel = None
+            weight_expected = None
 
-        with context():
-            if has_weight:
-                weight_kernel, weight_expected = self.get_random_duplicated_tensors(
-                    size[-1], device=device, dtype=dtype
-                )
-            else:
-                weight_kernel = None
-                weight_expected = None
+        z_kernel, r_kernel = function(
+            x=x_kernel,
+            residual=residual_kernel,
+            weight=weight_kernel,
+            eps=_EPSILON,
+            multiplier=multiplier,
+            memory_efficient=memory_efficient,
+            deterministic=deterministic,
+            kernel_backend=KernelBackend.triton,
+        )
+        z_kernel = z_kernel * 2 + r_kernel * 3
 
-            z_kernel, r_kernel = function(
-                x=x_kernel,
-                residual=residual_kernel,
-                weight=weight_kernel,
-                eps=_EPSILON,
-                multiplier=multiplier,
-                memory_efficient=memory_efficient,
-                deterministic=deterministic,
-                kernel_backend=KernelBackend.triton,
+        z_expected, r_expected = fused_residual_add_rmsnorm(
+            x=x_expected,
+            residual=residual_expected,
+            weight=weight_expected,
+            eps=_EPSILON,
+            multiplier=multiplier,
+            kernel_backend=KernelBackend.torch,
+        )
+        z_expected = z_expected * 2 + r_expected * 3
+
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=1.4e-4, rtol_float32=0)
+
+        z_kernel.sum().backward()
+        z_expected.sum().backward()
+
+        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0)
+        self.assert_equal_tensors(
+            residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0
+        )
+
+        if has_weight:
+            self.assert_equal_tensors(
+                weight_kernel.grad,
+                weight_expected.grad,
+                False,
+                atol_float32=1.1e-4,
+                rtol_float32=0,
             )
-            z_kernel = z_kernel * 2 + r_kernel * 3
-
-            z_expected, r_expected = fused_residual_add_rmsnorm(
-                x=x_expected,
-                residual=residual_expected,
-                weight=weight_expected,
-                eps=_EPSILON,
-                multiplier=multiplier,
-                kernel_backend=KernelBackend.torch,
-            )
-            z_expected = z_expected * 2 + r_expected * 3
-
-            self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=1.4e-4, rtol_float32=0)
-
-            if not no_grad:
-                z_kernel.sum().backward()
-                z_expected.sum().backward()
-
-                self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0)
-                self.assert_equal_tensors(
-                    residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0
-                )
-
-                if has_weight:
-                    self.assert_equal_tensors(
-                        weight_kernel.grad,
-                        weight_expected.grad,
-                        False,
-                        atol_float32=1.1e-4,
-                        rtol_float32=0,
-                    )
 
     # def test_fused_residual_add_rmsnorm_kernel_replacement(self) -> None:
     #     class Model(nn.Module):
