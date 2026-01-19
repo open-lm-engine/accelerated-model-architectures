@@ -150,8 +150,8 @@ def scatter2scatter(
     assert out.size(0) == sorted_expert_idxs.size(0)
     assert out.size(1) == W.size(-1)
 
-    grid = lambda meta: (
-        ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
+    grid = lambda kwargs: (
+        ceil_divide(sorted_expert_idxs.size(0), kwargs["BLOCK_M"]) * ceil_divide(kwargs["N"], kwargs["BLOCK_N"]),
     )
 
     BLOCK_M = 128

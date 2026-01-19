@@ -127,7 +127,7 @@ def cross_entropy_forward_backward_triton(
     B, V = x.size()
 
     BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
 
     cross_entropy_forward_backward_triton_kernel[GRID](
         x_ptr=x,

@@ -15,9 +15,9 @@ _SEED = 42
 
 
 def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
-    base = [8, 8, 8, 8, 8, 8, 8]
-
     result = [(9, 7, 7, 7, 7, 7, 7)]
+
+    base = [8, 8, 8, 8, 8, 8, 8]
     for i in range(1, len(base)):
         t = base.copy()
         t[i] = 4
@@ -59,9 +59,9 @@ class GRUTest(TestCommons):
             num_weight_heads,
             num_forget_weight_heads,
             num_reset_weight_heads,
-        ) = problem_shapes
+        ) = problem_shape
 
-        num_heads = max(*problem_shapes[1:])
+        num_heads = max(*problem_shape[1:])
         state_size = num_heads * state_head_dim
 
         B, S, cu_seqlens = input_shape
@@ -182,7 +182,7 @@ class GRUTest(TestCommons):
             [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            _get_problem_shapes(),  # problem_shapes
+            _get_problem_shapes(),  # problem_shape
             [False, True],  # has_input_state
         )
     )
@@ -191,7 +191,7 @@ class GRUTest(TestCommons):
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        problem_shapes: tuple[int, int, int, int, int, int, int],
+        problem_shape: tuple[int, int, int, int, int, int, int],
         has_input_state: bool,
     ) -> None:
         if Accelerator.get_accelerator() != Accelerator.cuda:
@@ -214,9 +214,9 @@ class GRUTest(TestCommons):
             num_weight_heads,
             num_forget_weight_heads,
             num_reset_weight_heads,
-        ) = problem_shapes
+        ) = problem_shape
 
-        num_heads = max(*problem_shapes[1:])
+        num_heads = max(*problem_shape[1:])
         state_size = num_heads * state_head_dim
 
         x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
