@@ -89,10 +89,7 @@ class XTunedFunction:
                 )
 
         return self._get_function_arguments(
-            config=best_config,
-            args=args,
-            kwargs=kwargs,
-            override_allowed=override_xtune_parameters,
+            config=best_config, args=args, kwargs=kwargs, override_allowed=override_xtune_parameters
         )
 
     def _check_all_or_no_args_are_xtune_parameters(self, *args, **kwargs) -> bool:
