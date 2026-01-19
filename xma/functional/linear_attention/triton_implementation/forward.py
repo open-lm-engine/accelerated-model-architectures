@@ -149,6 +149,7 @@ def recurrent_state_forward_triton_kernel(
         + BLOCK_ID_Nk * k_stride[N_DIM]
         + BLOCK_K[None, :] * k_stride[K_DIM]
     )
+
     v_ptrs = (
         v_ptr
         + _B * v_stride[0]
