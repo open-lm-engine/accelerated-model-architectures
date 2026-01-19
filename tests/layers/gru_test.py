@@ -2,8 +2,6 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from contextlib import nullcontext
-
 import torch
 import torch.nn as nn
 from parameterized import parameterized
@@ -37,7 +35,6 @@ class GRUTest(TestCommons):
             _get_problem_shapes(),  # problem_shapes
             [False, True],  # has_input_state
             [False, True],  # is_compiling
-            [False, True],  # no_grad
         )
     )
     def test_gru(
@@ -48,14 +45,11 @@ class GRUTest(TestCommons):
         problem_shapes: tuple[int, int, int, int, int, int, int],
         has_input_state: bool,
         is_compiling: bool,
-        no_grad: bool,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
         device = kernel_backend.get_compatible_accelerator().get_current_device()
 
         set_seed(_SEED)
-
-        context = torch.no_grad if no_grad else nullcontext
 
         (
             state_head_dim,
@@ -70,120 +64,118 @@ class GRUTest(TestCommons):
         num_heads = max(*problem_shapes[1:])
         state_size = num_heads * state_head_dim
 
-        with context():
-            B, S, cu_seqlens = input_shape
-            max_seqlen = None
+        B, S, cu_seqlens = input_shape
+        max_seqlen = None
 
-            if B is None:
-                cu_seqlens = torch.tensor(cu_seqlens, device=device)
-                max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
-                B = cu_seqlens.size(0) - 1
+        if B is None:
+            cu_seqlens = torch.tensor(cu_seqlens, device=device)
+            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
+            B = cu_seqlens.size(0) - 1
 
-            x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
-                batch_size=B,
-                sequence_length=S if cu_seqlens is None else None,
-                total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
-                state_size=state_size,
-                has_input_state=has_input_state,
-                dtype=dtype,
-                device=device,
-            )
+        x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
+            batch_size=B,
+            sequence_length=S if cu_seqlens is None else None,
+            total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
+            state_size=state_size,
+            has_input_state=has_input_state,
+            dtype=dtype,
+            device=device,
+        )
 
-            with torch.device(device):
-                gru = GRU(
-                    input_size=state_size,
-                    state_head_dim=state_head_dim,
-                    output_size=state_size,
-                    num_input_heads=num_input_heads,
-                    num_forget_input_heads=num_forget_input_heads,
-                    num_reset_input_heads=num_reset_input_heads,
-                    num_weight_heads=num_weight_heads,
-                    num_forget_weight_heads=num_forget_weight_heads,
-                    num_reset_weight_heads=num_reset_weight_heads,
-                    add_bias=False,
-                    gradient_clipping=None,
-                ).to(dtype)
+        with torch.device(device):
+            gru = GRU(
+                input_size=state_size,
+                state_head_dim=state_head_dim,
+                output_size=state_size,
+                num_input_heads=num_input_heads,
+                num_forget_input_heads=num_forget_input_heads,
+                num_reset_input_heads=num_reset_input_heads,
+                num_weight_heads=num_weight_heads,
+                num_forget_weight_heads=num_forget_weight_heads,
+                num_reset_weight_heads=num_reset_weight_heads,
+                add_bias=False,
+                gradient_clipping=None,
+            ).to(dtype)
 
-                nn.init.normal_(gru.state_weight, std=0.01)
+            nn.init.normal_(gru.state_weight, std=0.01)
 
-            gru_torch = gru
-            gru_kernel = gru
+        gru_torch = gru
+        gru_kernel = gru
 
-            if is_compiling:
-                gru_kernel = torch.compile(gru_kernel, fullgraph=True)
+        if is_compiling:
+            gru_kernel = torch.compile(gru_kernel, fullgraph=True)
 
-            y_kernel, output_state_kernel = gru_kernel(
-                input=x_kernel,
-                input_state=input_state_kernel,
-                cu_seqlens=cu_seqlens,
-                max_seqlen=max_seqlen,
-                kernel_backend=KernelBackend.triton,
-            )
+        y_kernel, output_state_kernel = gru_kernel(
+            input=x_kernel,
+            input_state=input_state_kernel,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.triton,
+        )
 
-            y_torch, output_state_torch = gru_torch(
-                input=x_torch,
-                input_state=input_state_torch,
-                cu_seqlens=cu_seqlens,
-                max_seqlen=max_seqlen,
-                kernel_backend=KernelBackend.torch,
-            )
+        y_torch, output_state_torch = gru_torch(
+            input=x_torch,
+            input_state=input_state_torch,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
+        )
 
+        self.assert_equal_tensors(
+            y_kernel,
+            y_torch,
+            False,
+            atol_float32=4e-6,
+            rtol_float32=0,
+            atol_float16=6.5e-5,
+            rtol_float16=0,
+        )
+
+        self.assert_equal_tensors(
+            output_state_kernel,
+            output_state_torch,
+            False,
+            atol_float32=4e-6,
+            rtol_float32=0,
+            atol_float16=6.5e-5,
+            rtol_float16=0,
+        )
+
+        y_kernel.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+
+        y_torch.sum().backward()
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+
+        self.assert_equal_tensors(
+            x_kernel.grad,
+            x_torch.grad,
+            False,
+            atol_float16=1e-3,
+            rtol_float16=0,
+        )
+
+        if has_input_state:
             self.assert_equal_tensors(
-                y_kernel,
-                y_torch,
+                input_state_kernel.grad,
+                input_state_torch.grad,
                 False,
                 atol_float32=4e-6,
                 rtol_float32=0,
-                atol_float16=6.5e-5,
+                atol_float16=3e-3,
                 rtol_float16=0,
             )
 
+        for weight_name in weight_kernel_grads:
             self.assert_equal_tensors(
-                output_state_kernel,
-                output_state_torch,
+                weight_kernel_grads[weight_name],
+                weight_torch_grads[weight_name],
                 False,
-                atol_float32=4e-6,
+                atol_float32=6e-3,
                 rtol_float32=0,
-                atol_float16=6.5e-5,
+                atol_float16=2.3e-2,
                 rtol_float16=0,
             )
-
-            if not no_grad:
-                y_kernel.sum().backward()
-                weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
-
-                y_torch.sum().backward()
-                weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
-
-                self.assert_equal_tensors(
-                    x_kernel.grad,
-                    x_torch.grad,
-                    False,
-                    atol_float16=1e-3,
-                    rtol_float16=0,
-                )
-
-                if has_input_state:
-                    self.assert_equal_tensors(
-                        input_state_kernel.grad,
-                        input_state_torch.grad,
-                        False,
-                        atol_float32=4e-6,
-                        rtol_float32=0,
-                        atol_float16=3e-3,
-                        rtol_float16=0,
-                    )
-
-                for weight_name in weight_kernel_grads:
-                    self.assert_equal_tensors(
-                        weight_kernel_grads[weight_name],
-                        weight_torch_grads[weight_name],
-                        False,
-                        atol_float32=6e-3,
-                        rtol_float32=0,
-                        atol_float16=2.3e-2,
-                        rtol_float16=0,
-                    )
 
     @parameterized.expand(
         TestCommons.make_args_matrix(

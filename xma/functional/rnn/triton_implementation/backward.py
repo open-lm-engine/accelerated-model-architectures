@@ -29,6 +29,8 @@ def rnn_backward_triton_kernel(
     dh0_stride,
     dy_ptr,
     dy_stride,
+    dht_ptr,
+    dht_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
     max_seqlen,
@@ -56,19 +58,26 @@ def rnn_backward_triton_kernel(
     MASK_BH = MASK_B[:, None] & MASK_H[None, :]
     MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
-    dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
-    dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
-
     W = tl.load(
         W_ptr + BLOCK_ID_Nw * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
         mask=MASK_HH,
     )
+
+    dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
     if h0_ptr is None:
         h0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
     else:
         h0 = tl.load(
             h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
+            mask=MASK_BH,
+        )
+
+    if dht_ptr is None:
+        dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    else:
+        dh = tl.load(
+            dht_ptr + BLOCK_B[:, None] * dht_stride[0] + BLOCK_ID_N * dht_stride[1] + BLOCK_H[None, :] * dht_stride[2],
             mask=MASK_BH,
         )
 
@@ -110,6 +119,7 @@ def rnn_backward_triton_kernel(
     )
 
     y = tl.load(y_ptrs, mask=((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH)
+    y_ptrs -= y_stride[S_DIM]
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -117,7 +127,6 @@ def rnn_backward_triton_kernel(
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         MASK = ((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
-        y_ptrs -= y_stride[S_DIM]
 
         if IS_VARLEN:
             y_prev = tl.where(END > START, tl.load(y_ptrs, mask=MASK), h0)
@@ -126,7 +135,11 @@ def rnn_backward_triton_kernel(
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
 
+        y_ptrs -= y_stride[S_DIM]
+
         dy = tl.load(dy_ptrs, mask=MASK) + dh
+        dy_ptrs -= dy_stride[S_DIM]
+
         dx = dy * tanh_backward(y)
 
         _dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
@@ -144,7 +157,6 @@ def rnn_backward_triton_kernel(
             tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
 
         dx_ptrs -= dx_stride[S_DIM]
-        dy_ptrs -= dy_stride[S_DIM]
 
         if IS_VARLEN:
             END -= 1
@@ -170,6 +182,7 @@ def rnn_backward_triton(
     y: torch.Tensor,
     h0: torch.Tensor | None,
     dy: torch.Tensor,
+    dht: torch.Tensor | None,
     dx: torch.Tensor,
     dW: torch.Tensor,
     dh0: torch.Tensor | None,
@@ -207,6 +220,8 @@ def rnn_backward_triton(
         dh0_stride=None if dh0 is None else dh0.stride(),
         dy_ptr=dy,
         dy_stride=dy.stride(),
+        dht_ptr=dht,
+        dht_stride=None if dht is None else dht.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
         max_seqlen=max_seqlen,
