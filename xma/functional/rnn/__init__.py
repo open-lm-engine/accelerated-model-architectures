@@ -46,7 +46,7 @@ class _RNN(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         Nx, Nw, N = _get_num_heads(x=x, W=W, run_check=False)
 
         y_shape = list(x.size())
@@ -95,7 +95,7 @@ class _RNN(CustomOp):
                 y[offset_unfinished] = h
                 h0[unfinished] = h
 
-        return y
+        return y, h0
 
     @staticmethod
     def forward(
@@ -130,10 +130,14 @@ class _RNN(CustomOp):
         ctx.gradient_clipping = gradient_clipping
         ctx.Nx = Nx
 
-        return y
+        ht = y[:, -1] if cu_seqlens is None else y[cu_seqlens[1:] - 1]
+
+        return y, ht
 
     @staticmethod
-    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
+    def backward(ctx, dy: torch.Tensor, dht: torch.Tensor | None) -> tuple[torch.Tensor]:
+        assert dht is None
+
         W, y, h0, cu_seqlens = ctx.saved_tensors
         Nx = ctx.Nx
         N = y.size(-2)
@@ -218,7 +222,7 @@ def rnn(
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
 
-    input = _RNN.run(
+    input, input_state = _RNN.run(
         x=input,
         W=weight,
         h0=input_state,
@@ -227,7 +231,5 @@ def rnn(
         max_seqlen=max_seqlen,
         kernel_backend=kernel_backend,
     )
-
-    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
     return input, input_state
