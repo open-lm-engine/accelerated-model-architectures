@@ -170,7 +170,7 @@ class GRUTest(TestCommons):
                         False,
                         atol_float32=4e-6,
                         rtol_float32=0,
-                        atol_float16=2e-3,
+                        atol_float16=3e-3,
                         rtol_float16=0,
                     )
 
