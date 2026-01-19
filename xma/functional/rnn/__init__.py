@@ -107,7 +107,7 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
         kernel_backend: KernelBackend,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
         Nx, _, N = _get_num_heads(x=x, W=W, run_check=False)

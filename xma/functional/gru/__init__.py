@@ -29,7 +29,7 @@ class _GRU(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
 
         y_shape = list(x.size())
@@ -104,7 +104,7 @@ class _GRU(CustomOp):
                 y[offset_unfinished] = h
                 h0[unfinished] = h
 
-        return y
+        return y, h0
 
     @staticmethod
     def forward(
@@ -120,7 +120,7 @@ class _GRU(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
         kernel_backend: KernelBackend,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
         Nx, Nxf, Nxr, _, _, _, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
@@ -170,10 +170,13 @@ class _GRU(CustomOp):
         ctx.gradient_clipping = gradient_clipping
         ctx.num_heads = Nx, Nxf, Nxr
 
-        return y
+        ht = y[:, -1] if cu_seqlens is None else y[cu_seqlens[1:] - 1]
+        ht = ht.detach()
+
+        return y, ht
 
     @staticmethod
-    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward(ctx, dy: torch.Tensor, dht: torch.Tensor | None) -> tuple[torch.Tensor | None]:
         W, Wf, f, Wr, r, z, y, h0, cu_seqlens, x, xf, xr = ctx.saved_tensors
         Nx, Nxf, Nxr = ctx.num_heads
 
@@ -204,6 +207,7 @@ class _GRU(CustomOp):
             z=z,
             h0=h0,
             dy=dy,
+            dht=dht,
             dx=dx,
             dW=dW,
             dh0=dh0,
@@ -272,25 +276,28 @@ def gru(
     :rtype: tuple[Tensor, Tensor]
     """
 
-    expected_dim = 3 + (cu_seqlens is None)
-
-    assert input.dim() == expected_dim
-    assert forget_input.dim() == expected_dim
-    assert reset_input.dim() == expected_dim
-
     if cu_seqlens is None:
         assert max_seqlen is None
-        B, _, _, H = input.size()
+        B, S, _, H = input.size()
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
 
         B = cu_seqlens.size(0) - 1
-        H = input.size(-1)
+        T, _, H = input.size()
 
-    _, _, _, Nw, Nwf, Nwr, N = _get_num_heads(
+    Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(
         x=input, W=weight, xf=forget_input, Wf=forget_weight, xr=reset_input, Wr=reset_weight, run_check=True
     )
+
+    if cu_seqlens is None:
+        input.size() == (B, S, Nx, H)
+        forget_input.size() == (B, S, Nxf, H)
+        reset_input.size() == (B, S, Nxr, H)
+    else:
+        input.size() == (T, Nx, H)
+        forget_input.size() == (T, Nxf, H)
+        reset_input.size() == (T, Nxr, H)
 
     assert weight.size() == (Nw, H, H)
     assert forget_weight.size() == (Nwf, H, H)
@@ -302,7 +309,7 @@ def gru(
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
 
-    input = _GRU.run(
+    input, input_state = _GRU.run(
         x=input,
         W=weight,
         xf=forget_input,
@@ -315,7 +322,5 @@ def gru(
         max_seqlen=max_seqlen,
         kernel_backend=kernel_backend,
     )
-
-    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
     return input, input_state
