@@ -165,7 +165,7 @@ def output_forward_triton_kernel(
 
     qk = tl.where(CAUSAL_MASK, qk, 0)
 
-    y = matmul(A=qk, B=v, C=y, output_dtype=tl.float32)
+    y = matmul(A=qk.to(v.dtype), B=v, C=y, output_dtype=tl.float32)
     y *= attention_multiplier
 
     tl.store(
