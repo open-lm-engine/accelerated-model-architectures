@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import inspect
 from collections import defaultdict
 from typing import Any, Callable
@@ -21,7 +23,7 @@ _DEFAULT_WARMUP_ITERATIONS = 5
 _BENCHMARK_ITERATIONS = 10
 
 
-class _XTune:
+class XTunedFunction:
     def __init__(
         self,
         function: Callable,
@@ -31,7 +33,7 @@ class _XTune:
         benchmark_iterations: int,
         functional_triggers: dict[str, Callable] = {},
         reset_to_zero: dict = {},
-    ) -> None:
+    ) -> XTunedFunction:
         assert len(configs) > 0, "no xtune config is passed"
 
         self.function = function
@@ -301,14 +303,16 @@ class _XTune:
         return variable_name, func_name, func
 
     def __repr__(self):
-        return f"""function_cache = {self.function_cache}
-configs = {self.configs}
-warmup iterations = {self.warmup_iterations}
-benchmark iterations = {self.benchmark_iterations}
-xtuneable parameters = {self.xtuneable_parameters}
-functional triggers = {self.functional_triggers}
-reset to zero = {self.reset_to_zero}
-function hash = {self.function_hash}"""
+        return f"""XTunedFunction(
+    function_cache = {self.function_cache}
+    configs = {self.configs}
+    warmup iterations = {self.warmup_iterations}
+    benchmark iterations = {self.benchmark_iterations}
+    xtuneable parameters = {self.xtuneable_parameters}
+    functional triggers = {self.functional_triggers}
+    reset to zero = {self.reset_to_zero}
+    function hash = {self.function_hash}
+)"""
 
 
 def xtune(
@@ -318,7 +322,7 @@ def xtune(
     warmup_iterations: int = _DEFAULT_WARMUP_ITERATIONS,
     benchmark_iterations: int = _BENCHMARK_ITERATIONS,
     reset_to_zero: dict = {},
-) -> _XTune:
+) -> XTunedFunction:
     """
     autotuner for any function or kernel
 
@@ -341,7 +345,7 @@ def xtune(
     """
 
     def inner(function: Callable) -> Callable:
-        return _XTune(
+        return XTunedFunction(
             function=function,
             configs=configs,
             triggers=triggers,
