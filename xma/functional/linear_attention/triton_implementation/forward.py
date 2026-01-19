@@ -423,8 +423,6 @@ def _autotuned_linear_attention_forward_triton(
 
     V = v.size(-1)
 
-    GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
-
     kwargs = {
         "k_ptr": k,
         "k_stride": k.stride(),
@@ -446,6 +444,8 @@ def _autotuned_linear_attention_forward_triton(
         "Gv": N // Nv,
     }
 
+    GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
+
     recurrent_state_forward_triton_kernel[GRID](
         q_ptr=q if use_fused_kernel else None,
         q_stride=q.stride() if use_fused_kernel else None,
@@ -458,7 +458,10 @@ def _autotuned_linear_attention_forward_triton(
     )
 
     if not use_fused_kernel:
-        output_forward_triton_kernel(
+        NUM_CHUNKS = h.size(1)
+        GRID = lambda kwargs: (B * N, NUM_CHUNKS + 1, ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
+
+        output_forward_triton_kernel[GRID](
             q_ptr=q, q_stride=q.stride(), y_ptr=y, y_stride=y.stride(), BLOCK_SIZE_S=CHUNK_SIZE
         )
 
