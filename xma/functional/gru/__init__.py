@@ -272,25 +272,28 @@ def gru(
     :rtype: tuple[Tensor, Tensor]
     """
 
-    expected_dim = 3 + (cu_seqlens is None)
-
-    assert input.dim() == expected_dim
-    assert forget_input.dim() == expected_dim
-    assert reset_input.dim() == expected_dim
-
     if cu_seqlens is None:
         assert max_seqlen is None
-        B, _, _, H = input.size()
+        B, S, _, H = input.size()
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
 
         B = cu_seqlens.size(0) - 1
-        H = input.size(-1)
+        T, _, H = input.size()
 
-    _, _, _, Nw, Nwf, Nwr, N = _get_num_heads(
+    Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(
         x=input, W=weight, xf=forget_input, Wf=forget_weight, xr=reset_input, Wr=reset_weight, run_check=True
     )
+
+    if cu_seqlens is None:
+        input.size() == (B, S, Nx, H)
+        forget_input.size() == (B, S, Nxf, H)
+        reset_input.size() == (B, S, Nxr, H)
+    else:
+        input.size() == (T, Nx, H)
+        forget_input.size() == (T, Nxf, H)
+        reset_input.size() == (T, Nxr, H)
 
     assert weight.size() == (Nw, H, H)
     assert forget_weight.size() == (Nwf, H, H)
