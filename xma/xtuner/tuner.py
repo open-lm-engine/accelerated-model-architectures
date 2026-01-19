@@ -301,7 +301,14 @@ class _XTune:
         return variable_name, func_name, func
 
     def __repr__(self):
-        return self.function_cache
+        return f"""function_cache = {self.function_cache}
+configs = {self.configs}
+warmup iterations = {self.warmup_iterations}
+benchmark iterations = {self.benchmark_iterations}
+xtuneable parameters = {self.xtuneable_parameters}
+functional triggers = {self.functional_triggers}
+reset to zero = {self.reset_to_zero}
+function hash = {self.function_hash}"""
 
 
 def xtune(
