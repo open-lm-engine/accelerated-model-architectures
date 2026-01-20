@@ -2,6 +2,7 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from .cu_seqlens import get_start_end
 from .math import (
     clamp,
     leaky_relu,

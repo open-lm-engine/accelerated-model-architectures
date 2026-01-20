@@ -127,6 +127,7 @@ Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested
 
    xma.accelerator
    xma.counters
+   xma.xtuner
 """
 
 (ROOT_DIR / "docs" / "index.rst").write_text(index_rst)

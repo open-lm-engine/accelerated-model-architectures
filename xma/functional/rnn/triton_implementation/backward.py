@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_utils import clamp, matmul, tanh_backward
+from ....triton_utils import clamp, get_start_end, matmul, tanh_backward
 from .forward import _get_autotune_configs
 
 
@@ -29,6 +29,8 @@ def rnn_backward_triton_kernel(
     dh0_stride,
     dy_ptr,
     dy_stride,
+    dht_ptr,
+    dht_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
     max_seqlen,
@@ -56,13 +58,12 @@ def rnn_backward_triton_kernel(
     MASK_BH = MASK_B[:, None] & MASK_H[None, :]
     MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
-    dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
-    dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
-
     W = tl.load(
         W_ptr + BLOCK_ID_Nw * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
         mask=MASK_HH,
     )
+
+    dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
     if h0_ptr is None:
         h0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
@@ -72,66 +73,73 @@ def rnn_backward_triton_kernel(
             mask=MASK_BH,
         )
 
+    if dht_ptr is None:
+        dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    else:
+        dh = tl.load(
+            dht_ptr + BLOCK_B[:, None] * dht_stride[0] + BLOCK_ID_N * dht_stride[1] + BLOCK_H[None, :] * dht_stride[2],
+            mask=MASK_BH,
+        )
+
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    N_DIM: tl.constexpr = 2 - IS_VARLEN
+    H_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
-        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
-        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
-        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
-
+        START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
+        END -= 1
         S = max_seqlen
-        end -= 1
 
-        y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-        dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
-        dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
+    BLOCK = END if IS_VARLEN else BLOCK_B[:, None]
+    S_LAST = 0 if IS_VARLEN else S - 1
 
-        MASK = (end >= start) & MASK_H[None, :]
-    else:
-        y_ptrs = (
-            y_ptr
-            + BLOCK_B[:, None] * y_stride[0]
-            + (S - 1) * y_stride[1]
-            + BLOCK_ID_N * y_stride[2]
-            + BLOCK_H[None, :] * y_stride[3]
-        )
+    y_ptrs = (
+        y_ptr
+        + BLOCK * y_stride[0]
+        + S_LAST * y_stride[S_DIM]
+        + BLOCK_ID_N * y_stride[N_DIM]
+        + BLOCK_H[None, :] * y_stride[H_DIM]
+    )
 
-        dx_ptrs = (
-            dx_ptr
-            + BLOCK_B[:, None] * dx_stride[0]
-            + (S - 1) * dx_stride[1]
-            + BLOCK_ID_Nx * dx_stride[2]
-            + BLOCK_H[None, :] * dx_stride[3]
-        )
+    dx_ptrs = (
+        dx_ptr
+        + BLOCK * dx_stride[0]
+        + S_LAST * dx_stride[S_DIM]
+        + BLOCK_ID_Nx * dx_stride[N_DIM]
+        + BLOCK_H[None, :] * dx_stride[H_DIM]
+    )
 
-        dy_ptrs = (
-            dy_ptr
-            + BLOCK_B[:, None] * dy_stride[0]
-            + (S - 1) * dy_stride[1]
-            + BLOCK_ID_N * dy_stride[2]
-            + BLOCK_H[None, :] * dy_stride[3]
-        )
+    dy_ptrs = (
+        dy_ptr
+        + BLOCK * dy_stride[0]
+        + S_LAST * dy_stride[S_DIM]
+        + BLOCK_ID_N * dy_stride[N_DIM]
+        + BLOCK_H[None, :] * dy_stride[H_DIM]
+    )
 
-        MASK = MASK_BH
-
-    y = tl.load(y_ptrs, mask=MASK)
+    y = tl.load(y_ptrs, mask=((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH)
+    y_ptrs -= y_stride[S_DIM]
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
-        y_ptrs -= y_stride[1 - IS_VARLEN]
+        MASK = ((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         if IS_VARLEN:
-            y_prev = tl.where(end > start, tl.load(y_ptrs, mask=MASK), h0)
+            y_prev = tl.where(END > START, tl.load(y_ptrs, mask=MASK), h0)
         elif s == 0:
             y_prev = h0
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
 
+        y_ptrs -= y_stride[S_DIM]
+
         dy = tl.load(dy_ptrs, mask=MASK) + dh
+        dy_ptrs -= dy_stride[S_DIM]
+
         dx = dy * tanh_backward(y)
 
         _dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
@@ -148,11 +156,10 @@ def rnn_backward_triton_kernel(
         else:
             tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
 
-        dx_ptrs -= dx_stride[1 - IS_VARLEN]
-        dy_ptrs -= dy_stride[1 - IS_VARLEN]
+        dx_ptrs -= dx_stride[S_DIM]
 
         if IS_VARLEN:
-            end -= 1
+            END -= 1
 
     if dh0_ptr is not None:
         tl.store(
@@ -175,6 +182,7 @@ def rnn_backward_triton(
     y: torch.Tensor,
     h0: torch.Tensor | None,
     dy: torch.Tensor,
+    dht: torch.Tensor | None,
     dx: torch.Tensor,
     dW: torch.Tensor,
     dh0: torch.Tensor | None,
@@ -195,7 +203,7 @@ def rnn_backward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), N)
 
     rnn_backward_triton_kernel[GRID](
         W_ptr=W,
@@ -212,6 +220,8 @@ def rnn_backward_triton(
         dh0_stride=None if dh0 is None else dh0.stride(),
         dy_ptr=dy,
         dy_stride=dy.stride(),
+        dht_ptr=dht,
+        dht_stride=None if dht is None else dht.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
         max_seqlen=max_seqlen,

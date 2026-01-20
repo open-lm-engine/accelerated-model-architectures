@@ -32,7 +32,7 @@ def tanh(x: Numeric | TensorSSA, output_dtype: Numeric | None = None) -> Numeric
         output_dtype = x.dtype
 
     if const_expr(isinstance(x, TensorSSA)):
-        y = cute.make_fragment(x.shape, Float32)
+        y = cute.make_rmem_tensor(x.shape, Float32)
         y.store(x.to(Float32))
 
         for i in range_constexpr(cute.size(y.shape)):

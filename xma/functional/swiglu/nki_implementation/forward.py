@@ -36,6 +36,9 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     nl.store(y_ptr[BLOCK_B, BLOCK_H], y, mask=MASK)
 
 
+_CACHE = {}
+
+
 @xma_op(mutates_args={"y"})
 def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     BLOCK_SIZE_B = 128
@@ -44,7 +47,7 @@ def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> Non
     B, H = g.size()
 
     compile_key = (B, H, g.dtype)
-    kernel = swiglu_forward_nki.cache.get(compile_key, None)
+    kernel = _CACHE.get(compile_key, None)
 
     if kernel is None:
         kernel = TorchNeuronNKIKernel(
@@ -54,9 +57,6 @@ def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> Non
             return_tensor_overrides=(y,),
         )
 
-        swiglu_forward_nki.cache[compile_key] = kernel
+        _CACHE[compile_key] = kernel
 
     kernel(g, u, y)
-
-
-swiglu_forward_nki.cache = {}

@@ -2,7 +2,11 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .gru import GRU
-from .linear_attention import LinearAttention
-from .moe import MoE
-from .rnn import RNN
+from typing import Generic, TypeVar
+
+
+T = TypeVar("T")
+
+
+class XTuneParameter(Generic[T]):
+    """Marker annotation for XTune parameters."""
