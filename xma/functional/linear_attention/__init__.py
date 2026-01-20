@@ -8,6 +8,7 @@ import torch
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients
+from ...math import ceil_divide
 from .triton_implementation import linear_attention_forward_triton
 from .utils import _get_num_heads
 
@@ -96,8 +97,10 @@ class _LinearAttention(CustomOp):
         y = torch.empty(B, S, N, V, dtype=k.dtype, device=k.device)
         ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device)
 
+        NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
+
         h = (
-            torch.empty(B, S // CHUNK_SIZE, N, K, V, dtype=k.dtype, device=k.device)
+            torch.empty(B, NUM_CHUNKS - 1, N, K, V, dtype=k.dtype, device=k.device)
             if ctx_needs_gradients(ctx)
             else None
         )
