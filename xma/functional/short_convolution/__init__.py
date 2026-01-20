@@ -16,23 +16,23 @@ class _CausalShortConvolution1D(CustomOp):
         x: torch.Tensor,
         W: torch.Tensor,
         b: torch.Tensor | None,
-        stride: int,
-        groups: int,
         h0: torch.Tensor | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
         activation_function: str,
     ) -> torch.Tensor:
         K = W.size(0)
-        B = x.size(0) if cu_seqlens is None else cu_seqlens.size(0) - 1
+
+        if cu_seqlens is None:
+            B = x.size(0)
+        else:
+            B = cu_seqlens.size(0) - 1
+            T = x.size(0)
 
         if h0 is not None:
             if cu_seqlens is None:
                 x = torch.cat([h0, x], dim=1)
             else:
-                B = cu_seqlens.size(0) - 1
-                T = x.size(0)
-
                 y = []
                 for b in range(cu_seqlens.size(0) - 1):
                     start = cu_seqlens[b]
@@ -57,7 +57,7 @@ class _CausalShortConvolution1D(CustomOp):
         h = F.pad(x, (0, 0, K - S, 0)) if S < K else x[:, 1 - K :]
         x = x.transpose(-1, -2)
 
-        x = F.conv1d(input=x, weight=W, bias=b, stride=stride, padding=K - 1, groups=groups)
+        x = F.conv1d(input=x, weight=W, bias=b, padding=K - 1)
 
         # removes padding on the right side of the sequence
         x = x[..., : 1 - K]
@@ -91,8 +91,6 @@ def causal_short_convolution_1D(
     input: torch.Tensor,
     weight: torch.Tensor,
     bias: torch.Tensor | None,
-    stride: int,
-    groups: int,
     input_state: torch.Tensor | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: int | None = None,
@@ -109,10 +107,6 @@ def causal_short_convolution_1D(
     :type weight: torch.Tensor
     :param bias: bias tensor
     :type bias: torch.Tensor | None
-    :param stride: convolution stride
-    :type stride: int
-    :param groups: convolution groups
-    :type groups: int
     :param cu_seqlens: cumulative sequence length (must contain 0 as first element). Defaults to None.
     :type cu_seqlens: torch.Tensor | None
     :param max_seqlen: max sequence length in the batch. Defaults to None.
@@ -140,8 +134,6 @@ def causal_short_convolution_1D(
         x=input,
         W=weight,
         b=bias,
-        stride=stride,
-        groups=groups,
         h0=input_state,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
