@@ -31,6 +31,15 @@ class LinearAttentionTest(TestCommons):
             [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.bfloat16],
             [4],  # batch_size
+            [977],  # sequence_length
+            [(7, 9, 3, 3, 3)],  # problem_shape
+            [False, True],  # has_input_state
+            [False],  # is_compiling
+        )
+        + TestCommons.make_args_matrix(
+            [KernelBackend.triton],  # KernelBackend
+            [torch.float32, torch.bfloat16],
+            [4],  # batch_size
             [1024],  # sequence_length
             _get_problem_shapes(),  # problem_shape
             [False, True],  # has_input_state
