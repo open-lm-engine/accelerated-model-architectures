@@ -49,9 +49,7 @@ def fused_embedding_residual_add_rmsnorm_forward_triton_kernel(
     W1_rows = tl.load(W1_ptr + x[:, None] * W1_stride[0] + BLOCK_H[None, :] * W1_stride[1], mask=MASK_BH)
     x = W1_rows
 
-
     # Calculating RMSNorm for each row
-
 
     if multiplier is not None:
         x *= multiplier

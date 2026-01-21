@@ -30,7 +30,7 @@ def _get_sizes() -> list[tuple]:
         sizes.append((batch_size, 1000, 256))
     return sizes
 
-\
+
 class FusedEmbeddingRMSNormTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(

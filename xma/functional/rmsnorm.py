@@ -5,8 +5,9 @@
 import torch
 
 from ..accelerator import KernelBackend
-from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
 from .fused_embedding_residual_add_rmsnorm import fused_embedding_residual_add_rmsnorm
+from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
+
 
 def rmsnorm(
     x: torch.Tensor,
@@ -49,6 +50,7 @@ def rmsnorm(
     )
 
     return x
+
 
 def fused_embedding_rmsnorm(
     x: torch.Tensor,

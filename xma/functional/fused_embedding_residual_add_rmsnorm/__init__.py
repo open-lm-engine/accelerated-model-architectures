@@ -72,7 +72,9 @@ class _FusedEmbeddingResidualAddRMSNorm(CustomOp):
         if ctx_needs_gradients(ctx) and not memory_efficient:
             s = torch.empty(B, device=x.device, dtype=torch.float32)
 
-        fused_embedding_residual_add_rmsnorm_forward_triton(x=x, r=r, W1=W1, W2=W2, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
+        fused_embedding_residual_add_rmsnorm_forward_triton(
+            x=x, r=r, W1=W1, W2=W2, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s
+        )
 
         ctx_save_for_backward(ctx, xr if has_residual else x, W1, W2, s)
         ctx.eps = eps
