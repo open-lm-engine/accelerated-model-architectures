@@ -10,6 +10,7 @@ from .functional import (
     cross_entropy,
     fused_linear_cross_entropy,
     fused_residual_add_rmsnorm,
+    fused_embedding_residual_add_rmsnorm,
     pack_sequence,
     rmsnorm,
     softmax,
