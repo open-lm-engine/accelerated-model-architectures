@@ -15,21 +15,21 @@ from ....math import ceil_divide, get_next_power_of_2
 @triton.jit
 def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
     # Inputs from forward
-    x_ptr,          # token indices (B,)
+    x_ptr,  # token indices (B,)
     x_stride,
-    W1_ptr,         # embedding table (V, H)
+    W1_ptr,  # embedding table (V, H)
     W1_stride,
-    W2_ptr,         # RMSNorm weight (H,)
+    W2_ptr,  # RMSNorm weight (H,)
     W2_stride,
-    s_ptr,          # saved rsqrt scaling factor (B,) - can be None
+    s_ptr,  # saved rsqrt scaling factor (B,) - can be None
     s_stride,
     # Upstream gradient
-    dy_ptr,         # gradient from upstream (B, H)
+    dy_ptr,  # gradient from upstream (B, H)
     dy_stride,
     # Output gradients
-    dW1_ptr,        # gradient for embedding table (V, H) - atomic add
+    dW1_ptr,  # gradient for embedding table (V, H) - atomic add
     dW1_stride,
-    dW2_ptr,        # gradient for RMSNorm weight (H,) or (num_blocks, H) if deterministic
+    dW2_ptr,  # gradient for RMSNorm weight (H,) or (num_blocks, H) if deterministic
     dW2_stride,
     # Params
     eps,
@@ -42,12 +42,12 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
 ):
     """
     Backward kernel for fused embedding + RMSNorm.
-    
+
     Forward was:
         xr = W1[x] * multiplier
         s = rsqrt(mean(xr²) + eps)
         y = xr * s * W2
-    
+
     Backward computes:
         dW1[x] += dx * multiplier           -- gradient for embedding (scattered)
         dW2 = sum_b(dy * xr * s)            -- gradient for RMSNorm weight
@@ -84,10 +84,9 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
         x_indices = tl.load(x_ptr + BLOCK_B, mask=MASK_B)
 
         # ----- Recompute xr (pre-norm values) from embedding lookup -----
-        xr = tl.load(
-            W1_ptr + x_indices[:, None] * W1_stride[0] + BLOCK_H[None, :] * W1_stride[1],
-            mask=MASK_BH
-        ).to(tl.float32)
+        xr = tl.load(W1_ptr + x_indices[:, None] * W1_stride[0] + BLOCK_H[None, :] * W1_stride[1], mask=MASK_BH).to(
+            tl.float32
+        )
 
         if multiplier is not None:
             xr = xr * multiplier
@@ -102,10 +101,7 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
             s = tl.load(s_ptr + BLOCK_B * s_stride[0], mask=MASK_B)
 
         # ----- Load upstream gradient dy -----
-        dy = tl.load(
-            dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1],
-            mask=MASK_BH
-        )
+        dy = tl.load(dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1], mask=MASK_BH)
 
         # ----- Compute dyW = dy * W2 -----
         if W2_ptr is not None:
@@ -116,10 +112,10 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
         # ----- Compute dx (gradient w.r.t. xr) -----
         # dx = s * dyW - (1/H) * s³ * xr * sum(dyW * xr)
         s_col = s[:, None]  # (BLOCK_SIZE_B, 1) for broadcasting
-        
+
         # First term: s * dyW
         dx = s_col * dyW
-        
+
         # Second term: (1/H) * s³ * xr * sum(dyW * xr)
         dot_product = tl.sum(dyW * xr, axis=1, keep_dims=True)  # (BLOCK_SIZE_B, 1)
         dx = dx - (1.0 / H) * s_col * s_col * s_col * xr * dot_product
@@ -136,7 +132,7 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
             dW1_ptr + x_indices[:, None] * dW1_stride[0] + BLOCK_H[None, :] * dW1_stride[1],
             dW1_grad,
             mask=MASK_BH,
-            sem="relaxed"
+            sem="relaxed",
         )
 
         # ----- Accumulate dW2 = sum(dy * xr * s) -----
@@ -149,22 +145,18 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
         if ATOMIC_ADD:
             tl.atomic_add(dW2_ptr + BLOCK_H * dW2_stride[0], dW2_acc, mask=MASK_H, sem="relaxed")
         else:
-            tl.store(
-                dW2_ptr + BLOCK_ID * dW2_stride[0] + BLOCK_H * dW2_stride[1],
-                dW2_acc,
-                mask=MASK_H
-            )
+            tl.store(dW2_ptr + BLOCK_ID * dW2_stride[0] + BLOCK_H * dW2_stride[1], dW2_acc, mask=MASK_H)
 
 
 @xma_op(mutates_args={"dW1", "dW2"})
 def fused_embedding_residual_add_rmsnorm_backward_triton(
-    x: torch.Tensor,            # token indices (B,)
-    W1: torch.Tensor,           # embedding table (V, H)
-    W2: torch.Tensor | None,    # RMSNorm weight (H,)
-    dy: torch.Tensor,           # upstream gradient (B, H)
-    s: torch.Tensor | None,     # saved scaling factor (B,) - can be None for memory_efficient
-    dW1: torch.Tensor,          # output: gradient for embedding table (V, H)
-    dW2: torch.Tensor | None,   # output: gradient for W2 (H,) or (num_blocks, H)
+    x: torch.Tensor,  # token indices (B,)
+    W1: torch.Tensor,  # embedding table (V, H)
+    W2: torch.Tensor | None,  # RMSNorm weight (H,)
+    dy: torch.Tensor,  # upstream gradient (B, H)
+    s: torch.Tensor | None,  # saved scaling factor (B,) - can be None for memory_efficient
+    dW1: torch.Tensor,  # output: gradient for embedding table (V, H)
+    dW2: torch.Tensor | None,  # output: gradient for W2 (H,) or (num_blocks, H)
     eps: float,
     multiplier: float | None,
     deterministic: bool,
