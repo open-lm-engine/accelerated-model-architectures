@@ -8,6 +8,7 @@ from .functional import (
     bmm,
     continuous_count,
     cross_entropy,
+    fused_embedding_residual_add_rmsnorm,
     fused_linear_cross_entropy,
     fused_residual_add_rmsnorm,
     pack_sequence,
