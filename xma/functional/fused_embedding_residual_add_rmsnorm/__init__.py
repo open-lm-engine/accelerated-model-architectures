@@ -87,45 +87,51 @@ class _FusedEmbeddingResidualAddRMSNorm(CustomOp):
     @staticmethod
     def backward(
         ctx, dy: torch.Tensor, dxr: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
-        has_residual = ctx.has_residual
+    ) -> tuple[None, None, torch.Tensor | None, torch.Tensor | None, None, None, None, None, None]:
         deterministic = ctx.deterministic
 
-        xr, W, s = ctx.saved_tensors
-        dx = empty_like_contiguous(xr)
-        dr = empty_like_contiguous(xr) if has_residual else None
+        x, W1, W2, s = ctx.saved_tensors
 
-        if W is None:
-            dW = None
-        elif deterministic:
-            dW = torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
+        # dW1: gradient for embedding table (V, H) - kernel will atomic_add into this
+        if W1 is None:
+            dW1 = None
         else:
-            dW = zeros_like_contiguous(W, dtype=torch.float32)
+            dW1 = zeros_like_contiguous(W1, dtype=torch.float32)
 
-        if not has_residual:
-            assert dxr is None
+        # dW2: gradient for RMSNorm weight
+        if W2 is None:
+            dW2 = None
+        elif deterministic:
+            dW2 = torch.empty(Accelerator.get_sm_count(x.device), *W2.size(), dtype=torch.float32, device=x.device)
+        else:
+            dW2 = zeros_like_contiguous(W2, dtype=torch.float32)
 
-        fused_residual_add_rmsnorm_backward_triton(
-            xr=xr,
-            W=W,
+        # Call backward kernel - computes dW1 (via atomic_add) and dW2
+        fused_embedding_residual_add_rmsnorm_backward_triton(
+            x=x,
+            W1=W1,
+            W2=W2,
             dy=dy,
-            dxr=dxr,
             s=s,
-            dx=dx,
-            dr=dr,
-            dW=dW,
+            dW1=dW1,
+            dW2=dW2,
             eps=ctx.eps,
             multiplier=ctx.multiplier,
             deterministic=deterministic,
         )
 
-        if dW is not None:
+        # Convert gradients to original dtypes
+        if dW1 is not None:
+            dW1 = dW1.type_as(W1)
+
+        if dW2 is not None:
             if deterministic:
-                dW = dW.sum(0)
+                dW2 = dW2.sum(0)
+            dW2 = dW2.type_as(W2)
 
-            dW = dW.type_as(W)
-
-        return dx, dr, dW, *[None] * 5
+        # Return gradients for forward inputs: (x, r, W1, W2, eps, multiplier, memory_efficient, deterministic, kernel_backend)
+        # x (token indices) and r (no residual) have no gradients
+        return None, None, dW1, dW2, None, None, None, None, None
 
 
 def fused_embedding_residual_add_rmsnorm(

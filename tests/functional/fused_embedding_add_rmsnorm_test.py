@@ -115,33 +115,34 @@ class FusedEmbeddingRMSNormTest(TestCommons):
         if has_residual:
             self.assert_equal_tensors(r_kernel, r_expected, False, atol_float32=1.4e-4, rtol_float32=0)
 
-        # # Backward
-        # if has_residual:
-        #     loss_kernel = z_kernel.sum() * 2 + r_kernel.sum() * 3
-        #     loss_expected = z_expected.sum() * 2 + r_expected.sum() * 3
-        # else:
-        #     loss_kernel = z_kernel.sum()
-        #     loss_expected = z_expected.sum()
+        # Backward
+        assert not has_residual, "backward is not supported for has_residual"
+        if has_residual:
+            loss_kernel = z_kernel.sum() * 2 + r_kernel.sum() * 3
+            loss_expected = z_expected.sum() * 2 + r_expected.sum() * 3
+        else:
+            loss_kernel = z_kernel.sum()
+            loss_expected = z_expected.sum()
 
-        # loss_kernel.backward()
-        # loss_expected.backward()
+        loss_kernel.backward()
+        loss_expected.backward()
 
-        # # Check embedding weight gradients
-        # self.assert_equal_tensors(
-        #     weight1_kernel.grad, weight1_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0
-        # )
+        # Check embedding weight gradients
+        self.assert_equal_tensors(
+            weight1_kernel.grad, weight1_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0
+        )
 
-        # # Check rmsnorm weight gradients
-        # if has_rmsnorm_weight:
-        #     self.assert_equal_tensors(
-        #         weight2_kernel.grad, weight2_expected.grad, False, atol_float32=1.1e-4, rtol_float32=0
-        #     )
+        # Check rmsnorm weight gradients
+        if has_rmsnorm_weight:
+            self.assert_equal_tensors(
+                weight2_kernel.grad, weight2_expected.grad, False, atol_float32=1.1e-4, rtol_float32=0
+            )
 
-        # # Check residual gradients
-        # if has_residual:
-        #     self.assert_equal_tensors(
-        #         residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0
-        #     )
+        # Check residual gradients
+        if has_residual:
+            self.assert_equal_tensors(
+                residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0
+            )
 
     # @parameterized.expand(
     #     TestCommons.make_args_matrix(

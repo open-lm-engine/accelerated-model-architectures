@@ -14,22 +14,24 @@ from ....math import ceil_divide, get_next_power_of_2
 
 @triton.jit
 def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
-    xr_ptr,
-    xr_stride,
-    W_ptr,
-    W_stride,
-    dy_ptr,
-    dy_stride,
-    dxr_ptr,
-    dxr_stride,
-    dx_ptr,
-    dx_stride,
-    dr_ptr,
-    dr_stride,
-    dW_ptr,
-    dW_stride,
-    s_ptr,
+    # Inputs from forward
+    x_ptr,          # token indices (B,)
+    x_stride,
+    W1_ptr,         # embedding table (V, H)
+    W1_stride,
+    W2_ptr,         # RMSNorm weight (H,)
+    W2_stride,
+    s_ptr,          # saved rsqrt scaling factor (B,) - can be None
     s_stride,
+    # Upstream gradient
+    dy_ptr,         # gradient from upstream (B, H)
+    dy_stride,
+    # Output gradients
+    dW1_ptr,        # gradient for embedding table (V, H) - atomic add
+    dW1_stride,
+    dW2_ptr,        # gradient for RMSNorm weight (H,) or (num_blocks, H) if deterministic
+    dW2_stride,
+    # Params
     eps,
     multiplier,
     B,
@@ -38,9 +40,24 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
+    """
+    Backward kernel for fused embedding + RMSNorm.
+    
+    Forward was:
+        xr = W1[x] * multiplier
+        s = rsqrt(mean(xr²) + eps)
+        y = xr * s * W2
+    
+    Backward computes:
+        dW1[x] += dx * multiplier           -- gradient for embedding (scattered)
+        dW2 = sum_b(dy * xr * s)            -- gradient for RMSNorm weight
+        dx = s * dyW - (1/H) * s³ * xr * sum(dyW * xr)  -- gradient w.r.t. xr
+             where dyW = dy * W2
+    """
     BLOCK_ID = tl.program_id(0)
     NUM_BLOCKS = tl.num_programs(0)
 
+    # Each block processes a chunk of the batch
     NUM_ELEMENTS_PER_BLOCK = tl.cdiv(B, NUM_BLOCKS)
 
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
@@ -52,9 +69,10 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
 
     NUM_LOOPS = tl.cdiv(NUM_ELEMENTS_IN_CURRENT_BLOCK, BLOCK_SIZE_B)
 
-    if W_ptr is not None:
-        W = tl.load(W_ptr + BLOCK_H * W_stride[0], mask=MASK_H)[None, :]
-        dW = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
+    # Load W2 (RMSNorm weight) if provided
+    if W2_ptr is not None:
+        W2 = tl.load(W2_ptr + BLOCK_H * W2_stride[0], mask=MASK_H)[None, :]
+        dW2_acc = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
     for i in range(NUM_LOOPS):
         BLOCK_B = start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
@@ -62,89 +80,121 @@ def fused_embedding_residual_add_rmsnorm_backward_triton_kernel(
         MASK_B = BLOCK_B < end
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-        xr = tl.load(xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_H[None, :] * xr_stride[1], mask=MASK_BH).to(
-            tl.float32
-        )
+        # ----- Load token indices -----
+        x_indices = tl.load(x_ptr + BLOCK_B, mask=MASK_B)
 
-        if s_ptr is None:
-            r = tl.sum(xr * xr, axis=1)
-            r = tl.rsqrt(r / H + eps)
-        else:
-            r = tl.load(s_ptr + BLOCK_B * s_stride[0], mask=MASK_B)
-
-        dy = tl.load(dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1], mask=MASK_BH)
-
-        dyW = dy
-        if W_ptr is not None:
-            dyW *= W
-
-        dyW = dyW.to(tl.float32)
-
-        dx = r[:, None] * dyW
-        dx -= (1 / H) * r[:, None] * r[:, None] * r[:, None] * xr * tl.sum(dyW * xr, axis=1, keep_dims=True)
-
-        if dxr_ptr is not None:
-            dx += tl.load(dxr_ptr + BLOCK_B[:, None] * dxr_stride[0] + BLOCK_H[None, :] * dxr_stride[1], mask=MASK_BH)
-
-        if dr_ptr is not None:
-            tl.store(dr_ptr + BLOCK_B[:, None] * dr_stride[0] + BLOCK_H[None, :] * dr_stride[1], dx, mask=MASK_BH)
+        # ----- Recompute xr (pre-norm values) from embedding lookup -----
+        xr = tl.load(
+            W1_ptr + x_indices[:, None] * W1_stride[0] + BLOCK_H[None, :] * W1_stride[1],
+            mask=MASK_BH
+        ).to(tl.float32)
 
         if multiplier is not None:
-            dx *= multiplier
+            xr = xr * multiplier
 
-        tl.store(dx_ptr + BLOCK_B[:, None] * dx_stride[0] + BLOCK_H[None, :] * dx_stride[1], dx, mask=MASK_BH)
-
-        if W_ptr is not None:
-            dW += tl.sum(dy * (xr * r[:, None]), axis=0)
-
-    if W_ptr is not None:
-        if ATOMIC_ADD:
-            tl.atomic_add(dW_ptr + BLOCK_H * dW_stride[0], dW, mask=MASK_H, sem="relaxed")
+        # ----- Get or recompute scaling factor s -----
+        if s_ptr is None:
+            # Recompute: s = rsqrt(mean(xr²) + eps)
+            s = tl.sum(xr * xr, axis=1)
+            s = tl.rsqrt(s / H + eps)
         else:
-            tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
+            # Load saved scaling factor
+            s = tl.load(s_ptr + BLOCK_B * s_stride[0], mask=MASK_B)
+
+        # ----- Load upstream gradient dy -----
+        dy = tl.load(
+            dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1],
+            mask=MASK_BH
+        )
+
+        # ----- Compute dyW = dy * W2 -----
+        if W2_ptr is not None:
+            dyW = (dy * W2).to(tl.float32)
+        else:
+            dyW = dy.to(tl.float32)
+
+        # ----- Compute dx (gradient w.r.t. xr) -----
+        # dx = s * dyW - (1/H) * s³ * xr * sum(dyW * xr)
+        s_col = s[:, None]  # (BLOCK_SIZE_B, 1) for broadcasting
+        
+        # First term: s * dyW
+        dx = s_col * dyW
+        
+        # Second term: (1/H) * s³ * xr * sum(dyW * xr)
+        dot_product = tl.sum(dyW * xr, axis=1, keep_dims=True)  # (BLOCK_SIZE_B, 1)
+        dx = dx - (1.0 / H) * s_col * s_col * s_col * xr * dot_product
+
+        # ----- Compute dW1 gradient and scatter to embedding table -----
+        # dW1[x] = dx * multiplier (chain rule: d(xr)/d(W1[x]) = multiplier)
+        dW1_grad = dx
+        if multiplier is not None:
+            dW1_grad = dW1_grad * multiplier
+
+        # Atomic add to dW1 at the token indices
+        # Since BLOCK_SIZE_B=1, x_indices is a scalar per iteration
+        tl.atomic_add(
+            dW1_ptr + x_indices[:, None] * dW1_stride[0] + BLOCK_H[None, :] * dW1_stride[1],
+            dW1_grad,
+            mask=MASK_BH,
+            sem="relaxed"
+        )
+
+        # ----- Accumulate dW2 = sum(dy * xr * s) -----
+        if W2_ptr is not None:
+            # dy * (xr * s) = dy * normalized_x
+            dW2_acc += tl.sum(dy * (xr * s_col), axis=0)
+
+    # ----- Store dW2 -----
+    if W2_ptr is not None:
+        if ATOMIC_ADD:
+            tl.atomic_add(dW2_ptr + BLOCK_H * dW2_stride[0], dW2_acc, mask=MASK_H, sem="relaxed")
+        else:
+            tl.store(
+                dW2_ptr + BLOCK_ID * dW2_stride[0] + BLOCK_H * dW2_stride[1],
+                dW2_acc,
+                mask=MASK_H
+            )
 
 
-@xma_op(mutates_args={"dx", "dr", "dW"})
+@xma_op(mutates_args={"dW1", "dW2"})
 def fused_embedding_residual_add_rmsnorm_backward_triton(
-    xr: torch.Tensor,
-    W: torch.Tensor | None,
-    dy: torch.Tensor,
-    dxr: torch.Tensor | None,
-    s: torch.Tensor | None,
-    dx: torch.Tensor,
-    dr: torch.Tensor | None,
-    dW: torch.Tensor | None,
+    x: torch.Tensor,            # token indices (B,)
+    W1: torch.Tensor,           # embedding table (V, H)
+    W2: torch.Tensor | None,    # RMSNorm weight (H,)
+    dy: torch.Tensor,           # upstream gradient (B, H)
+    s: torch.Tensor | None,     # saved scaling factor (B,) - can be None for memory_efficient
+    dW1: torch.Tensor,          # output: gradient for embedding table (V, H)
+    dW2: torch.Tensor | None,   # output: gradient for W2 (H,) or (num_blocks, H)
     eps: float,
     multiplier: float | None,
     deterministic: bool,
 ) -> None:
-    B, H = xr.size()
+    B = x.numel()
+    H = W1.size(-1)
 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
     NUM_WARPS = 8
 
-    sm_count = Accelerator.get_sm_count(xr.device)
+    sm_count = Accelerator.get_sm_count(x.device)
     NUM_BLOCKS = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
     fused_embedding_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
-        xr_ptr=xr,
-        xr_stride=None if xr is None else xr.stride(),
-        W_ptr=W,
-        W_stride=None if W is None else W.stride(),
-        dy_ptr=dy,
-        dy_stride=dy.stride(),
-        dxr_ptr=dxr,
-        dxr_stride=None if dxr is None else dxr.stride(),
-        dx_ptr=dx,
-        dx_stride=dx.stride(),
-        dr_ptr=dr,
-        dr_stride=None if dr is None else dr.stride(),
-        dW_ptr=dW,
-        dW_stride=None if dW is None else dW.stride(),
+        x_ptr=x,
+        x_stride=x.stride(),
+        W1_ptr=W1,
+        W1_stride=W1.stride(),
+        W2_ptr=W2,
+        W2_stride=None if W2 is None else W2.stride(),
         s_ptr=s,
         s_stride=None if s is None else s.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        dW1_ptr=dW1,
+        dW1_stride=dW1.stride(),
+        dW2_ptr=dW2,
+        dW2_stride=None if dW2 is None else dW2.stride(),
         eps=eps,
         multiplier=multiplier,
         B=B,
