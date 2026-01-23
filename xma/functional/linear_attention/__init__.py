@@ -36,7 +36,7 @@ class _LinearAttention(CustomOp):
             B, S, _, K = q.size()
         else:
             B = cu_seqlens.size(0) - 1
-            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+            S = max_seqlen
             K = q.size(-1)
 
         V = v.size(-1)
