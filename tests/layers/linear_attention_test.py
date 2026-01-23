@@ -29,9 +29,8 @@ class LinearAttentionTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.triton],  # KernelBackend
-            [torch.float32, torch.bfloat16],
-            [4],  # batch_size
-            [1024],  # sequence_length
+            [torch.float32, torch.bfloat16],  # dtype
+            [(4, 1024, None), (4, 977, None)],  # , (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             _get_problem_shapes(),  # problem_shape
             [False, True],  # has_input_state
             [False],  # is_compiling
@@ -41,8 +40,7 @@ class LinearAttentionTest(TestCommons):
         self,
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
-        batch_size: int,
-        sequence_length: int,
+        input_shape: tuple[int, int, list[int]],
         problem_shape: tuple[int, int, int, int, int, int, int],
         has_input_state: bool,
         is_compiling: bool,
@@ -56,10 +54,18 @@ class LinearAttentionTest(TestCommons):
         num_heads = max(num_query_heads, num_key_heads, num_value_heads)
         state_size = num_heads * key_head_dim * value_head_dim
 
+        B, S, cu_seqlens = input_shape
+        max_seqlen = None
+
+        if B is None:
+            cu_seqlens = torch.tensor(cu_seqlens, device=device)
+            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
+            B = cu_seqlens.size(0) - 1
+
         x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
-            batch_size=batch_size,
-            sequence_length=sequence_length,
-            total_tokens=None,
+            batch_size=B,
+            sequence_length=S if cu_seqlens is None else None,
+            total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
             state_size=state_size,
             has_input_state=has_input_state,
             dtype=dtype,
@@ -85,11 +91,19 @@ class LinearAttentionTest(TestCommons):
             linear_attention_kernel = torch.compile(linear_attention_kernel, fullgraph=True)
 
         y_kernel, output_state_kernel = linear_attention_kernel(
-            input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton
+            input=x_kernel,
+            input_state=input_state_kernel,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.triton,
         )
 
         y_torch, output_state_torch = linear_attention_torch(
-            input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
+            input=x_torch,
+            input_state=input_state_torch,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
         )
 
         self.assert_equal_tensors(y_kernel, y_torch, False)
