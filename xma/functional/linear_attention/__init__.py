@@ -7,7 +7,7 @@ import math
 import torch
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp, ctx_needs_gradients
+from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from .triton_implementation import linear_attention_forward_triton
 from .utils import _get_num_heads
 
@@ -116,7 +116,14 @@ class _LinearAttention(CustomOp):
             use_fused_kernel_in_forward=use_fused_kernel_in_forward,
         )
 
+        ctx_save_for_backward(ctx)
+
         return y, ht
+
+    @staticmethod
+    def backward(
+        ctx, dy: torch.Tensor, dht: torch.Tensor | None
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, None, None, None, None, None, None]: ...
 
 
 def linear_attention(
