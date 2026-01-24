@@ -9,7 +9,7 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...math import ceil_divide
-from .triton_implementation import linear_attention_forward_triton
+from .triton_implementation import linear_attention_forward_triton, recurrent_state_forward_triton
 from .utils import _get_num_heads
 
 
@@ -119,14 +119,46 @@ class _LinearAttention(CustomOp):
             use_fused_kernel_in_forward=use_fused_kernel_in_forward,
         )
 
-        ctx_save_for_backward(ctx)
+        ctx_save_for_backward(ctx, q, k, v, h0, cu_seqlens)
+
+        ctx.CHUNK_SIZE = CHUNK_SIZE
+        ctx.num_heads = Nq, Nk, Nv, N
+        ctx.attention_multiplier = attention_multiplier
 
         return y, ht
 
     @staticmethod
     def backward(
         ctx, dy: torch.Tensor, dht: torch.Tensor | None
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, None, None, None, None, None, None]: ...
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, None, None, None, None, None, None]:
+        q, k, v, h0, cu_seqlens = ctx.saved_tensors
+
+        Nq, Nk, Nv, N = ctx.num_heads
+        CHUNK_SIZE = ctx.CHUNK_SIZE
+        attention_multiplier = ctx.attention_multiplier
+
+        B, S, _, K = k.size()
+        V = v.size(-1)
+        NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
+
+        h = (
+            torch.empty(B, NUM_CHUNKS - 1, N, K, V, dtype=k.dtype, device=k.device)
+            if ctx_needs_gradients(ctx)
+            else None
+        )
+
+        recurrent_state_forward_triton(
+            q=None,
+            k=k,
+            v=v,
+            h0=h0,
+            h=h,
+            ht=None,
+            y=None,
+            attention_multiplier=attention_multiplier,
+            cu_seqlens=cu_seqlens,
+            CHUNK_SIZE=CHUNK_SIZE,
+        )
 
 
 def linear_attention(

@@ -2,11 +2,14 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import torch
 import triton
 import triton.language as tl
 
-from ....math import get_powers_of_2
+from ....custom_op import xma_op
+from ....math import ceil_divide, get_powers_of_2
 from ....triton_utils import matmul
+from ..utils import _get_num_heads
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -198,12 +201,68 @@ def recurrent_state_forward_triton_kernel(
 
         BLOCK_S += BLOCK_SIZE_S
 
-    tl.store(
-        ht_ptr
-        + BLOCK_ID_B * ht_stride[0]
-        + BLOCK_ID_N * ht_stride[1]
-        + BLOCK_K[:, None] * ht_stride[2]
-        + BLOCK_V[None, :] * ht_stride[3],
-        h,
-        mask=MASK_KV,
+    if ht_ptr is not None:
+        tl.store(
+            ht_ptr
+            + BLOCK_ID_B * ht_stride[0]
+            + BLOCK_ID_N * ht_stride[1]
+            + BLOCK_K[:, None] * ht_stride[2]
+            + BLOCK_V[None, :] * ht_stride[3],
+            h,
+            mask=MASK_KV,
+        )
+
+
+@xma_op(mutates_args={"h", "ht", "y"})
+def recurrent_state_forward_triton(
+    q: torch.Tensor | None,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    h0: torch.Tensor | None,
+    h: torch.Tensor,
+    ht: torch.Tensor | None,
+    y: torch.Tensor | None,
+    attention_multiplier: float,
+    cu_seqlens: torch.Tensor,
+    CHUNK_SIZE: int,
+) -> None:
+    Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
+
+    if cu_seqlens is None:
+        B, S, _, K = k.size()
+    else:
+        B = cu_seqlens.size(0) - 1
+        S = None
+        K = k.size(-1)
+
+    V = v.size(-1)
+
+    GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
+
+    recurrent_state_forward_triton_kernel[GRID](
+        q_ptr=q,
+        q_stride=None if q is None else q.stride(),
+        k_ptr=k,
+        k_stride=k.stride(),
+        v_ptr=v,
+        v_stride=v.stride(),
+        h0_ptr=h0,
+        h0_stride=None if h0 is None else h0.stride(),
+        h_ptr=h,
+        h_stride=None if h is None else h.stride(),
+        ht_ptr=ht,
+        ht_stride=None if ht is None else ht.stride(),
+        y_ptr=y,
+        y_stride=None if y is None else y.stride(),
+        attention_multiplier=attention_multiplier,
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=cu_seqlens.stride(),
+        S=S,
+        N=N,
+        K=K,
+        V=V,
+        Gq=N // Nq,
+        Gk=N // Nk,
+        Gv=N // Nv,
+        CHUNK_SIZE=CHUNK_SIZE,
     )
