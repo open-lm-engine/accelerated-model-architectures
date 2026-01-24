@@ -144,7 +144,7 @@ def dq_triton_kernel(
             + BLOCK_ID_B * dq_stride[0]
             + BLOCK_S[:, None] * dq_stride[1]
             + BLOCK_ID_Nq * dq_stride[2]
-            + BLOCK_K[None, :],
+            + BLOCK_K[None, :] * dq_stride[3],
             dq,
             mask=MASK_SK,
         )
@@ -154,7 +154,7 @@ def dq_triton_kernel(
             + BLOCK_ID_B * dq_stride[0]
             + BLOCK_S[:, None] * dq_stride[1]
             + BLOCK_ID_Nq * dq_stride[2]
-            + BLOCK_K[None, :],
+            + BLOCK_K[None, :] * dq_stride[3],
             dq,
             mask=MASK_SK,
             sem="relaxed",
