@@ -99,6 +99,8 @@ def dq_triton_kernel(
         dy = tl.load(dy_ptrs, mask=MASK_SV)
         dy_ptrs += BLOCK_SIZE_V * dy_stride[3]
 
+        dy *= attention_multiplier
+
         if BLOCK_ID_S == 0:
             if h0_ptr is None:
                 h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=dy.dtype)
@@ -136,7 +138,6 @@ def dq_triton_kernel(
     )
 
     dq = matmul(A=dyv, B=k, C=dq, output_dtype=dq.dtype)
-    dq *= attention_multiplier
 
     store_or_atomic_add(
         x_ptrs=dq_ptr
