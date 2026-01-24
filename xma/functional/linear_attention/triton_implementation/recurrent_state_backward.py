@@ -2,14 +2,11 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-import torch
 import triton
 import triton.language as tl
 
-from ....custom_op import xma_op
-from ....math import ceil_divide, get_powers_of_2
+from ....math import get_powers_of_2
 from ....triton_utils import matmul
-from ..utils import _get_num_heads
 
 
 def _get_autotune_configs() -> list[triton.Config]:
