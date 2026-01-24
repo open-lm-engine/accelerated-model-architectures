@@ -8,7 +8,16 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_utils import clamp, get_start_end, matmul, sigmoid, sigmoid_backward, tanh, tanh_backward
+from ....triton_utils import (
+    clamp,
+    get_start_end,
+    matmul,
+    sigmoid,
+    sigmoid_backward,
+    store_or_atomic_add,
+    tanh,
+    tanh_backward,
+)
 from ...rnn.triton_implementation.backward import _get_autotune_configs
 from ..utils import _get_num_heads
 from .forward import _get_autotune_configs
@@ -300,23 +309,16 @@ def gru_backward_triton_kernel(
 
         dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
 
-        if Gx == 1:
-            tl.store(dx_ptrs, dx, mask=MASK)
-        else:
-            tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
-
+        store_or_atomic_add(x_ptrs=dx_ptrs, x=dx, atomic_add=Gx == 1, mask=MASK)
         dx_ptrs -= dx_stride[S_DIM]
+
         dh += drh * r
 
         dxf = df * sigmoid_backward(f)
         dh = matmul(A=dxf, B=Wf.T, C=dh, output_dtype=dx.dtype)
         dWf = matmul(A=y_prev.T, B=dxf, C=dWf, output_dtype=dW.dtype)
 
-        if Gxf == 1:
-            tl.store(dxf_ptrs, dxf, mask=MASK)
-        else:
-            tl.atomic_add(dxf_ptrs, dxf, mask=MASK, sem="relaxed")
-
+        store_or_atomic_add(x_ptrs=dxf_ptrs, x=dxf, atomic_add=Gxf == 1, mask=MASK)
         dxf_ptrs -= dxf_stride[S_DIM]
 
         dxr = drh * y_prev * sigmoid_backward(r)
@@ -325,11 +327,7 @@ def gru_backward_triton_kernel(
 
         dht = tl.where(MASK, dh, dht) if IS_VARLEN else dh
 
-        if Gxr == 1:
-            tl.store(dxr_ptrs, dxr, mask=MASK)
-        else:
-            tl.atomic_add(dxr_ptrs, dxr, mask=MASK, sem="relaxed")
-
+        store_or_atomic_add(x_ptrs=dxr_ptrs, x=dxr, atomic_add=Gxr == 1, mask=MASK)
         dxr_ptrs -= dxr_stride[S_DIM]
 
         if IS_VARLEN:

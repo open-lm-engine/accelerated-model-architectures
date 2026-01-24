@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide
-from ....triton_utils import matmul
+from ....triton_utils import matmul, store_or_atomic_add
 from ..utils import _get_num_heads
 from .output_forward import _get_autotune_configs
 
@@ -138,27 +138,16 @@ def dq_triton_kernel(
     dq = matmul(A=dyv, B=k, C=dq, output_dtype=dq.dtype)
     dq *= attention_multiplier
 
-    if Gq == 1:
-        tl.store(
-            dq_ptr
-            + BLOCK_ID_B * dq_stride[0]
-            + BLOCK_S[:, None] * dq_stride[1]
-            + BLOCK_ID_Nq * dq_stride[2]
-            + BLOCK_K[None, :] * dq_stride[3],
-            dq,
-            mask=MASK_SK,
-        )
-    else:
-        tl.atomic_add(
-            dq_ptr
-            + BLOCK_ID_B * dq_stride[0]
-            + BLOCK_S[:, None] * dq_stride[1]
-            + BLOCK_ID_Nq * dq_stride[2]
-            + BLOCK_K[None, :] * dq_stride[3],
-            dq,
-            mask=MASK_SK,
-            sem="relaxed",
-        )
+    store_or_atomic_add(
+        x_ptrs=dq_ptr
+        + BLOCK_ID_B * dq_stride[0]
+        + BLOCK_S[:, None] * dq_stride[1]
+        + BLOCK_ID_Nq * dq_stride[2]
+        + BLOCK_K[None, :] * dq_stride[3],
+        x=dq,
+        atomic_add=Gq == 1,
+        mask=MASK_SK,
+    )
 
 
 @xma_op(mutates_args={"dq"})
