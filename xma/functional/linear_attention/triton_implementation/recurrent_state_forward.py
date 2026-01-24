@@ -2,10 +2,11 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import torch
 import triton
 import triton.language as tl
 
-from ....math import get_powers_of_2
+from ....math import ceil_divide, get_powers_of_2
 from ....triton_utils import matmul
 
 
@@ -208,3 +209,55 @@ def recurrent_state_forward_triton_kernel(
             h,
             mask=MASK_KV,
         )
+
+
+def recurrent_state_forward_triton(
+    k: torch.Tensor,
+    v: torch.Tensor,
+    h0: torch.Tensor | None,
+    h: torch.Tensor,
+    ht: torch.Tensor | None,
+    attention_multiplier: float,
+    cu_seqlens: torch.Tensor | None,
+    max_seqlen: torch.Tensor,
+    CHUNK_SIZE: int,
+) -> None:
+    if cu_seqlens is None:
+        B, S, Nk, K = k.size()
+    else:
+        B = cu_seqlens.size(0) - 1
+        S = max_seqlen
+        K = k.size(-1)
+
+    Nv, V = v.size()[-2:]
+    N = h.size(2)
+
+    GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
+
+    recurrent_state_forward_triton_kernel[GRID](
+        q_ptr=None,
+        q_stride=None,
+        k_ptr=k,
+        k_stride=k.stride(),
+        v_ptr=v,
+        v_stride=v.stride(),
+        h0_ptr=h0,
+        h0_stride=None if h0 is None else h0.stride(),
+        h_ptr=h,
+        h_stride=None if h is None else h.stride(),
+        ht_ptr=ht,
+        ht_stride=None if ht is None else ht.stride(),
+        y_ptr=None,
+        y_stride=None,
+        attention_multiplier=attention_multiplier,
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+        S=S,
+        N=N,
+        K=K,
+        V=V,
+        Gq=None,
+        Gk=N // Nk,
+        Gv=N // Nv,
+        CHUNK_SIZE=CHUNK_SIZE,
+    )

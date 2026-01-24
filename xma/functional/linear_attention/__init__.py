@@ -14,7 +14,7 @@ from .triton_implementation import (
     autotuned_linear_attention_forward_triton,
     dq_triton,
     recurrent_state_backward_triton_kernel,
-    recurrent_state_forward_triton_kernel,
+    recurrent_state_forward_triton,
 )
 from .utils import _get_num_heads
 
@@ -142,10 +142,7 @@ class _LinearAttention(CustomOp):
         Nq, Nk, Nv, N = ctx.num_heads
         CHUNK_SIZE = ctx.CHUNK_SIZE
         attention_multiplier = ctx.attention_multiplier
-
-        Gq = N // Nq
-        Gk = N // Nk
-        Gv = N // Nv
+        max_seqlen = ctx.max_seqlen
 
         if cu_seqlens is None:
             B, S, _, K = k.size()
@@ -154,44 +151,31 @@ class _LinearAttention(CustomOp):
             S = None
             K = k.size(-1)
 
-        B, S, _, K = k.size()
         V = v.size(-1)
         NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
 
-        dh = (
+        h = (
             torch.empty(B, NUM_CHUNKS - 1, N, K, V, dtype=k.dtype, device=k.device)
             if ctx_needs_gradients(ctx)
             else None
         )
 
-        GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
-
-        recurrent_state_forward_triton_kernel[GRID](
-            q_ptr=None,
-            q_stride=None,
-            k_ptr=k,
-            k_stride=k.stride(),
-            v_ptr=v,
-            v_stride=v.stride(),
-            h0_ptr=h0,
-            h0_stride=None if h0 is None else h0.stride(),
-            h_ptr=h,
-            h_stride=None if h is None else h.stride(),
-            ht_ptr=None,
-            ht_stride=None,
-            y_ptr=None,
-            y_stride=None,
+        recurrent_state_forward_triton(
+            k=k,
+            v=v,
+            h0=h0,
+            h=h,
+            ht=None,
             attention_multiplier=attention_multiplier,
-            cu_seqlens_ptr=cu_seqlens,
-            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-            S=S,
-            N=N,
-            K=K,
-            V=V,
-            Gq=None,
-            Gk=Gk,
-            Gv=Gv,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
             CHUNK_SIZE=CHUNK_SIZE,
+        )
+
+        dh = (
+            torch.empty(B, NUM_CHUNKS - 1, N, K, V, dtype=k.dtype, device=k.device)
+            if ctx_needs_gradients(ctx)
+            else None
         )
 
         dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
