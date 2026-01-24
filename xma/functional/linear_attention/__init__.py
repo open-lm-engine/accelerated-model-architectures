@@ -166,7 +166,6 @@ class _LinearAttention(CustomOp):
         dq = empty_like_contiguous(q)
         dk = empty_like_contiguous(k)
         dv = empty_like_contiguous(v)
-        dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 
         dq_triton(
             q=q,
@@ -181,7 +180,7 @@ class _LinearAttention(CustomOp):
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
-        return dq, dk, dv, dh0, *[None] * 5
+        return dq, dk, dv, dht, *[None] * 5
 
 
 def linear_attention(
