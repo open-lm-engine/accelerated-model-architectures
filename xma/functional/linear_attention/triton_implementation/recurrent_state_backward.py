@@ -142,14 +142,14 @@ def recurrent_state_backward_triton_kernel(
         q_ptrs -= BLOCK_SIZE_S * q_stride[S_DIM]
 
         dy = tl.load(dy_ptrs, mask=MASK_SV)
-        dy_ptrs += BLOCK_SIZE_S * dy_stride[S_DIM]
+        dy_ptrs -= BLOCK_SIZE_S * dy_stride[S_DIM]
 
         q *= attention_multiplier
         dh = matmul(A=q.T, B=dy, C=dh, output_dtype=dh.dtype)
 
         if dh_ptr is not None and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 and s != 0:
             tl.store(dh_ptrs, dh, mask=MASK_KV)
-            dh_ptrs += dh_stride[S_DIM]
+            dh_ptrs -= dh_stride[S_DIM]
 
         BLOCK_S -= BLOCK_SIZE_S
 

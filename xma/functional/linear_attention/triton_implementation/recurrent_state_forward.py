@@ -120,6 +120,7 @@ def recurrent_state_forward_triton_kernel(
 
     if q_ptr is not None:
         BLOCK_ID_Nq = BLOCK_ID_N // Gq
+
         q_ptrs = (
             q_ptr
             + _B * q_stride[0]
