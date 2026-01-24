@@ -20,8 +20,6 @@ def dq_triton_kernel(
     h_stride,
     dy_ptr,
     dy_stride,
-    h0_ptr,
-    h0_stride,
     ht_ptr,
     ht_stride,
     dq_ptr,
