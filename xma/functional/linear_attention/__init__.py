@@ -160,6 +160,8 @@ class _LinearAttention(CustomOp):
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
+        return dq, dk, dv, dh0, *[None] * 5
+
 
 def linear_attention(
     query: torch.Tensor,
