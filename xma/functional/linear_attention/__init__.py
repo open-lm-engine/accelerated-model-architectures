@@ -148,13 +148,15 @@ class _LinearAttention(CustomOp):
             else None
         )
 
+        ht = torch.empty(B, N, K, V, dtype=k.dtype, device=k.device)
+
         recurrent_state_forward_triton(
             q=None,
             k=k,
             v=v,
             h0=h0,
             h=h,
-            ht=None,
+            ht=ht,
             y=None,
             attention_multiplier=attention_multiplier,
             cu_seqlens=cu_seqlens,
