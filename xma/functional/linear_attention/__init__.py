@@ -194,6 +194,8 @@ class _LinearAttention(CustomOp):
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
+        dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
+
         recurrent_state_backward_triton_kernel[GRID](
             q_ptr=q,
             q_stride=q.stride(),
@@ -202,7 +204,9 @@ class _LinearAttention(CustomOp):
             dht_ptr=dht,
             dht_stride=dht.stride(),
             dh_ptr=dh,
-            dht_stride=dht.stride(),
+            dh_stride=dh.stride(),
+            dh0=dh0,
+            dh0_stride=dh0.stride(),
             attention_multiplier=attention_multiplier,
             cu_seqlens_ptr=cu_seqlens,
             cu_seqlens_stride=cu_seqlens.stride(),
