@@ -2,14 +2,20 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import torch
 import triton
 import triton.language as tl
 
+from ....custom_op import xma_op
+from ....math import ceil_divide
 from ....triton_utils import matmul
+from ..utils import _get_num_heads
+from .output_forward import _get_autotune_configs
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def linear_attention_backward_triton_kernel(
+def dq_triton_kernel(
     h_ptr,
     h_stride,
     dy_ptr,
@@ -66,3 +72,41 @@ def linear_attention_backward_triton_kernel(
         h = tl.load(h_ptrs, mask=MASK_KV)
 
         dq = matmul(A=dy, B=h, C=None, output_dtype=dy.dtype)
+
+
+@xma_op(mutates_args={"dq"})
+def dq_triton(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    h: torch.Tensor,
+    dy: torch.Tensor,
+    dq: torch.Tensor,
+    cu_seqlens: torch.Tensor | None,
+    CHUNK_SIZE: int,
+) -> None:
+    Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
+
+    if cu_seqlens is None:
+        B, S, _, K = k.size()
+    else:
+        B = cu_seqlens.size(0) - 1
+        S = None
+        K = k.size(-1)
+
+    NUM_CHUNKS = h.size(1)
+    GRID = lambda kwargs: (B * N, NUM_CHUNKS + 1, ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
+
+    dq_triton_kernel[None](
+        h_ptr=h,
+        h_stride=None if h is None else h.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        dq_ptr=dq,
+        dq_stride=dq.stride(),
+        S=S,
+        N=N,
+        K=K,
+        V=V,
+        BLOCK_SIZE_S=CHUNK_SIZE,
+    )

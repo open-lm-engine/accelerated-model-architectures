@@ -161,6 +161,8 @@ class _LinearAttention(CustomOp):
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
+        dq_triton()
+
         dq = empty_like_contiguous(q)
         dk = empty_like_contiguous(k)
         dv = empty_like_contiguous(v)
