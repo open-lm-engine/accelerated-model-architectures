@@ -10,7 +10,11 @@ from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...math import ceil_divide
 from ...utils import empty_like_contiguous
-from .triton_implementation import autotuned_linear_attention_forward_triton, dq_triton, recurrent_state_forward_triton
+from .triton_implementation import (
+    autotuned_linear_attention_forward_triton,
+    dq_triton,
+    recurrent_state_forward_triton_kernel,
+)
 from .utils import _get_num_heads
 
 
@@ -138,6 +142,17 @@ class _LinearAttention(CustomOp):
         CHUNK_SIZE = ctx.CHUNK_SIZE
         attention_multiplier = ctx.attention_multiplier
 
+        Gq = N // Nq
+        Gk = N // Nk
+        Gv = N // Nv
+
+        if cu_seqlens is None:
+            B, S, _, K = k.size()
+        else:
+            B = cu_seqlens.size(0) - 1
+            S = None
+            K = k.size(-1)
+
         B, S, _, K = k.size()
         V = v.size(-1)
         NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
@@ -150,16 +165,33 @@ class _LinearAttention(CustomOp):
 
         ht = torch.empty(B, N, K, V, dtype=k.dtype, device=k.device)
 
-        recurrent_state_forward_triton(
-            q=None,
-            k=k,
-            v=v,
-            h0=h0,
-            h=h,
-            ht=ht,
-            y=None,
+        GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
+
+        recurrent_state_forward_triton_kernel[GRID](
+            q_ptr=None,
+            q_stride=None,
+            k_ptr=k,
+            k_stride=k.stride(),
+            v_ptr=v,
+            v_stride=v.stride(),
+            h0_ptr=h0,
+            h0_stride=None if h0 is None else h0.stride(),
+            h_ptr=h,
+            h_stride=None if h is None else h.stride(),
+            ht_ptr=ht,
+            ht_stride=None if ht is None else ht.stride(),
+            y_ptr=None,
+            y_stride=None,
             attention_multiplier=attention_multiplier,
-            cu_seqlens=cu_seqlens,
+            cu_seqlens_ptr=cu_seqlens,
+            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+            S=S,
+            N=N,
+            K=K,
+            V=V,
+            Gq=Gq,
+            Gk=Gk,
+            Gv=Gv,
             CHUNK_SIZE=CHUNK_SIZE,
         )
 

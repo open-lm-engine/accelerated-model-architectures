@@ -216,12 +216,8 @@ def recurrent_state_forward_triton_kernel(
 @xma_op(mutates_args={"h", "ht", "y"})
 def recurrent_state_forward_triton(
     q: torch.Tensor | None,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    h0: torch.Tensor | None,
-    h: torch.Tensor,
-    ht: torch.Tensor | None,
-    y: torch.Tensor | None,
+    dht: torch.Tensor | None,
+    dh: torch.Tensor,
     attention_multiplier: float,
     cu_seqlens: torch.Tensor,
     CHUNK_SIZE: int,
