@@ -77,7 +77,6 @@ def output_forward_triton_kernel(
     MASK_V = BLOCK_V < V
 
     MASK_SV = MASK_S[:, None] & MASK_V[None, :]
-    CAUSAL_MASK = (BLOCK_S[:, None] >= BLOCK_S[None, :]) & MASK_S[:, None] & MASK_S[None, :]
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
     S_DIM: tl.constexpr = 1 - IS_VARLEN
@@ -163,6 +162,7 @@ def output_forward_triton_kernel(
 
         BLOCK_K += BLOCK_SIZE_K
 
+    CAUSAL_MASK = BLOCK_S[:, None] >= BLOCK_S[None, :] & MASK_S[:, None] & MASK_S[None, :]
     qk = tl.where(CAUSAL_MASK, qk, 0)
 
     y = matmul(A=qk.to(v.dtype), B=v, C=y, output_dtype=tl.float32)

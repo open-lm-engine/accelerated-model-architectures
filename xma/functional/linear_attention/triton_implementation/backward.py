@@ -16,19 +16,26 @@ from .output_forward import _get_autotune_configs
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def dq_triton_kernel(
+    k_ptr,
+    k_stride,
+    v_ptr,
+    v_stride,
     h_ptr,
     h_stride,
     dy_ptr,
     dy_stride,
-    ht_ptr,
-    ht_stride,
+    h0_ptr,
+    h0_stride,
     dq_ptr,
     dq_stride,
+    attention_multiplier,
     S,
     N,
     K,
     V,
     Gq: tl.constexpr,
+    Gk: tl.constexpr,
+    Gv: tl.constexpr,
     BLOCK_SIZE_S: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
@@ -43,6 +50,8 @@ def dq_triton_kernel(
     BLOCK_ID_N = BLOCK_ID_BN % N
 
     BLOCK_ID_Nq = BLOCK_ID_N // Gq
+    BLOCK_ID_Nk = BLOCK_ID_N // Gk
+    BLOCK_ID_Nv = BLOCK_ID_N // Gv
 
     BLOCK_S = BLOCK_ID_S * BLOCK_SIZE_S + tl.arange(0, BLOCK_SIZE_S)
     BLOCK_K = BLOCK_ID_K * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
@@ -64,13 +73,22 @@ def dq_triton_kernel(
     h_ptrs = (
         h_ptr
         + BLOCK_ID_B * h_stride[0]
-        + (BLOCK_ID_S + 1) * h_stride[1]
+        + BLOCK_ID_S * h_stride[1]
         + BLOCK_ID_N * h_stride[2]
         + BLOCK_K[:, None] * h_stride[3]
         + BLOCK_V[None, :] * h_stride[4]
     )
 
+    v_ptrs = (
+        v_ptr
+        + BLOCK_ID_B * v_stride[0]
+        + BLOCK_ID_S[:, None] * v_stride[1]
+        + BLOCK_ID_Nv * v_stride[2]
+        + BLOCK_V[None, :]
+    )
+
     dq = tl.zeros((BLOCK_SIZE_S, BLOCK_SIZE_K), dtype=tl.float32)
+    dyv = tl.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), dtype=tl.float32)
 
     for _ in range(tl.cdiv(V, BLOCK_SIZE_V)):
         MASK_V = BLOCK_V < V
@@ -81,24 +99,44 @@ def dq_triton_kernel(
         dy = tl.load(dy_ptrs, mask=MASK_SV)
         dy_ptrs += BLOCK_SIZE_V * dy_stride[3]
 
-        if BLOCK_ID_S == NUM_BLOCKS_S - 1:
-            if ht_ptr is None:
-                h = tl.load(h_ptrs, mask=MASK_KV)
+        if BLOCK_ID_S == 0:
+            if h0_ptr is None:
+                h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=dy.dtype)
             else:
                 h = tl.load(
-                    ht_ptr
-                    + BLOCK_ID_B * ht_stride[0]
-                    + BLOCK_ID_N * ht_stride[1]
-                    + BLOCK_K[:, None] * ht_stride[2]
-                    + BLOCK_V[None, :] * ht_stride[3],
+                    h0_ptr
+                    + BLOCK_ID_B * h0_stride[0]
+                    + BLOCK_ID_N * h0_stride[1]
+                    + BLOCK_K[:, None] * h0_stride[2]
+                    + BLOCK_V[None, :] * h0_stride[3],
                     mask=MASK_KV,
                 )
         else:
             h = tl.load(h_ptrs, mask=MASK_KV)
+            h_ptrs += BLOCK_SIZE_V * h_stride[4]
 
-        dq = matmul(A=dy, B=h, C=dq, output_dtype=dy.dtype)
+        v = tl.load(v_ptrs, mask=MASK_SV)
+        v_ptrs += BLOCK_SIZE_V * v_stride[3]
+
+        dq = matmul(A=dy, B=h.T, C=dq, output_dtype=dy.dtype)
+        dyv = matmul(A=dy, B=v.T, C=dyv, output_dtype=dyv.dtype)
 
         BLOCK_V += BLOCK_SIZE_V
+
+    CAUSAL_MASK = BLOCK_S[:, None] >= BLOCK_S[None, :] & MASK_S[:, None] & MASK_S[None, :]
+    dyv = tl.where(CAUSAL_MASK, dyv, 0)
+
+    k = tl.load(
+        k_ptr
+        + BLOCK_ID_B * k_stride[0]
+        + BLOCK_S[:, None] * k_stride[1]
+        + BLOCK_ID_Nk * k_stride[2]
+        + BLOCK_K * k_stride[3],
+        mask=MASK_SK,
+    )
+
+    dq = matmul(A=dyv, B=k, C=dq, output_dtype=dq.dtype)
+    dq *= attention_multiplier
 
     if Gq == 1:
         tl.store(
@@ -130,8 +168,9 @@ def dq_triton(
     v: torch.Tensor,
     h: torch.Tensor,
     dy: torch.Tensor,
-    ht: torch.Tensor | None,
+    h0: torch.Tensor | None,
     dq: torch.Tensor,
+    attention_multiplier: float,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
 ) -> None:
@@ -149,19 +188,24 @@ def dq_triton(
     NUM_CHUNKS = h.size(1)
     GRID = lambda kwargs: (B * N, NUM_CHUNKS + 1, ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
-    dq_triton_kernel[None](
+    dq_triton_kernel[GRID](
+        v_ptr=v,
+        v_stride=None if v is None else v.stride(),
         h_ptr=h,
         h_stride=None if h is None else h.stride(),
         dy_ptr=dy,
         dy_stride=dy.stride(),
-        ht_ptr=ht,
-        ht_stride=None if ht is None else ht.stride(),
+        h0_ptr=h0,
+        h0_stride=None if h0 is None else h0.stride(),
         dq_ptr=dq,
         dq_stride=dq.stride(),
+        attention_multiplier=attention_multiplier,
         S=S,
         N=N,
         K=K,
         V=V,
         Gq=N // Nq,
+        Gk=N // Nk,
+        Gv=N // Nv,
         BLOCK_SIZE_S=CHUNK_SIZE,
     )
