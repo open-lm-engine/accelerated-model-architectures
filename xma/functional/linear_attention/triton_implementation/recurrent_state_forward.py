@@ -77,7 +77,6 @@ def recurrent_state_forward_triton_kernel(
     BLOCK_ID_B = BLOCK_ID_BN // N
     BLOCK_ID_N = BLOCK_ID_BN % N
 
-    BLOCK_ID_Nq = BLOCK_ID_N // Gq
     BLOCK_ID_Nk = BLOCK_ID_N // Gk
     BLOCK_ID_Nv = BLOCK_ID_N // Gv
 
@@ -119,6 +118,7 @@ def recurrent_state_forward_triton_kernel(
     _S = 0 if IS_VARLEN else BLOCK_S[:, None]
 
     if q_ptr is not None:
+        BLOCK_ID_Nq = BLOCK_ID_N // Gq
         q_ptrs = (
             q_ptr
             + _B * q_stride[0]
