@@ -20,6 +20,10 @@ def dq_triton_kernel(
     h_stride,
     dy_ptr,
     dy_stride,
+    h0_ptr,
+    h0_stride,
+    ht_ptr,
+    ht_stride,
     dq_ptr,
     dq_stride,
     S,
@@ -34,6 +38,8 @@ def dq_triton_kernel(
     BLOCK_ID_S = tl.program_id(1)
     BLOCK_ID_K = tl.program_id(2)
 
+    NUM_BLOCKS_S = tl.num_programs(1)
+
     BLOCK_ID_B = BLOCK_ID_BN // N
     BLOCK_ID_N = BLOCK_ID_BN % N
 
@@ -43,6 +49,8 @@ def dq_triton_kernel(
 
     MASK_S = BLOCK_S < S
     MASK_K = BLOCK_K < K
+
+    MASK_SK = MASK_S[:, None] & MASK_K[None, :]
 
     dy_ptrs = (
         dy_ptr
@@ -55,11 +63,13 @@ def dq_triton_kernel(
     h_ptrs = (
         h_ptr
         + BLOCK_ID_B * h_stride[0]
-        + BLOCK_ID_S[:, None] * h_stride[1]
+        + (BLOCK_ID_S + 1) * h_stride[1]
         + BLOCK_ID_N * h_stride[2]
-        + BLOCK_K * h_stride[3]
+        + BLOCK_K[:, None] * h_stride[3]
         + BLOCK_V[None, :] * h_stride[4]
     )
+
+    dq = tl.zeros((BLOCK_SIZE_S, BLOCK_SIZE_K), dtype=tl.float32)
 
     for _ in range(tl.cdiv(V, BLOCK_SIZE_V)):
         MASK_V = BLOCK_V < V
@@ -68,10 +78,36 @@ def dq_triton_kernel(
         MASK_KV = MASK_K[:, None] & MASK_V[None, :]
 
         dy = tl.load(dy_ptrs, mask=MASK_SV)
+        dy_ptrs += BLOCK_SIZE_V * dy_stride[3]
 
-        h = tl.load(h_ptrs, mask=MASK_KV)
+        if BLOCK_ID_S == NUM_BLOCKS_S - 1:
+            if ht_ptr is None:
+                h = tl.load(h_ptrs, mask=MASK_KV)
+            else:
+                h = tl.load(
+                    ht_ptr
+                    + BLOCK_ID_B * ht_stride[0]
+                    + BLOCK_ID_N * ht_stride[1]
+                    + BLOCK_K[:, None] * ht_stride[2]
+                    + BLOCK_V[None, :] * ht_stride[3],
+                    mask=MASK_KV,
+                )
+        else:
+            h = tl.load(h_ptrs, mask=MASK_KV)
 
-        dq = matmul(A=dy, B=h, C=None, output_dtype=dy.dtype)
+        dq = matmul(A=dy, B=h, C=dq, output_dtype=dy.dtype)
+
+        BLOCK_V += BLOCK_SIZE_V
+
+    tl.store(
+        dq_ptr
+        + BLOCK_ID_B * dq_stride[0]
+        + BLOCK_S[:, None] * dq_stride[1]
+        + BLOCK_ID_N * dq_stride[2]
+        + BLOCK_K[None, :],
+        dq,
+        mask=MASK_SK,
+    )
 
 
 @xma_op(mutates_args={"dq"})
@@ -81,6 +117,7 @@ def dq_triton(
     v: torch.Tensor,
     h: torch.Tensor,
     dy: torch.Tensor,
+    ht: torch.Tensor | None,
     dq: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
@@ -104,6 +141,8 @@ def dq_triton(
         h_stride=None if h is None else h.stride(),
         dy_ptr=dy,
         dy_stride=dy.stride(),
+        ht_ptr=ht,
+        ht_stride=None if ht is None else ht.stride(),
         dq_ptr=dq,
         dq_stride=dq.stride(),
         S=S,
