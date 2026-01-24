@@ -42,6 +42,8 @@ def recurrent_state_backward_triton_kernel(
     dht_stride,
     dh_ptr,
     dh_stride,
+    dh0_ptr,
+    dh0_stride,
     attention_multiplier,
     cu_seqlens_ptr,
     cu_seqlens_stride,
@@ -124,12 +126,13 @@ def recurrent_state_backward_triton_kernel(
     dh_ptrs = (
         dh_ptr
         + _B * dh_stride[0]
+        + _S * dh_stride[1]
         + BLOCK_ID_N * dh_stride[2]
         + BLOCK_K[:, None] * dh_stride[3]
         + BLOCK_V[None, :] * dh_stride[4]
     )
 
-    for s in range(NUM_BLOCKS_S, -1, -1):
+    for s in range(NUM_BLOCKS_S - 1, -1, -1):
         MASK_S = BLOCK_S < S
 
         MASK_SK = MASK_S[:, None] & MASK_K[None, :]
