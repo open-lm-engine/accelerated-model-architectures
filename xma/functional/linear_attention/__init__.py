@@ -130,6 +130,7 @@ class _LinearAttention(CustomOp):
         ctx.CHUNK_SIZE = CHUNK_SIZE
         ctx.num_heads = Nq, Nk, Nv, N
         ctx.attention_multiplier = attention_multiplier
+        ctx.max_seqlen = max_seqlen
 
         return y, ht
 
