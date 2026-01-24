@@ -39,18 +39,12 @@ def _get_autotune_configs() -> list[triton.Config]:
 def recurrent_state_forward_triton_kernel(
     q_ptr,
     q_stride,
-    k_ptr,
-    k_stride,
-    v_ptr,
-    v_stride,
-    h0_ptr,
-    h0_stride,
-    h_ptr,
-    h_stride,
-    ht_ptr,
-    ht_stride,
-    y_ptr,
-    y_stride,
+    dy_ptr,
+    dy_stride,
+    dht_ptr,
+    dht_stride,
+    dh_ptr,
+    dh_stride,
     attention_multiplier,
     cu_seqlens_ptr,
     cu_seqlens_stride,
@@ -59,19 +53,12 @@ def recurrent_state_forward_triton_kernel(
     K: tl.constexpr,
     V: tl.constexpr,
     Gq: tl.constexpr,
-    Gk: tl.constexpr,
-    Gv: tl.constexpr,
     BLOCK_SIZE_S: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
     CHUNK_SIZE: tl.constexpr,
 ):
     tl.static_assert(CHUNK_SIZE % BLOCK_SIZE_S == 0)
-
-    if q_ptr is not None:
-        tl.static_assert(y_ptr is not None)
-    else:
-        tl.static_assert(y_ptr is None)
 
     BLOCK_ID_BN = tl.program_id(0)
     BLOCK_ID_K = tl.program_id(1)
@@ -81,8 +68,6 @@ def recurrent_state_forward_triton_kernel(
     BLOCK_ID_N = BLOCK_ID_BN % N
 
     BLOCK_ID_Nq = BLOCK_ID_N // Gq
-    BLOCK_ID_Nk = BLOCK_ID_N // Gk
-    BLOCK_ID_Nv = BLOCK_ID_N // Gv
 
     BLOCK_S = tl.arange(0, BLOCK_SIZE_S)
     BLOCK_K = BLOCK_ID_K * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
@@ -93,15 +78,15 @@ def recurrent_state_forward_triton_kernel(
 
     MASK_KV = MASK_K[:, None] & MASK_V[None, :]
 
-    if h0_ptr is None:
-        h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
+    if dht_ptr is None:
+        dh = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
     else:
-        h = tl.load(
-            h0_ptr
-            + BLOCK_ID_B * h0_stride[0]
-            + BLOCK_ID_N * h0_stride[1]
-            + BLOCK_K[:, None] * h0_stride[2]
-            + BLOCK_V[None, :] * h0_stride[3],
+        dh = tl.load(
+            dht_ptr
+            + BLOCK_ID_B * dht_stride[0]
+            + BLOCK_ID_N * dht_stride[1]
+            + BLOCK_K[:, None] * dht_stride[2]
+            + BLOCK_V[None, :] * dht_stride[3],
             mask=MASK_KV,
         ).to(tl.float32)
 
@@ -121,29 +106,20 @@ def recurrent_state_forward_triton_kernel(
     _B = BLOCK[:, None] if IS_VARLEN else BLOCK_ID_B
     _S = 0 if IS_VARLEN else BLOCK_S[:, None]
 
-    if q_ptr is not None:
-        q_ptrs = (
-            q_ptr
-            + _B * q_stride[0]
-            + _S * q_stride[S_DIM]
-            + BLOCK_ID_Nq * q_stride[N_DIM]
-            + BLOCK_K[None, :] * q_stride[K_DIM]
-        )
-
-    k_ptrs = (
-        k_ptr
-        + _B * k_stride[0]
-        + _S * k_stride[S_DIM]
-        + BLOCK_ID_Nk * k_stride[N_DIM]
-        + BLOCK_K[None, :] * k_stride[K_DIM]
+    q_ptrs = (
+        q_ptr
+        + _B * q_stride[0]
+        + _S * q_stride[S_DIM]
+        + BLOCK_ID_Nq * q_stride[N_DIM]
+        + BLOCK_K[None, :] * q_stride[K_DIM]
     )
 
-    v_ptrs = (
-        v_ptr
-        + _B * v_stride[0]
-        + _S * v_stride[S_DIM]
-        + BLOCK_ID_Nv * v_stride[N_DIM]
-        + BLOCK_V[None, :] * v_stride[K_DIM]
+    dy_ptrs = (
+        dy_ptr
+        + _B * dy_stride[0]
+        + _S * dy_stride[S_DIM]
+        + BLOCK_ID_N * dy_stride[N_DIM]
+        + BLOCK_K[None, :] * dy_stride[K_DIM]
     )
 
     if y_ptr is not None:
@@ -211,54 +187,3 @@ def recurrent_state_forward_triton_kernel(
             h,
             mask=MASK_KV,
         )
-
-
-@xma_op(mutates_args={"h", "ht", "y"})
-def recurrent_state_forward_triton(
-    q: torch.Tensor | None,
-    dht: torch.Tensor | None,
-    dh: torch.Tensor,
-    attention_multiplier: float,
-    cu_seqlens: torch.Tensor,
-    CHUNK_SIZE: int,
-) -> None:
-    Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
-
-    if cu_seqlens is None:
-        B, S, _, K = k.size()
-    else:
-        B = cu_seqlens.size(0) - 1
-        S = None
-        K = k.size(-1)
-
-    V = v.size(-1)
-
-    GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
-
-    recurrent_state_forward_triton_kernel[GRID](
-        q_ptr=q,
-        q_stride=None if q is None else q.stride(),
-        k_ptr=k,
-        k_stride=k.stride(),
-        v_ptr=v,
-        v_stride=v.stride(),
-        h0_ptr=h0,
-        h0_stride=None if h0 is None else h0.stride(),
-        h_ptr=h,
-        h_stride=None if h is None else h.stride(),
-        ht_ptr=ht,
-        ht_stride=None if ht is None else ht.stride(),
-        y_ptr=y,
-        y_stride=None if y is None else y.stride(),
-        attention_multiplier=attention_multiplier,
-        cu_seqlens_ptr=cu_seqlens,
-        cu_seqlens_stride=cu_seqlens.stride(),
-        S=S,
-        N=N,
-        K=K,
-        V=V,
-        Gq=N // Nq,
-        Gk=N // Nk,
-        Gv=N // Nv,
-        CHUNK_SIZE=CHUNK_SIZE,
-    )
