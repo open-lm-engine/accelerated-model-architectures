@@ -9,6 +9,7 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...math import ceil_divide
+from ...utils import empty_like_contiguous
 from .triton_implementation import autotuned_linear_attention_forward_triton, recurrent_state_forward_triton
 from .utils import _get_num_heads
 
@@ -159,6 +160,11 @@ class _LinearAttention(CustomOp):
             cu_seqlens=cu_seqlens,
             CHUNK_SIZE=CHUNK_SIZE,
         )
+
+        dq = empty_like_contiguous(q)
+        dk = empty_like_contiguous(k)
+        dv = empty_like_contiguous(v)
+        dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 
         return dq, dk, dv, dh0, *[None] * 5
 
