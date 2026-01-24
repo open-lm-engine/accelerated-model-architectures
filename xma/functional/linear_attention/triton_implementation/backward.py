@@ -94,6 +94,8 @@ def dq_triton(
         S = None
         K = k.size(-1)
 
+    V = v.size(-1)
+
     NUM_CHUNKS = h.size(1)
     GRID = lambda kwargs: (B * N, NUM_CHUNKS + 1, ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
