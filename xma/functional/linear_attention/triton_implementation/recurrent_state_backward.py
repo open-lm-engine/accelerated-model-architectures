@@ -2,6 +2,7 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import torch
 import triton
 import triton.language as tl
 
@@ -163,3 +164,47 @@ def recurrent_state_backward_triton_kernel(
             dh,
             mask=MASK_KV,
         )
+
+
+def recurrent_state_backward_triton(
+    q: torch.Tensor,
+    dy: torch.Tensor,
+    dht: torch.Tensor | None,
+    dh: torch.Tensor,
+    dh0: torch.Tensor | None,
+    attention_multiplier: float,
+    cu_seqlens: torch.Tensor | None,
+    CHUNK_SIZE: int,
+) -> None:
+    if cu_seqlens is None:
+        B, S, Nq, K = q.size()
+    else:
+        B = cu_seqlens.size(0) - 1
+        S = None
+        K = q.size(-1)
+
+    N, V = dy.size()[-2:]
+
+    GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
+
+    recurrent_state_backward_triton_kernel[GRID](
+        q_ptr=q,
+        q_stride=q.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        dht_ptr=dht,
+        dht_stride=None if dht is None else dht.stride(),
+        dh_ptr=dh,
+        dh_stride=dh.stride(),
+        dh0_ptr=dh0,
+        dh0_stride=None if dh0 is None else dh0.stride(),
+        attention_multiplier=attention_multiplier,
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=cu_seqlens.stride(),
+        S=S,
+        N=N,
+        K=K,
+        V=V,
+        Gq=N // Nq,
+        CHUNK_SIZE=CHUNK_SIZE,
+    )

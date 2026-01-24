@@ -13,7 +13,7 @@ from ...utils import empty_like_contiguous
 from .triton_implementation import (
     autotuned_linear_attention_forward_triton,
     dq_triton,
-    recurrent_state_backward_triton_kernel,
+    recurrent_state_backward_triton,
     recurrent_state_forward_triton,
 )
 from .utils import _get_num_heads
@@ -160,18 +160,6 @@ class _LinearAttention(CustomOp):
             else None
         )
 
-        recurrent_state_forward_triton(
-            k=k,
-            v=v,
-            h0=h0,
-            h=h,
-            ht=None,
-            attention_multiplier=attention_multiplier,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            CHUNK_SIZE=CHUNK_SIZE,
-        )
-
         dh = (
             torch.empty(B, NUM_CHUNKS - 1, N, K, V, dtype=k.dtype, device=k.device)
             if ctx_needs_gradients(ctx)
@@ -180,31 +168,31 @@ class _LinearAttention(CustomOp):
 
         dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 
-        recurrent_state_backward_triton_kernel[GRID](
-            q_ptr=q,
-            q_stride=q.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            dht_ptr=dht,
-            dht_stride=dht.stride(),
-            dh_ptr=dh,
-            dh_stride=dh.stride(),
-            dh0=dh0,
-            dh0_stride=dh0.stride(),
-            attention_multiplier=attention_multiplier,
-            cu_seqlens_ptr=cu_seqlens,
-            cu_seqlens_stride=cu_seqlens.stride(),
-            S=S,
-            N=N,
-            K=K,
-            V=V,
-            Gq=Gq,
-            CHUNK_SIZE=CHUNK_SIZE,
-        )
-
         dq = empty_like_contiguous(q)
         dk = empty_like_contiguous(k)
         dv = empty_like_contiguous(v)
+
+        recurrent_state_forward_triton(
+            k=k,
+            v=v,
+            h0=h0,
+            h=h,
+            ht=None,
+            attention_multiplier=attention_multiplier,
+            cu_seqlens=cu_seqlens,
+            CHUNK_SIZE=CHUNK_SIZE,
+        )
+
+        recurrent_state_backward_triton(
+            q=q,
+            dy=dy,
+            dht=dht,
+            dh=dh,
+            dh0=dh0,
+            attention_multiplier=attention_multiplier,
+            cu_seqlens=cu_seqlens,
+            CHUNK_SIZE=CHUNK_SIZE,
+        )
 
         dq_triton(
             q=q,
@@ -219,7 +207,7 @@ class _LinearAttention(CustomOp):
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
-        return dq, dk, dv, dht, *[None] * 5
+        return dq, dk, dv, dh0, *[None] * 5
 
 
 def linear_attention(

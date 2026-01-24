@@ -220,14 +220,13 @@ def recurrent_state_forward_triton(
     ht: torch.Tensor | None,
     attention_multiplier: float,
     cu_seqlens: torch.Tensor | None,
-    max_seqlen: torch.Tensor,
     CHUNK_SIZE: int,
 ) -> None:
     if cu_seqlens is None:
         B, S, Nk, K = k.size()
     else:
         B = cu_seqlens.size(0) - 1
-        S = max_seqlen
+        S = None
         K = k.size(-1)
 
     Nv, V = v.size()[-2:]
