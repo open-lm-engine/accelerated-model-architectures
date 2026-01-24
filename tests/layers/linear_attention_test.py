@@ -33,7 +33,7 @@ class LinearAttentionTest(TestCommons):
             [(4, 1024, None), (4, 977, None)],  # , (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             _get_problem_shapes(),  # problem_shape
             [False, True],  # has_input_state
-            [False],  # is_compiling
+            [False, True],  # is_compiling
         )
     )
     def test_linear_attention(
