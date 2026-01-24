@@ -86,7 +86,7 @@ def _autotuned_linear_attention_forward_triton(
 
 
 @xma_op(mutates_args={"y", "h", "ht"})
-def linear_attention_forward_triton(
+def autotuned_linear_attention_forward_triton(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,

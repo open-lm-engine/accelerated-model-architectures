@@ -9,7 +9,7 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...math import ceil_divide
-from .triton_implementation import linear_attention_forward_triton, recurrent_state_forward_triton
+from .triton_implementation import autotuned_linear_attention_forward_triton, recurrent_state_forward_triton
 from .utils import _get_num_heads
 
 
@@ -105,7 +105,7 @@ class _LinearAttention(CustomOp):
             else None
         )
 
-        linear_attention_forward_triton(
+        autotuned_linear_attention_forward_triton(
             q=q,
             k=k,
             v=v,
