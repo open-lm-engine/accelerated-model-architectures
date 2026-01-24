@@ -13,6 +13,7 @@ from ...utils import empty_like_contiguous
 from .triton_implementation import (
     autotuned_linear_attention_forward_triton,
     dq_triton,
+    recurrent_state_backward_triton_kernel,
     recurrent_state_forward_triton_kernel,
 )
 from .utils import _get_num_heads
@@ -157,7 +158,7 @@ class _LinearAttention(CustomOp):
         V = v.size(-1)
         NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
 
-        h = (
+        dh = (
             torch.empty(B, NUM_CHUNKS - 1, N, K, V, dtype=k.dtype, device=k.device)
             if ctx_needs_gradients(ctx)
             else None
@@ -190,6 +191,26 @@ class _LinearAttention(CustomOp):
             Gq=None,
             Gk=Gk,
             Gv=Gv,
+            CHUNK_SIZE=CHUNK_SIZE,
+        )
+
+        recurrent_state_backward_triton_kernel[GRID](
+            q_ptr=q,
+            q_stride=q.stride(),
+            dy_ptr=dy,
+            dy_stride=dy.stride(),
+            dht_ptr=dht,
+            dht_stride=dht.stride(),
+            dh_ptr=dh,
+            dht_stride=dht.stride(),
+            attention_multiplier=attention_multiplier,
+            cu_seqlens_ptr=cu_seqlens,
+            cu_seqlens_stride=cu_seqlens.stride(),
+            S=S,
+            N=N,
+            K=K,
+            V=V,
+            Gq=Gq,
             CHUNK_SIZE=CHUNK_SIZE,
         )
 

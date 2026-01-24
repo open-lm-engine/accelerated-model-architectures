@@ -33,7 +33,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def recurrent_state_forward_triton_kernel(
+def recurrent_state_backward_triton_kernel(
     q_ptr,
     q_stride,
     dy_ptr,
@@ -66,7 +66,9 @@ def recurrent_state_forward_triton_kernel(
 
     BLOCK_ID_Nq = BLOCK_ID_N // Gq
 
-    BLOCK_S = tl.arange(0, BLOCK_SIZE_S)
+    NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
+
+    BLOCK_S = NUM_BLOCKS_S * tl.arange(0, BLOCK_SIZE_S)
     BLOCK_K = BLOCK_ID_K * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
     BLOCK_V = BLOCK_ID_V * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
 
@@ -116,71 +118,45 @@ def recurrent_state_forward_triton_kernel(
         + _B * dy_stride[0]
         + _S * dy_stride[S_DIM]
         + BLOCK_ID_N * dy_stride[N_DIM]
-        + BLOCK_K[None, :] * dy_stride[K_DIM]
+        + BLOCK_V[None, :] * dy_stride[K_DIM]
     )
 
-    if y_ptr is not None:
-        y_ptrs = (
-            y_ptr
-            + _B * y_stride[0]
-            + _S * y_stride[S_DIM]
-            + BLOCK_ID_N * y_stride[N_DIM]
-            + BLOCK_V[None, :] * y_stride[K_DIM]
-        )
+    dh_ptrs = (
+        dh_ptr
+        + _B * dh_stride[0]
+        + BLOCK_ID_N * dh_stride[2]
+        + BLOCK_K[:, None] * dh_stride[3]
+        + BLOCK_V[None, :] * dh_stride[4]
+    )
 
-    if h_ptr is not None:
-        h_ptrs = (
-            h_ptr
-            + _B * h_stride[0]
-            + BLOCK_ID_N * h_stride[2]
-            + BLOCK_K[:, None] * h_stride[3]
-            + BLOCK_V[None, :] * h_stride[4]
-        )
-
-    NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
-    CAUSAL_MASK = BLOCK_S[:, None] >= BLOCK_S[None, :]
-
-    for s in range(1, NUM_BLOCKS_S + 1):
+    for s in range(NUM_BLOCKS_S, -1, -1):
         MASK_S = BLOCK_S < S
 
         MASK_SK = MASK_S[:, None] & MASK_K[None, :]
         MASK_SV = MASK_S[:, None] & MASK_V[None, :]
 
-        k = tl.load(k_ptrs, mask=MASK_SK)
-        k_ptrs += BLOCK_SIZE_S * k_stride[S_DIM]
+        q = tl.load(q_ptrs, mask=MASK_SK)
+        q_ptrs -= BLOCK_SIZE_S * q_stride[S_DIM]
 
-        v = tl.load(v_ptrs, mask=MASK_SV)
-        v_ptrs += BLOCK_SIZE_S * v_stride[S_DIM]
+        dy = tl.load(dy_ptrs, mask=MASK_SV)
+        dy_ptrs += BLOCK_SIZE_S * dy_stride[S_DIM]
 
-        if q_ptr is not None:
-            q = tl.load(q_ptrs, mask=MASK_SK)
-            q_ptrs += BLOCK_SIZE_S * q_stride[S_DIM]
+        q *= attention_multiplier
+        dh = matmul(A=q.T, B=dy, C=dh, output_dtype=dh.dtype)
 
-            qk = matmul(A=q, B=k.T, C=None, output_dtype=q.dtype)
-            qk = tl.where(CAUSAL_MASK, qk, 0)
+        if dh_ptr is not None and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 and s != 0:
+            tl.store(dh_ptrs, dh, mask=MASK_KV)
+            dh_ptrs += dh_stride[S_DIM]
 
-            y = matmul(A=qk, B=v, C=None, output_dtype=tl.float32)
-            y = matmul(A=q, B=h.to(q.dtype), C=y, output_dtype=tl.float32)
-            y *= attention_multiplier
+        BLOCK_S -= BLOCK_SIZE_S
 
-            tl.store(y_ptrs, y, mask=MASK_SV)
-            y_ptrs += BLOCK_SIZE_S * y_stride[S_DIM]
-
-        h = matmul(A=k.T, B=v, C=h, output_dtype=h.dtype)
-
-        if h_ptr is not None and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 and s != NUM_BLOCKS_S:
-            tl.store(h_ptrs, h, mask=MASK_KV)
-            h_ptrs += h_stride[S_DIM]
-
-        BLOCK_S += BLOCK_SIZE_S
-
-    if ht_ptr is not None:
+    if dh0_ptr is not None:
         tl.store(
-            ht_ptr
-            + BLOCK_ID_B * ht_stride[0]
-            + BLOCK_ID_N * ht_stride[1]
-            + BLOCK_K[:, None] * ht_stride[2]
-            + BLOCK_V[None, :] * ht_stride[3],
-            h,
+            dh0_ptr
+            + BLOCK_ID_B * dh0_stride[0]
+            + BLOCK_ID_N * dh0_stride[1]
+            + BLOCK_K[:, None] * dh0_stride[2]
+            + BLOCK_V[None, :] * dh0_stride[3],
+            dh,
             mask=MASK_KV,
         )
