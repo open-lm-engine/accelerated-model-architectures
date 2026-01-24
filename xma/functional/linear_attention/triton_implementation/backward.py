@@ -28,6 +28,7 @@ def dq_triton_kernel(
     N,
     K,
     V,
+    Gq: tl.constexpr,
     BLOCK_SIZE_S: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
@@ -40,6 +41,8 @@ def dq_triton_kernel(
 
     BLOCK_ID_B = BLOCK_ID_BN // N
     BLOCK_ID_N = BLOCK_ID_BN % N
+
+    BLOCK_ID_Nq = BLOCK_ID_N // Gq
 
     BLOCK_S = BLOCK_ID_S * BLOCK_SIZE_S + tl.arange(0, BLOCK_SIZE_S)
     BLOCK_K = BLOCK_ID_K * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
@@ -97,15 +100,27 @@ def dq_triton_kernel(
 
         BLOCK_V += BLOCK_SIZE_V
 
-    tl.store(
-        dq_ptr
-        + BLOCK_ID_B * dq_stride[0]
-        + BLOCK_S[:, None] * dq_stride[1]
-        + BLOCK_ID_N * dq_stride[2]
-        + BLOCK_K[None, :],
-        dq,
-        mask=MASK_SK,
-    )
+    if Gq == 1:
+        tl.store(
+            dq_ptr
+            + BLOCK_ID_B * dq_stride[0]
+            + BLOCK_S[:, None] * dq_stride[1]
+            + BLOCK_ID_Nq * dq_stride[2]
+            + BLOCK_K[None, :],
+            dq,
+            mask=MASK_SK,
+        )
+    else:
+        tl.atomic_add(
+            dq_ptr
+            + BLOCK_ID_B * dq_stride[0]
+            + BLOCK_S[:, None] * dq_stride[1]
+            + BLOCK_ID_Nq * dq_stride[2]
+            + BLOCK_K[None, :],
+            dq,
+            mask=MASK_SK,
+            sem="relaxed",
+        )
 
 
 @xma_op(mutates_args={"dq"})
@@ -147,5 +162,6 @@ def dq_triton(
         N=N,
         K=K,
         V=V,
+        Gq=N // Nq,
         BLOCK_SIZE_S=CHUNK_SIZE,
     )
