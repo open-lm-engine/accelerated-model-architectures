@@ -163,8 +163,6 @@ class _LinearAttention(CustomOp):
             else None
         )
 
-        ht = torch.empty(B, N, K, V, dtype=k.dtype, device=k.device)
-
         GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
         recurrent_state_forward_triton_kernel[GRID](
