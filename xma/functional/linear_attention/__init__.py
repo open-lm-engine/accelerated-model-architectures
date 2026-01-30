@@ -22,7 +22,7 @@ class _LinearAttention(CustomOp):
         h0: torch.Tensor | None,
         attention_multiplier: float,
         cu_seqlens: torch.Tensor | None,
-        max_seqlen: torch.Tensor | int | None,
+        max_seqlen: int | None,
         CHUNK_SIZE: int,
         use_fused_kernel_in_forward: bool | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -37,7 +37,7 @@ class _LinearAttention(CustomOp):
             B, S, _, K = q.size()
         else:
             B = cu_seqlens.size(0) - 1
-            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+            S = max_seqlen
             K = q.size(-1)
 
         V = v.size(-1)
@@ -82,7 +82,7 @@ class _LinearAttention(CustomOp):
         h0: torch.Tensor | None,
         attention_multiplier: float,
         cu_seqlens: torch.Tensor | None,
-        max_seqlen: torch.Tensor | int | None,
+        max_seqlen: int | None,
         CHUNK_SIZE: int,
         use_fused_kernel_in_forward: bool | None,
         kernel_backend: KernelBackend | None,
@@ -129,7 +129,7 @@ def linear_attention(
     input_state: torch.Tensor | None,
     attention_multiplier: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
-    max_seqlen: torch.Tensor | int | None = None,
+    max_seqlen: int | None = None,
     CHUNK_SIZE: int = 64,
     use_fused_kernel_in_forward: bool | None = None,
     *,

@@ -57,7 +57,7 @@ class _RNN(CustomOp):
             B, S, _, H = x.size()
         else:
             B = cu_seqlens.size(0) - 1
-            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+            S = max_seqlen
             H = x.size(-1)
 
         Gx = N // Nx

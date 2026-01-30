@@ -36,7 +36,6 @@ def rnn_forward_triton_kernel(
     y_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    max_seqlen,
     B,
     S,
     H: tl.constexpr,
@@ -80,7 +79,6 @@ def rnn_forward_triton_kernel(
 
     if IS_VARLEN:
         START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
-        S = max_seqlen
 
     BLOCK = START if IS_VARLEN else BLOCK_B[:, None]
     x_ptrs = x_ptr + BLOCK * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
@@ -115,7 +113,7 @@ def rnn_forward_triton(
         B, S, Nx, H = x.size()
     else:
         B = cu_seqlens.size(0) - 1
-        S = None
+        S = max_seqlen
         _, Nx, H = x.size()
 
     Nw = W.size(0)
@@ -136,7 +134,6 @@ def rnn_forward_triton(
         y_stride=y.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-        max_seqlen=max_seqlen,
         B=B,
         S=S,
         H=H,

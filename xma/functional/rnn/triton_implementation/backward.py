@@ -33,7 +33,6 @@ def rnn_backward_triton_kernel(
     dht_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    max_seqlen,
     B,
     S,
     H: tl.constexpr,
@@ -89,7 +88,6 @@ def rnn_backward_triton_kernel(
     if IS_VARLEN:
         START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
         END -= 1
-        S = max_seqlen
 
     BLOCK = END if IS_VARLEN else BLOCK_B[:, None]
     S_LAST = 0 if IS_VARLEN else S - 1
@@ -194,7 +192,7 @@ def rnn_backward_triton(
         B, S, N, H = y.size()
     else:
         B = cu_seqlens.size(0) - 1
-        S = None
+        S = max_seqlen
         _, N, H = y.size()
 
     Nx = dx.size(-2)
@@ -224,7 +222,6 @@ def rnn_backward_triton(
         dht_stride=None if dht is None else dht.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-        max_seqlen=max_seqlen,
         B=B,
         S=S,
         H=H,
