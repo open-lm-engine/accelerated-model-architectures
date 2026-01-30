@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -258,38 +258,13 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.inductor">
-<span id="xma-inductor"></span><h1>xma.inductor<a class="headerlink" href="#module-xma.inductor" title="Link to this heading">¶</a></h1>
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.inductor.enable_kernels">
-<span class="sig-name descname"><span class="pre">enable_kernels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/inductor.html#enable_kernels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.inductor.enable_kernels" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.inductor.get_fused_residual_add_rmsnorm_replacer">
-<span class="sig-name descname"><span class="pre">get_fused_residual_add_rmsnorm_replacer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.device</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/inductor.html#get_fused_residual_add_rmsnorm_replacer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.inductor.get_fused_residual_add_rmsnorm_replacer" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.inductor.get_rmsnorm_replacer">
-<span class="sig-name descname"><span class="pre">get_rmsnorm_replacer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.device</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/inductor.html#get_rmsnorm_replacer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.inductor.get_rmsnorm_replacer" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.inductor.init_inductor">
-<span class="sig-name descname"><span class="pre">init_inductor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cache_size_limit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/xma/inductor.html#init_inductor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.inductor.init_inductor" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.inductor.partialize_and_update_signature">
-<span class="sig-name descname"><span class="pre">partialize_and_update_signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference internal" href="_modules/xma/inductor.html#partialize_and_update_signature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.inductor.partialize_and_update_signature" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
+          <section id="xma-inductor">
+<h1>xma.inductor<a class="headerlink" href="#xma-inductor" title="Link to this heading">¶</a></h1>
 </section>
 
         </article>
@@ -317,31 +292,8 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">xma.inductor</a><ul>
-<li><a class="reference internal" href="#xma.inductor.enable_kernels"><code class="docutils literal notranslate"><span class="pre">enable_kernels()</span></code></a></li>
-<li><a class="reference internal" href="#xma.inductor.get_fused_residual_add_rmsnorm_replacer"><code class="docutils literal notranslate"><span class="pre">get_fused_residual_add_rmsnorm_replacer()</span></code></a></li>
-<li><a class="reference internal" href="#xma.inductor.get_rmsnorm_replacer"><code class="docutils literal notranslate"><span class="pre">get_rmsnorm_replacer()</span></code></a></li>
-<li><a class="reference internal" href="#xma.inductor.init_inductor"><code class="docutils literal notranslate"><span class="pre">init_inductor()</span></code></a></li>
-<li><a class="reference internal" href="#xma.inductor.partialize_and_update_signature"><code class="docutils literal notranslate"><span class="pre">partialize_and_update_signature()</span></code></a></li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>

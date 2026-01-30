@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -258,58 +258,13 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.triton_utils.math">
-<span id="xma-triton-utils-math"></span><h1>xma.triton_utils.math<a class="headerlink" href="#module-xma.triton_utils.math" title="Link to this heading">¶</a></h1>
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.clamp">
-<span class="sig-name descname"><span class="pre">clamp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.clamp" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.leaky_relu">
-<span class="sig-name descname"><span class="pre">leaky_relu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">negative_slope</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.leaky_relu" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.leaky_relu_backward">
-<span class="sig-name descname"><span class="pre">leaky_relu_backward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relu_negative_slope</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.leaky_relu_backward" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.sigmoid">
-<span class="sig-name descname"><span class="pre">sigmoid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">triton.language.constexpr</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.sigmoid" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.sigmoid_backward">
-<span class="sig-name descname"><span class="pre">sigmoid_backward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.sigmoid_backward" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.silu">
-<span class="sig-name descname"><span class="pre">silu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">triton.language.constexpr</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.silu" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.silu_backward">
-<span class="sig-name descname"><span class="pre">silu_backward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.silu_backward" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.tanh">
-<span class="sig-name descname"><span class="pre">tanh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">triton.language.constexpr</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.tanh" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.triton_utils.math.tanh_backward">
-<span class="sig-name descname"><span class="pre">tanh_backward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#xma.triton_utils.math.tanh_backward" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
+          <section id="xma-triton-utils-math">
+<h1>xma.triton_utils.math<a class="headerlink" href="#xma-triton-utils-math" title="Link to this heading">¶</a></h1>
 </section>
 
         </article>
@@ -337,35 +292,8 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">xma.triton_utils.math</a><ul>
-<li><a class="reference internal" href="#xma.triton_utils.math.clamp"><code class="docutils literal notranslate"><span class="pre">clamp()</span></code></a></li>
-<li><a class="reference internal" href="#xma.triton_utils.math.leaky_relu"><code class="docutils literal notranslate"><span class="pre">leaky_relu()</span></code></a></li>
-<li><a class="reference internal" href="#xma.triton_utils.math.leaky_relu_backward"><code class="docutils literal notranslate"><span class="pre">leaky_relu_backward()</span></code></a></li>
-<li><a class="reference internal" href="#xma.triton_utils.math.sigmoid"><code class="docutils literal notranslate"><span class="pre">sigmoid()</span></code></a></li>
-<li><a class="reference internal" href="#xma.triton_utils.math.sigmoid_backward"><code class="docutils literal notranslate"><span class="pre">sigmoid_backward()</span></code></a></li>
-<li><a class="reference internal" href="#xma.triton_utils.math.silu"><code class="docutils literal notranslate"><span class="pre">silu()</span></code></a></li>
-<li><a class="reference internal" href="#xma.triton_utils.math.silu_backward"><code class="docutils literal notranslate"><span class="pre">silu_backward()</span></code></a></li>
-<li><a class="reference internal" href="#xma.triton_utils.math.tanh"><code class="docutils literal notranslate"><span class="pre">tanh()</span></code></a></li>
-<li><a class="reference internal" href="#xma.triton_utils.math.tanh_backward"><code class="docutils literal notranslate"><span class="pre">tanh_backward()</span></code></a></li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>
