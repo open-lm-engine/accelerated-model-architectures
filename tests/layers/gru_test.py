@@ -30,7 +30,7 @@ class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.triton],  # KernelBackend
-            [torch.float32, torch.float16],
+            [torch.float32, torch.float16],  # dtype
             [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             _get_problem_shapes(),  # problem_shapes
             [False, True],  # has_input_state
@@ -42,7 +42,7 @@ class GRUTest(TestCommons):
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
         input_shape: tuple[int, int, list[int]],
-        problem_shapes: tuple[int, int, int, int, int, int, int],
+        problem_shape: tuple[int, int, int, int, int, int, int],
         has_input_state: bool,
         is_compiling: bool,
     ) -> None:
@@ -180,7 +180,7 @@ class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.torch],  # KernelBackend
-            TestCommons.get_dtypes(),
+            TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             _get_problem_shapes(),  # problem_shape
             [False, True],  # has_input_state
