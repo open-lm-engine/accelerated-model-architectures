@@ -40,7 +40,6 @@ def gru_forward_triton_kernel(
     y_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    max_seqlen,
     B,
     S,
     H: tl.constexpr,
@@ -103,7 +102,6 @@ def gru_forward_triton_kernel(
 
     if IS_VARLEN:
         START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
-        S = max_seqlen
 
     BLOCK = START if IS_VARLEN else BLOCK_B[:, None]
 
@@ -184,7 +182,7 @@ def gru_forward_triton(
         B, S, _, H = x.size()
     else:
         B = cu_seqlens.size(0) - 1
-        S = None
+        S = max_seqlen
         _, _, H = x.size()
 
     Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
@@ -218,7 +216,6 @@ def gru_forward_triton(
         y_stride=y.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-        max_seqlen=max_seqlen,
         B=B,
         S=S,
         H=H,
