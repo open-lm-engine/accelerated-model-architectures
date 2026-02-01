@@ -7,9 +7,10 @@ from __future__ import annotations
 from typing import Callable
 
 import torch
+import torch.nn as nn
 from parameterized import parameterized
 
-from xma import KernelBackend, rmsnorm, set_seed
+from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -87,34 +88,34 @@ class RMSNormTest(TestCommons):
                 rtol_float16=0.01,
             )
 
-    # def test_rmsnorm_kernel_replacement(self) -> None:
-    #     class Model(nn.Module):
-    #         def __init__(self) -> Model:
-    #             super().__init__()
-    #             self.norm = nn.RMSNorm(size[-1])
-    #             self.l1 = nn.Linear(size[-1], size[-1])
-    #             self.l2 = nn.Linear(size[-1], size[-1])
+    def test_rmsnorm_kernel_replacement(self) -> None:
+        class Model(nn.Module):
+            def __init__(self) -> Model:
+                super().__init__()
+                self.norm = nn.RMSNorm(size[-1])
+                self.l1 = nn.Linear(size[-1], size[-1])
+                self.l2 = nn.Linear(size[-1], size[-1])
 
-    #         def forward(self, x: torch.Tensor) -> torch.Tensor:
-    #             x = self.l1(x)
-    #             x = self.norm(x)
-    #             x = self.l2(x)
-    #             return x
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                x = self.l1(x)
+                x = self.norm(x)
+                x = self.l2(x)
+                return x
 
-    #     device = torch.cuda.current_device()
-    #     enable_kernels([rmsnorm.__name__])
+        device = torch.cuda.current_device()
+        enable_kernels([rmsnorm.__name__])
 
-    #     for size in [(4, 4), (4, 4, 4)]:
-    #         for dtype in TestCommons.get_dtypes():
-    #             with torch.device(device):
-    #                 model = Model().to(dtype)
+        for size in [(4, 4), (4, 4, 4)]:
+            for dtype in TestCommons.get_dtypes():
+                with torch.device(device):
+                    model = Model().to(dtype)
 
-    #             x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+                x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
-    #             reset_counters()
-    #             model = torch.compile(model, fullgraph=True)
+                reset_counters()
+                model = torch.compile(model, fullgraph=True)
 
-    #             with enable_counters():
-    #                 model(x)
+                with enable_counters():
+                    model(x)
 
-    #             assert get_counter_value(rmsnorm) == 2
+                assert get_counter_value(rmsnorm) == 2
