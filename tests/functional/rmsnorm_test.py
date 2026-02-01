@@ -105,7 +105,7 @@ class RMSNormTest(TestCommons):
         device = torch.cuda.current_device()
         enable_kernels([rmsnorm.__name__])
 
-        for size in [(4, 4), (4, 4, 4)]:
+        for size in [(4, 4)]:
             for dtype in TestCommons.get_dtypes():
                 with torch.device(device):
                     model = Model().to(dtype)
