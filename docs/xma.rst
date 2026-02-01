@@ -5,11 +5,11 @@ xma
    :maxdepth: 4
 
    xma.cute_dsl_utils
-   xma.xtuner
    xma.functional
    xma.layers
    xma.triton_utils
    xma.utils
+   xma.xtuner
 
 .. toctree::
    :maxdepth: 4
@@ -21,7 +21,6 @@ xma
    xma.inductor
    xma.jit
    xma.math
-   xma.module
    xma.torch_utils
 
 .. automodule:: xma

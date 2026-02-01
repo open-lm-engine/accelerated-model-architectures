@@ -5,7 +5,6 @@ xma.utils
    :maxdepth: 4
 
    xma.utils.contiguous
-   xma.utils.cu_seqlens
    xma.utils.debugging
    xma.utils.env
    xma.utils.packages

@@ -10,6 +10,7 @@ xma.layers
    :maxdepth: 4
 
    xma.layers.gru
+   xma.layers.linear_attention
    xma.layers.rnn
 
 .. automodule:: xma.layers
