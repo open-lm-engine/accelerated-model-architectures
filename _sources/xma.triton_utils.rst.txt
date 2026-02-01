@@ -4,6 +4,7 @@ xma.triton\_utils
 .. toctree::
    :maxdepth: 4
 
+   xma.triton_utils.cu_seqlens
    xma.triton_utils.math
    xma.triton_utils.matmul
 
