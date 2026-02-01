@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -260,13 +260,24 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="xma-functional-swiglu-cuda-implementation-backward">
-<h1>xma.functional.swiglu.cuda_implementation.backward<a class="headerlink" href="#xma-functional-swiglu-cuda-implementation-backward" title="Link to this heading">¶</a></h1>
+          <section id="module-xma.functional.swiglu.cuda_implementation.backward">
+<span id="xma-functional-swiglu-cuda-implementation-backward"></span><h1>xma.functional.swiglu.cuda_implementation.backward<a class="headerlink" href="#module-xma.functional.swiglu.cuda_implementation.backward" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="xma.functional.swiglu.cuda_implementation.backward.SwiGLUBackwardCUDAKernel">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">SwiGLUBackwardCUDAKernel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">BLOCK_SIZE</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/functional/swiglu/cuda_implementation/backward.html#SwiGLUBackwardCUDAKernel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.functional.swiglu.cuda_implementation.backward.SwiGLUBackwardCUDAKernel" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="xma.functional.swiglu.cuda_implementation.backward.SwiGLUBackwardCUDAKernel.kernel">
+<span class="sig-name descname"><span class="pre">kernel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gG</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gU</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gdY</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gdG</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gdU</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gC</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_atom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.CopyAtom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tiled_copy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.TiledCopy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cutlass.cute.Shape</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#xma.functional.swiglu.cuda_implementation.backward.SwiGLUBackwardCUDAKernel.kernel" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 </section>
 
         </article>
@@ -294,8 +305,30 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">xma.functional.swiglu.cuda_implementation.backward</a><ul>
+<li><a class="reference internal" href="#xma.functional.swiglu.cuda_implementation.backward.SwiGLUBackwardCUDAKernel"><code class="docutils literal notranslate"><span class="pre">SwiGLUBackwardCUDAKernel</span></code></a><ul>
+<li><a class="reference internal" href="#xma.functional.swiglu.cuda_implementation.backward.SwiGLUBackwardCUDAKernel.kernel"><code class="docutils literal notranslate"><span class="pre">SwiGLUBackwardCUDAKernel.kernel()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>

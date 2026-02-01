@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -260,13 +260,42 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="xma-functional-rnn">
-<h1>xma.functional.rnn<a class="headerlink" href="#xma-functional-rnn" title="Link to this heading">¶</a></h1>
+          <section id="module-xma.functional.rnn">
+<span id="xma-functional-rnn"></span><h1>xma.functional.rnn<a class="headerlink" href="#module-xma.functional.rnn" title="Link to this heading">¶</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="xma.functional.rnn.rnn">
+<span class="sig-name descname"><span class="pre">rnn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradient_clipping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cu_seqlens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_seqlen</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_backend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend" title="xma.accelerator.KernelBackend"><span class="pre">KernelBackend</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/functional/rnn.html#rnn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.functional.rnn.rnn" title="Link to this definition">¶</a></dt>
+<dd><p>computes multihead RNN recurrent update over the sequence length: <cite>tanh(input_state &#64; weight + input)</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input</strong> (<em>torch.Tensor</em>) – input tensor of shape (B, S, Nx, H) where Nx is the number of input heads and H is the head
+dimension. Should have shape (T, Nx, H) and <cite>cu_seqlens</cite> should be passed.</p></li>
+<li><p><strong>weight</strong> (<em>torch.Tensor</em>) – weight tensor of shape (Nw, H, H)</p></li>
+<li><p><strong>input_state</strong> (<em>torch.Tensor</em><em> | </em><em>None</em>) – starting state of shape (B, N, H), where N = max{Nx, Nw}. None means starting state is
+0 tensor. Defaults to None.</p></li>
+<li><p><strong>gradient_clipping</strong> (<em>float</em><em> | </em><em>None</em>) – gradient clipping for the state gradient in backward, None implies no clipping.
+Defaults to None.</p></li>
+<li><p><strong>cu_seqlens</strong> (<em>torch.Tensor</em><em> | </em><em>None</em>) – cumulative sequence length (must contain 0 as first element). Defaults to None.</p></li>
+<li><p><strong>max_seqlen</strong> (<em>int</em><em> | </em><em>None</em>) – max sequence length in the batch. Defaults to None.</p></li>
+<li><p><strong>kernel_backend</strong> (<a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend" title="xma.accelerator.KernelBackend"><em>KernelBackend</em></a><em> | </em><em>None</em>) – KernelBackend</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>output tensor of shape (B, S, N, H) if <cite>cu_seqlens</cite> is None else (T, N, H) and output state of
+shape (B, N, H).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[Tensor, Tensor]</p>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 
         </article>
@@ -312,8 +341,27 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">xma.functional.rnn</a><ul>
+<li><a class="reference internal" href="#xma.functional.rnn.rnn"><code class="docutils literal notranslate"><span class="pre">rnn()</span></code></a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>

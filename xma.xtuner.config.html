@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -260,13 +260,34 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="xma-xtuner-config">
-<h1>xma.xtuner.config<a class="headerlink" href="#xma-xtuner-config" title="Link to this heading">¶</a></h1>
+          <section id="module-xma.xtuner.config">
+<span id="xma-xtuner-config"></span><h1>xma.xtuner.config<a class="headerlink" href="#module-xma.xtuner.config" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="xma.xtuner.config.XTuneConfig">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">XTuneConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">condition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/xtuner/config.html#XTuneConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.xtuner.config.XTuneConfig" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="xma.xtuner.config.XTuneConfig.get_key_values">
+<span class="sig-name descname"><span class="pre">get_key_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/xma/xtuner/config.html#XTuneConfig.get_key_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.xtuner.config.XTuneConfig.get_key_values" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="xma.xtuner.config.XTuneConfig.is_condition_valid">
+<span class="sig-name descname"><span class="pre">is_condition_valid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/xma/xtuner/config.html#XTuneConfig.is_condition_valid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.xtuner.config.XTuneConfig.is_condition_valid" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="xma.xtuner.config.get_cartesian_product_xtune_configs">
+<span class="sig-name descname"><span class="pre">get_cartesian_product_xtune_configs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">condition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#xma.xtuner.config.XTuneConfig" title="xma.xtuner.config.XTuneConfig"><span class="pre">XTuneConfig</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/xtuner/config.html#get_cartesian_product_xtune_configs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.xtuner.config.get_cartesian_product_xtune_configs" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </section>
 
         </article>
@@ -312,8 +333,32 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">xma.xtuner.config</a><ul>
+<li><a class="reference internal" href="#xma.xtuner.config.XTuneConfig"><code class="docutils literal notranslate"><span class="pre">XTuneConfig</span></code></a><ul>
+<li><a class="reference internal" href="#xma.xtuner.config.XTuneConfig.get_key_values"><code class="docutils literal notranslate"><span class="pre">XTuneConfig.get_key_values()</span></code></a></li>
+<li><a class="reference internal" href="#xma.xtuner.config.XTuneConfig.is_condition_valid"><code class="docutils literal notranslate"><span class="pre">XTuneConfig.is_condition_valid()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#xma.xtuner.config.get_cartesian_product_xtune_configs"><code class="docutils literal notranslate"><span class="pre">get_cartesian_product_xtune_configs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>

@@ -260,7 +260,7 @@
           
 <section class="genindex-section">
   <h1 id="index">Index</h1>
-  <div class="genindex-jumpbox"><a href="#A"><strong>A</strong></a> | <a href="#B"><strong>B</strong></a> | <a href="#C"><strong>C</strong></a> | <a href="#D"><strong>D</strong></a> | <a href="#E"><strong>E</strong></a> | <a href="#F"><strong>F</strong></a> | <a href="#G"><strong>G</strong></a> | <a href="#I"><strong>I</strong></a> | <a href="#K"><strong>K</strong></a> | <a href="#M"><strong>M</strong></a> | <a href="#N"><strong>N</strong></a> | <a href="#P"><strong>P</strong></a> | <a href="#R"><strong>R</strong></a> | <a href="#S"><strong>S</strong></a> | <a href="#T"><strong>T</strong></a> | <a href="#V"><strong>V</strong></a> | <a href="#X"><strong>X</strong></a> | <a href="#Z"><strong>Z</strong></a></div>
+  <div class="genindex-jumpbox"><a href="#A"><strong>A</strong></a> | <a href="#B"><strong>B</strong></a> | <a href="#C"><strong>C</strong></a> | <a href="#D"><strong>D</strong></a> | <a href="#E"><strong>E</strong></a> | <a href="#F"><strong>F</strong></a> | <a href="#G"><strong>G</strong></a> | <a href="#I"><strong>I</strong></a> | <a href="#K"><strong>K</strong></a> | <a href="#L"><strong>L</strong></a> | <a href="#M"><strong>M</strong></a> | <a href="#N"><strong>N</strong></a> | <a href="#P"><strong>P</strong></a> | <a href="#R"><strong>R</strong></a> | <a href="#S"><strong>S</strong></a> | <a href="#T"><strong>T</strong></a> | <a href="#U"><strong>U</strong></a> | <a href="#V"><strong>V</strong></a> | <a href="#X"><strong>X</strong></a> | <a href="#Z"><strong>Z</strong></a></div>
 </section>
 <section id="A" class="genindex-section">
   <h2>A</h2>
@@ -294,12 +294,22 @@
 </li>
         <li><a href="xma.math.html#xma.math.check_power_of_2">check_power_of_2() (in module xma.math)</a>
 </li>
-        <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.cpu">cpu (Accelerator attribute)</a>
+        <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.clamp">clamp() (in module xma.triton_utils.math)</a>
 </li>
-        <li><a href="xma.custom_op.html#xma.custom_op.ctx_needs_gradients">ctx_needs_gradients() (in module xma.custom_op)</a>
+        <li><a href="xma.torch_utils.html#xma.torch_utils.clip_gradients">clip_gradients() (in module xma.torch_utils)</a>
+</li>
+        <li><a href="xma.functional.continuous_count.html#xma.functional.continuous_count.continuous_count">continuous_count() (in module xma.functional.continuous_count)</a>
+</li>
+        <li><a href="xma.jit.html#xma.jit.cpp_jit">cpp_jit() (in module xma.jit)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.cpu">cpu (Accelerator attribute)</a>
+</li>
+        <li><a href="xma.functional.cross_entropy.html#xma.functional.cross_entropy.cross_entropy">cross_entropy() (in module xma.functional.cross_entropy)</a>
+</li>
+        <li><a href="xma.custom_op.html#xma.custom_op.ctx_needs_gradients">ctx_needs_gradients() (in module xma.custom_op)</a>
+</li>
         <li><a href="xma.custom_op.html#xma.custom_op.ctx_save_for_backward">ctx_save_for_backward() (in module xma.custom_op)</a>
 </li>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.cuda">cuda (Accelerator attribute)</a>
@@ -321,6 +331,10 @@
         <li><a href="xma.math.html#xma.math.divide_if_divisible">divide_if_divisible() (in module xma.math)</a>
 </li>
     </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.layers.moe.html#xma.layers.moe.Experts.down_projection_triton_forward">down_projection_triton_forward() (Experts method)</a>
+</li>
+    </ul></td>
   </tr></table>
 </section>
 
@@ -330,12 +344,24 @@
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.utils.tensor.html#xma.utils.tensor.empty_like_contiguous">empty_like_contiguous() (in module xma.utils.tensor)</a>
 </li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.counters.html#xma.counters.enable_counters">enable_counters() (in module xma.counters)</a>
+</li>
+        <li><a href="xma.inductor.html#xma.inductor.enable_kernels">enable_kernels() (in module xma.inductor)</a>
 </li>
         <li><a href="xma.utils.contiguous.html#xma.utils.contiguous.ensure_contiguous">ensure_contiguous() (in module xma.utils.contiguous)</a>
 </li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.layers.moe.html#xma.layers.moe.Experts">Experts (class in xma.layers.moe)</a>
+</li>
+        <li><a href="xma.layers.moe.html#xma.layers.moe.Experts.extra_repr">extra_repr() (Experts method)</a>
+
+        <ul>
+          <li><a href="xma.layers.gru.html#xma.layers.gru.GRU.extra_repr">(GRU method)</a>
+</li>
+          <li><a href="xma.layers.rnn.html#xma.layers.rnn.RNN.extra_repr">(RNN method)</a>
+</li>
+        </ul></li>
     </ul></td>
   </tr></table>
 </section>
@@ -345,10 +371,28 @@
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.custom_op.html#xma.custom_op.CustomOp.forward">forward() (CustomOp static method)</a>
+
+        <ul>
+          <li><a href="xma.layers.gru.html#xma.layers.gru.GRU.forward">(GRU method)</a>
 </li>
+          <li><a href="xma.layers.linear_attention.html#xma.layers.linear_attention.LinearAttention.forward">(LinearAttention method)</a>
+</li>
+          <li><a href="xma.layers.moe.html#xma.layers.moe.MoE.forward">(MoE method)</a>
+</li>
+          <li><a href="xma.layers.rnn.html#xma.layers.rnn.RNN.forward">(RNN method)</a>
+</li>
+        </ul></li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.custom_op.html#xma.custom_op.CustomOp.forward_backward_torch">forward_backward_torch() (CustomOp static method)</a>
+</li>
+        <li><a href="xma.functional.fused_linear_cross_entropy.html#xma.functional.fused_linear_cross_entropy.fused_linear_cross_entropy">fused_linear_cross_entropy() (in module xma.functional.fused_linear_cross_entropy)</a>
+</li>
+        <li><a href="xma.functional.fused_residual_add_rmsnorm.html#xma.functional.fused_residual_add_rmsnorm.fused_residual_add_rmsnorm">fused_residual_add_rmsnorm() (in module xma.functional.fused_residual_add_rmsnorm)</a>
+</li>
+        <li><a href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward.html#xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward.fused_residual_add_rmsnorm_backward_triton_kernel">fused_residual_add_rmsnorm_backward_triton_kernel() (in module xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward)</a>
+</li>
+        <li><a href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward.html#xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward.fused_residual_add_rmsnorm_forward_triton_kernel">fused_residual_add_rmsnorm_forward_triton_kernel() (in module xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -364,15 +408,25 @@
 </li>
         <li><a href="xma.utils.env.html#xma.utils.env.get_boolean_env_variable">get_boolean_env_variable() (in module xma.utils.env)</a>
 </li>
+        <li><a href="xma.xtuner.config.html#xma.xtuner.config.get_cartesian_product_xtune_configs">get_cartesian_product_xtune_configs() (in module xma.xtuner.config)</a>
+</li>
         <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.get_compatible_accelerator">get_compatible_accelerator() (KernelBackend method)</a>
 </li>
         <li><a href="xma.counters.html#xma.counters.get_counter_value">get_counter_value() (in module xma.counters)</a>
 </li>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_current_device">get_current_device() (Accelerator static method)</a>
 </li>
+        <li><a href="xma.cute_dsl_utils.constants.html#xma.cute_dsl_utils.constants.get_cute_dtype_from_torch_dtype">get_cute_dtype_from_torch_dtype() (in module xma.cute_dsl_utils.constants)</a>
+</li>
+        <li><a href="xma.cute_dsl_utils.utils.html#xma.cute_dsl_utils.utils.get_fake_cute_tensor">get_fake_cute_tensor() (in module xma.cute_dsl_utils.utils)</a>
+</li>
+        <li><a href="xma.inductor.html#xma.inductor.get_fused_residual_add_rmsnorm_replacer">get_fused_residual_add_rmsnorm_replacer() (in module xma.inductor)</a>
+</li>
+        <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_kernel_backend">get_kernel_backend() (Accelerator static method)</a>
+</li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_kernel_backend">get_kernel_backend() (Accelerator static method)</a>
+        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.get_key_values">get_key_values() (XTuneConfig method)</a>
 </li>
         <li><a href="xma.math.html#xma.math.get_next_power_of_2">get_next_power_of_2() (in module xma.math)</a>
 </li>
@@ -380,9 +434,19 @@
 </li>
         <li><a href="xma.utils.ptx.html#xma.utils.ptx.get_ptx_from_triton_kernel">get_ptx_from_triton_kernel() (in module xma.utils.ptx)</a>
 </li>
+        <li><a href="xma.inductor.html#xma.inductor.get_rmsnorm_replacer">get_rmsnorm_replacer() (in module xma.inductor)</a>
+</li>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_sm_count">get_sm_count() (Accelerator static method)</a>
 </li>
+        <li><a href="xma.triton_utils.cu_seqlens.html#xma.triton_utils.cu_seqlens.get_start_end">get_start_end() (in module xma.triton_utils.cu_seqlens)</a>
+</li>
         <li><a href="xma.utils.settings.html#xma.utils.settings.get_triton_num_warps">get_triton_num_warps() (in module xma.utils.settings)</a>
+</li>
+        <li><a href="xma.xtuner.cache.html#xma.xtuner.cache.get_xtune_cache">get_xtune_cache() (in module xma.xtuner.cache)</a>
+</li>
+        <li><a href="xma.layers.gru.html#xma.layers.gru.GRU">GRU (class in xma.layers.gru)</a>
+</li>
+        <li><a href="xma.functional.gru.html#xma.functional.gru.gru">gru() (in module xma.functional.gru)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -394,12 +458,16 @@
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.counters.html#xma.counters.increment_counter">increment_counter() (in module xma.counters)</a>
 </li>
-        <li><a href="xma.counters.html#xma.counters.is_counter_enabled">is_counter_enabled() (in module xma.counters)</a>
+        <li><a href="xma.inductor.html#xma.inductor.init_inductor">init_inductor() (in module xma.inductor)</a>
 </li>
-        <li><a href="xma.utils.packages.html#xma.utils.packages.is_cute_dsl_available">is_cute_dsl_available() (in module xma.utils.packages)</a>
+        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.is_condition_valid">is_condition_valid() (XTuneConfig method)</a>
+</li>
+        <li><a href="xma.counters.html#xma.counters.is_counter_enabled">is_counter_enabled() (in module xma.counters)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.utils.packages.html#xma.utils.packages.is_cute_dsl_available">is_cute_dsl_available() (in module xma.utils.packages)</a>
+</li>
         <li><a href="xma.utils.packages.html#xma.utils.packages.is_torch_neuronx_available">is_torch_neuronx_available() (in module xma.utils.packages)</a>
 </li>
         <li><a href="xma.utils.packages.html#xma.utils.packages.is_torch_xla_available">is_torch_xla_available() (in module xma.utils.packages)</a>
@@ -414,7 +482,33 @@
   <h2>K</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.functional.swiglu.cuda_implementation.backward.html#xma.functional.swiglu.cuda_implementation.backward.SwiGLUBackwardCUDAKernel.kernel">kernel() (SwiGLUBackwardCUDAKernel method)</a>
+
+        <ul>
+          <li><a href="xma.functional.swiglu.cuda_implementation.forward.html#xma.functional.swiglu.cuda_implementation.forward.SwiGLUForwardCUDAKernel.kernel">(SwiGLUForwardCUDAKernel method)</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend">KernelBackend (class in xma.accelerator)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="L" class="genindex-section">
+  <h2>L</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.leaky_relu">leaky_relu() (in module xma.triton_utils.math)</a>
+</li>
+        <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.leaky_relu_backward">leaky_relu_backward() (in module xma.triton_utils.math)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.functional.linear_attention.html#xma.functional.linear_attention.linear_attention">linear_attention() (in module xma.functional.linear_attention)</a>
+</li>
+        <li><a href="xma.layers.linear_attention.html#xma.layers.linear_attention.LinearAttention">LinearAttention (class in xma.layers.linear_attention)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -424,10 +518,14 @@
   <h2>M</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.triton_utils.matmul.html#xma.triton_utils.matmul.matmul">matmul() (in module xma.triton_utils.matmul)</a>
+</li>
         <li>
     module
 
         <ul>
+          <li><a href="xma.html#module-xma">xma</a>
+</li>
           <li><a href="xma.accelerator.html#module-xma.accelerator">xma.accelerator</a>
 </li>
           <li><a href="xma.constants.html#module-xma.constants">xma.constants</a>
@@ -436,11 +534,145 @@
 </li>
           <li><a href="xma.custom_op.html#module-xma.custom_op">xma.custom_op</a>
 </li>
+          <li><a href="xma.cute_dsl_utils.html#module-xma.cute_dsl_utils">xma.cute_dsl_utils</a>
+</li>
+          <li><a href="xma.cute_dsl_utils.constants.html#module-xma.cute_dsl_utils.constants">xma.cute_dsl_utils.constants</a>
+</li>
+          <li><a href="xma.cute_dsl_utils.math.html#module-xma.cute_dsl_utils.math">xma.cute_dsl_utils.math</a>
+</li>
+          <li><a href="xma.cute_dsl_utils.utils.html#module-xma.cute_dsl_utils.utils">xma.cute_dsl_utils.utils</a>
+</li>
+          <li><a href="xma.functional.html#module-xma.functional">xma.functional</a>
+</li>
           <li><a href="xma.functional.bmm.html#module-xma.functional.bmm">xma.functional.bmm</a>
 </li>
           <li><a href="xma.functional.bmm.triton_implementation.html#module-xma.functional.bmm.triton_implementation">xma.functional.bmm.triton_implementation</a>
 </li>
+          <li><a href="xma.functional.continuous_count.html#module-xma.functional.continuous_count">xma.functional.continuous_count</a>
+</li>
+          <li><a href="xma.functional.continuous_count.cuda_implementation.html#module-xma.functional.continuous_count.cuda_implementation">xma.functional.continuous_count.cuda_implementation</a>
+</li>
+          <li><a href="xma.functional.cross_entropy.html#module-xma.functional.cross_entropy">xma.functional.cross_entropy</a>
+</li>
+          <li><a href="xma.functional.cross_entropy.triton_implementation.html#module-xma.functional.cross_entropy.triton_implementation">xma.functional.cross_entropy.triton_implementation</a>
+</li>
+          <li><a href="xma.functional.fused_linear_cross_entropy.html#module-xma.functional.fused_linear_cross_entropy">xma.functional.fused_linear_cross_entropy</a>
+</li>
+          <li><a href="xma.functional.fused_residual_add_rmsnorm.html#module-xma.functional.fused_residual_add_rmsnorm">xma.functional.fused_residual_add_rmsnorm</a>
+</li>
+          <li><a href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.html#module-xma.functional.fused_residual_add_rmsnorm.triton_implementation">xma.functional.fused_residual_add_rmsnorm.triton_implementation</a>
+</li>
+          <li><a href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward.html#module-xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward">xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward</a>
+</li>
+          <li><a href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward.html#module-xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward">xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.gru.html#module-xma.functional.gru">xma.functional.gru</a>
+</li>
+          <li><a href="xma.functional.gru.triton_implementation.html#module-xma.functional.gru.triton_implementation">xma.functional.gru.triton_implementation</a>
+</li>
+          <li><a href="xma.functional.gru.triton_implementation.backward.html#module-xma.functional.gru.triton_implementation.backward">xma.functional.gru.triton_implementation.backward</a>
+</li>
+          <li><a href="xma.functional.gru.triton_implementation.forward.html#module-xma.functional.gru.triton_implementation.forward">xma.functional.gru.triton_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.gru.utils.html#module-xma.functional.gru.utils">xma.functional.gru.utils</a>
+</li>
+          <li><a href="xma.functional.linear_attention.html#module-xma.functional.linear_attention">xma.functional.linear_attention</a>
+</li>
+          <li><a href="xma.functional.linear_attention.triton_implementation.html#module-xma.functional.linear_attention.triton_implementation">xma.functional.linear_attention.triton_implementation</a>
+</li>
+          <li><a href="xma.functional.linear_attention.triton_implementation.forward.html#module-xma.functional.linear_attention.triton_implementation.forward">xma.functional.linear_attention.triton_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.linear_attention.triton_implementation.output_forward.html#module-xma.functional.linear_attention.triton_implementation.output_forward">xma.functional.linear_attention.triton_implementation.output_forward</a>
+</li>
+          <li><a href="xma.functional.linear_attention.triton_implementation.recurrent_state_forward.html#module-xma.functional.linear_attention.triton_implementation.recurrent_state_forward">xma.functional.linear_attention.triton_implementation.recurrent_state_forward</a>
+</li>
+          <li><a href="xma.functional.linear_attention.utils.html#module-xma.functional.linear_attention.utils">xma.functional.linear_attention.utils</a>
+</li>
+          <li><a href="xma.functional.rmsnorm.html#module-xma.functional.rmsnorm">xma.functional.rmsnorm</a>
+</li>
+          <li><a href="xma.functional.rnn.html#module-xma.functional.rnn">xma.functional.rnn</a>
+</li>
+          <li><a href="xma.functional.rnn.triton_implementation.html#module-xma.functional.rnn.triton_implementation">xma.functional.rnn.triton_implementation</a>
+</li>
+          <li><a href="xma.functional.rnn.triton_implementation.backward.html#module-xma.functional.rnn.triton_implementation.backward">xma.functional.rnn.triton_implementation.backward</a>
+</li>
+          <li><a href="xma.functional.rnn.triton_implementation.forward.html#module-xma.functional.rnn.triton_implementation.forward">xma.functional.rnn.triton_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.sequence_packing.html#module-xma.functional.sequence_packing">xma.functional.sequence_packing</a>
+</li>
+          <li><a href="xma.functional.sequence_packing.cuda_implementation.html#module-xma.functional.sequence_packing.cuda_implementation">xma.functional.sequence_packing.cuda_implementation</a>
+</li>
+          <li><a href="xma.functional.sequence_packing.triton_implementation.html#module-xma.functional.sequence_packing.triton_implementation">xma.functional.sequence_packing.triton_implementation</a>
+</li>
+          <li><a href="xma.functional.softmax.html#module-xma.functional.softmax">xma.functional.softmax</a>
+</li>
+          <li><a href="xma.functional.softmax.triton_implementation.html#module-xma.functional.softmax.triton_implementation">xma.functional.softmax.triton_implementation</a>
+</li>
+          <li><a href="xma.functional.softmax.triton_implementation.backward.html#module-xma.functional.softmax.triton_implementation.backward">xma.functional.softmax.triton_implementation.backward</a>
+</li>
+          <li><a href="xma.functional.softmax.triton_implementation.forward.html#module-xma.functional.softmax.triton_implementation.forward">xma.functional.softmax.triton_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.swiglu.html#module-xma.functional.swiglu">xma.functional.swiglu</a>
+</li>
+          <li><a href="xma.functional.swiglu.cuda_implementation.html#module-xma.functional.swiglu.cuda_implementation">xma.functional.swiglu.cuda_implementation</a>
+</li>
+          <li><a href="xma.functional.swiglu.cuda_implementation.backward.html#module-xma.functional.swiglu.cuda_implementation.backward">xma.functional.swiglu.cuda_implementation.backward</a>
+</li>
+          <li><a href="xma.functional.swiglu.cuda_implementation.forward.html#module-xma.functional.swiglu.cuda_implementation.forward">xma.functional.swiglu.cuda_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.swiglu.nki_implementation.html#module-xma.functional.swiglu.nki_implementation">xma.functional.swiglu.nki_implementation</a>
+</li>
+          <li><a href="xma.functional.swiglu.nki_implementation.backward.html#module-xma.functional.swiglu.nki_implementation.backward">xma.functional.swiglu.nki_implementation.backward</a>
+</li>
+          <li><a href="xma.functional.swiglu.nki_implementation.forward.html#module-xma.functional.swiglu.nki_implementation.forward">xma.functional.swiglu.nki_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.swiglu.pallas_implementation.html#module-xma.functional.swiglu.pallas_implementation">xma.functional.swiglu.pallas_implementation</a>
+</li>
+          <li><a href="xma.functional.swiglu.pallas_implementation.backward.html#module-xma.functional.swiglu.pallas_implementation.backward">xma.functional.swiglu.pallas_implementation.backward</a>
+</li>
+          <li><a href="xma.functional.swiglu.pallas_implementation.forward.html#module-xma.functional.swiglu.pallas_implementation.forward">xma.functional.swiglu.pallas_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.swiglu.triton_implementation.html#module-xma.functional.swiglu.triton_implementation">xma.functional.swiglu.triton_implementation</a>
+</li>
+          <li><a href="xma.functional.swiglu.triton_implementation.backward.html#module-xma.functional.swiglu.triton_implementation.backward">xma.functional.swiglu.triton_implementation.backward</a>
+</li>
+          <li><a href="xma.functional.swiglu.triton_implementation.forward.html#module-xma.functional.swiglu.triton_implementation.forward">xma.functional.swiglu.triton_implementation.forward</a>
+</li>
+          <li><a href="xma.functional.swiglu_packed.html#module-xma.functional.swiglu_packed">xma.functional.swiglu_packed</a>
+</li>
+          <li><a href="xma.inductor.html#module-xma.inductor">xma.inductor</a>
+</li>
+          <li><a href="xma.jit.html#module-xma.jit">xma.jit</a>
+</li>
+          <li><a href="xma.layers.html#module-xma.layers">xma.layers</a>
+</li>
+          <li><a href="xma.layers.gru.html#module-xma.layers.gru">xma.layers.gru</a>
+</li>
+          <li><a href="xma.layers.linear_attention.html#module-xma.layers.linear_attention">xma.layers.linear_attention</a>
+</li>
+          <li><a href="xma.layers.moe.html#module-xma.layers.moe">xma.layers.moe</a>
+</li>
+          <li><a href="xma.layers.moe.triton_implementation.html#module-xma.layers.moe.triton_implementation">xma.layers.moe.triton_implementation</a>
+</li>
+          <li><a href="xma.layers.moe.triton_implementation.group_backward_kernel.html#module-xma.layers.moe.triton_implementation.group_backward_kernel">xma.layers.moe.triton_implementation.group_backward_kernel</a>
+</li>
+          <li><a href="xma.layers.moe.triton_implementation.group_kernel.html#module-xma.layers.moe.triton_implementation.group_kernel">xma.layers.moe.triton_implementation.group_kernel</a>
+</li>
+          <li><a href="xma.layers.moe.triton_implementation.scatter_kernel.html#module-xma.layers.moe.triton_implementation.scatter_kernel">xma.layers.moe.triton_implementation.scatter_kernel</a>
+</li>
+          <li><a href="xma.layers.rnn.html#module-xma.layers.rnn">xma.layers.rnn</a>
+</li>
           <li><a href="xma.math.html#module-xma.math">xma.math</a>
+</li>
+          <li><a href="xma.torch_utils.html#module-xma.torch_utils">xma.torch_utils</a>
+</li>
+          <li><a href="xma.triton_utils.html#module-xma.triton_utils">xma.triton_utils</a>
+</li>
+          <li><a href="xma.triton_utils.cu_seqlens.html#module-xma.triton_utils.cu_seqlens">xma.triton_utils.cu_seqlens</a>
+</li>
+          <li><a href="xma.triton_utils.math.html#module-xma.triton_utils.math">xma.triton_utils.math</a>
+</li>
+          <li><a href="xma.triton_utils.matmul.html#module-xma.triton_utils.matmul">xma.triton_utils.matmul</a>
 </li>
           <li><a href="xma.utils.html#module-xma.utils">xma.utils</a>
 </li>
@@ -460,7 +692,21 @@
 </li>
           <li><a href="xma.utils.tensor.html#module-xma.utils.tensor">xma.utils.tensor</a>
 </li>
+          <li><a href="xma.xtuner.html#module-xma.xtuner">xma.xtuner</a>
+</li>
+          <li><a href="xma.xtuner.cache.html#module-xma.xtuner.cache">xma.xtuner.cache</a>
+</li>
+          <li><a href="xma.xtuner.config.html#module-xma.xtuner.config">xma.xtuner.config</a>
+</li>
+          <li><a href="xma.xtuner.parameter.html#module-xma.xtuner.parameter">xma.xtuner.parameter</a>
+</li>
+          <li><a href="xma.xtuner.tuner.html#module-xma.xtuner.tuner">xma.xtuner.tuner</a>
+</li>
         </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.layers.moe.html#xma.layers.moe.MoE">MoE (class in xma.layers.moe)</a>
+</li>
     </ul></td>
   </tr></table>
 </section>
@@ -479,10 +725,16 @@
   <h2>P</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.pallas">pallas (KernelBackend attribute)</a>
+        <li><a href="xma.functional.sequence_packing.html#xma.functional.sequence_packing.pack_sequence">pack_sequence() (in module xma.functional.sequence_packing)</a>
+</li>
+        <li><a href="xma.functional.sequence_packing.triton_implementation.html#xma.functional.sequence_packing.triton_implementation.pack_unpack_sequence_triton_kernel">pack_unpack_sequence_triton_kernel() (in module xma.functional.sequence_packing.triton_implementation)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.pallas">pallas (KernelBackend attribute)</a>
+</li>
+        <li><a href="xma.inductor.html#xma.inductor.partialize_and_update_signature">partialize_and_update_signature() (in module xma.inductor)</a>
+</li>
         <li><a href="xma.utils.debugging.html#xma.utils.debugging.print_gradient">print_gradient() (in module xma.utils.debugging)</a>
 </li>
     </ul></td>
@@ -495,14 +747,28 @@
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.counters.html#xma.counters.reset_counters">reset_counters() (in module xma.counters)</a>
 </li>
+        <li><a href="xma.layers.moe.html#xma.layers.moe.Experts.reset_parameters">reset_parameters() (Experts method)</a>
+
+        <ul>
+          <li><a href="xma.layers.gru.html#xma.layers.gru.GRU.reset_parameters">(GRU method)</a>
+</li>
+          <li><a href="xma.layers.rnn.html#xma.layers.rnn.RNN.reset_parameters">(RNN method)</a>
+</li>
+        </ul></li>
+        <li><a href="xma.functional.rmsnorm.html#xma.functional.rmsnorm.rmsnorm">rmsnorm() (in module xma.functional.rmsnorm)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.layers.rnn.html#xma.layers.rnn.RNN">RNN (class in xma.layers.rnn)</a>
+</li>
+        <li><a href="xma.functional.rnn.html#xma.functional.rnn.rnn">rnn() (in module xma.functional.rnn)</a>
+</li>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.rocm">rocm (Accelerator attribute)</a>
 
         <ul>
           <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.rocm">(KernelBackend attribute)</a>
 </li>
         </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.custom_op.html#xma.custom_op.CustomOp.run">run() (CustomOp class method)</a>
 </li>
     </ul></td>
@@ -513,10 +779,48 @@
   <h2>S</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.layers.moe.triton_implementation.html#xma.layers.moe.triton_implementation.scattered_experts">scattered_experts() (in module xma.layers.moe.triton_implementation)</a>
+</li>
         <li><a href="xma.utils.random.html#xma.utils.random.set_seed">set_seed() (in module xma.utils.random)</a>
+</li>
+        <li><a href="xma.cute_dsl_utils.math.html#xma.cute_dsl_utils.math.sigmoid">sigmoid() (in module xma.cute_dsl_utils.math)</a>
+
+        <ul>
+          <li><a href="xma.torch_utils.html#xma.torch_utils.sigmoid">(in module xma.torch_utils)</a>
+</li>
+          <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.sigmoid">(in module xma.triton_utils.math)</a>
+</li>
+        </ul></li>
+        <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.sigmoid_backward">sigmoid_backward() (in module xma.triton_utils.math)</a>
+</li>
+        <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.silu">silu() (in module xma.triton_utils.math)</a>
+</li>
+        <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.silu_backward">silu_backward() (in module xma.triton_utils.math)</a>
+</li>
+        <li><a href="xma.functional.softmax.html#xma.functional.softmax.softmax">softmax() (in module xma.functional.softmax)</a>
+</li>
+        <li><a href="xma.functional.swiglu.html#xma.functional.swiglu.swiglu">swiglu() (in module xma.functional.swiglu)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.functional.swiglu.nki_implementation.backward.html#xma.functional.swiglu.nki_implementation.backward.swiglu_backward_nki_kernel">swiglu_backward_nki_kernel() (in module xma.functional.swiglu.nki_implementation.backward)</a>
+</li>
+        <li><a href="xma.functional.swiglu.pallas_implementation.backward.html#xma.functional.swiglu.pallas_implementation.backward.swiglu_backward_pallas_jit">swiglu_backward_pallas_jit() (in module xma.functional.swiglu.pallas_implementation.backward)</a>
+</li>
+        <li><a href="xma.functional.swiglu.pallas_implementation.backward.html#xma.functional.swiglu.pallas_implementation.backward.swiglu_backward_pallas_kernel">swiglu_backward_pallas_kernel() (in module xma.functional.swiglu.pallas_implementation.backward)</a>
+</li>
+        <li><a href="xma.functional.swiglu.nki_implementation.forward.html#xma.functional.swiglu.nki_implementation.forward.swiglu_forward_nki_kernel">swiglu_forward_nki_kernel() (in module xma.functional.swiglu.nki_implementation.forward)</a>
+</li>
+        <li><a href="xma.functional.swiglu.pallas_implementation.forward.html#xma.functional.swiglu.pallas_implementation.forward.swiglu_forward_pallas_jit">swiglu_forward_pallas_jit() (in module xma.functional.swiglu.pallas_implementation.forward)</a>
+</li>
+        <li><a href="xma.functional.swiglu.pallas_implementation.forward.html#xma.functional.swiglu.pallas_implementation.forward.swiglu_forward_pallas_kernel">swiglu_forward_pallas_kernel() (in module xma.functional.swiglu.pallas_implementation.forward)</a>
+</li>
+        <li><a href="xma.functional.swiglu_packed.html#xma.functional.swiglu_packed.swiglu_packed">swiglu_packed() (in module xma.functional.swiglu_packed)</a>
+</li>
+        <li><a href="xma.functional.swiglu.cuda_implementation.backward.html#xma.functional.swiglu.cuda_implementation.backward.SwiGLUBackwardCUDAKernel">SwiGLUBackwardCUDAKernel (class in xma.functional.swiglu.cuda_implementation.backward)</a>
+</li>
+        <li><a href="xma.functional.swiglu.cuda_implementation.forward.html#xma.functional.swiglu.cuda_implementation.forward.SwiGLUForwardCUDAKernel">SwiGLUForwardCUDAKernel (class in xma.functional.swiglu.cuda_implementation.forward)</a>
+</li>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.synchronize">synchronize() (Accelerator static method)</a>
 </li>
     </ul></td>
@@ -527,15 +831,43 @@
   <h2>T</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.torch">torch (KernelBackend attribute)</a>
+        <li><a href="xma.cute_dsl_utils.math.html#xma.cute_dsl_utils.math.tanh">tanh() (in module xma.cute_dsl_utils.math)</a>
+
+        <ul>
+          <li><a href="xma.torch_utils.html#xma.torch_utils.tanh">(in module xma.torch_utils)</a>
 </li>
-        <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.tpu">tpu (Accelerator attribute)</a>
+          <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.tanh">(in module xma.triton_utils.math)</a>
+</li>
+        </ul></li>
+        <li><a href="xma.triton_utils.math.html#xma.triton_utils.math.tanh_backward">tanh_backward() (in module xma.triton_utils.math)</a>
+</li>
+        <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.torch">torch (KernelBackend attribute)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.layers.moe.html#xma.layers.moe.Experts.torch_forward">torch_forward() (Experts method)</a>
+</li>
+        <li><a href="xma.cute_dsl_utils.utils.html#xma.cute_dsl_utils.utils.torch_tensor_to_cute_tensor">torch_tensor_to_cute_tensor() (in module xma.cute_dsl_utils.utils)</a>
+</li>
+        <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.tpu">tpu (Accelerator attribute)</a>
+</li>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.trainium">trainium (Accelerator attribute)</a>
 </li>
         <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.triton">triton (KernelBackend attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="U" class="genindex-section">
+  <h2>U</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.functional.sequence_packing.html#xma.functional.sequence_packing.unpack_sequence">unpack_sequence() (in module xma.functional.sequence_packing)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.layers.moe.html#xma.layers.moe.Experts.up_projection_triton_forward">up_projection_triton_forward() (Experts method)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -555,6 +887,13 @@
   <h2>X</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li>
+    xma
+
+        <ul>
+          <li><a href="xma.html#module-xma">module</a>
+</li>
+        </ul></li>
         <li>
     xma.accelerator
 
@@ -584,6 +923,41 @@
 </li>
         </ul></li>
         <li>
+    xma.cute_dsl_utils
+
+        <ul>
+          <li><a href="xma.cute_dsl_utils.html#module-xma.cute_dsl_utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.cute_dsl_utils.constants
+
+        <ul>
+          <li><a href="xma.cute_dsl_utils.constants.html#module-xma.cute_dsl_utils.constants">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.cute_dsl_utils.math
+
+        <ul>
+          <li><a href="xma.cute_dsl_utils.math.html#module-xma.cute_dsl_utils.math">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.cute_dsl_utils.utils
+
+        <ul>
+          <li><a href="xma.cute_dsl_utils.utils.html#module-xma.cute_dsl_utils.utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional
+
+        <ul>
+          <li><a href="xma.functional.html#module-xma.functional">module</a>
+</li>
+        </ul></li>
+        <li>
     xma.functional.bmm
 
         <ul>
@@ -598,10 +972,446 @@
 </li>
         </ul></li>
         <li>
+    xma.functional.continuous_count
+
+        <ul>
+          <li><a href="xma.functional.continuous_count.html#module-xma.functional.continuous_count">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.continuous_count.cuda_implementation
+
+        <ul>
+          <li><a href="xma.functional.continuous_count.cuda_implementation.html#module-xma.functional.continuous_count.cuda_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.cross_entropy
+
+        <ul>
+          <li><a href="xma.functional.cross_entropy.html#module-xma.functional.cross_entropy">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.cross_entropy.triton_implementation
+
+        <ul>
+          <li><a href="xma.functional.cross_entropy.triton_implementation.html#module-xma.functional.cross_entropy.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.fused_linear_cross_entropy
+
+        <ul>
+          <li><a href="xma.functional.fused_linear_cross_entropy.html#module-xma.functional.fused_linear_cross_entropy">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.fused_residual_add_rmsnorm
+
+        <ul>
+          <li><a href="xma.functional.fused_residual_add_rmsnorm.html#module-xma.functional.fused_residual_add_rmsnorm">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.fused_residual_add_rmsnorm.triton_implementation
+
+        <ul>
+          <li><a href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.html#module-xma.functional.fused_residual_add_rmsnorm.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward
+
+        <ul>
+          <li><a href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward.html#module-xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward.html#module-xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.gru
+
+        <ul>
+          <li><a href="xma.functional.gru.html#module-xma.functional.gru">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.gru.triton_implementation
+
+        <ul>
+          <li><a href="xma.functional.gru.triton_implementation.html#module-xma.functional.gru.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.gru.triton_implementation.backward
+
+        <ul>
+          <li><a href="xma.functional.gru.triton_implementation.backward.html#module-xma.functional.gru.triton_implementation.backward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.gru.triton_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.gru.triton_implementation.forward.html#module-xma.functional.gru.triton_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.gru.utils
+
+        <ul>
+          <li><a href="xma.functional.gru.utils.html#module-xma.functional.gru.utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.linear_attention
+
+        <ul>
+          <li><a href="xma.functional.linear_attention.html#module-xma.functional.linear_attention">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.linear_attention.triton_implementation
+
+        <ul>
+          <li><a href="xma.functional.linear_attention.triton_implementation.html#module-xma.functional.linear_attention.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.linear_attention.triton_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.linear_attention.triton_implementation.forward.html#module-xma.functional.linear_attention.triton_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.linear_attention.triton_implementation.output_forward
+
+        <ul>
+          <li><a href="xma.functional.linear_attention.triton_implementation.output_forward.html#module-xma.functional.linear_attention.triton_implementation.output_forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.linear_attention.triton_implementation.recurrent_state_forward
+
+        <ul>
+          <li><a href="xma.functional.linear_attention.triton_implementation.recurrent_state_forward.html#module-xma.functional.linear_attention.triton_implementation.recurrent_state_forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.linear_attention.utils
+
+        <ul>
+          <li><a href="xma.functional.linear_attention.utils.html#module-xma.functional.linear_attention.utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.rmsnorm
+
+        <ul>
+          <li><a href="xma.functional.rmsnorm.html#module-xma.functional.rmsnorm">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.rnn
+
+        <ul>
+          <li><a href="xma.functional.rnn.html#module-xma.functional.rnn">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.rnn.triton_implementation
+
+        <ul>
+          <li><a href="xma.functional.rnn.triton_implementation.html#module-xma.functional.rnn.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.rnn.triton_implementation.backward
+
+        <ul>
+          <li><a href="xma.functional.rnn.triton_implementation.backward.html#module-xma.functional.rnn.triton_implementation.backward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.rnn.triton_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.rnn.triton_implementation.forward.html#module-xma.functional.rnn.triton_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.sequence_packing
+
+        <ul>
+          <li><a href="xma.functional.sequence_packing.html#module-xma.functional.sequence_packing">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.sequence_packing.cuda_implementation
+
+        <ul>
+          <li><a href="xma.functional.sequence_packing.cuda_implementation.html#module-xma.functional.sequence_packing.cuda_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.sequence_packing.triton_implementation
+
+        <ul>
+          <li><a href="xma.functional.sequence_packing.triton_implementation.html#module-xma.functional.sequence_packing.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.softmax
+
+        <ul>
+          <li><a href="xma.functional.softmax.html#module-xma.functional.softmax">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.softmax.triton_implementation
+
+        <ul>
+          <li><a href="xma.functional.softmax.triton_implementation.html#module-xma.functional.softmax.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.softmax.triton_implementation.backward
+
+        <ul>
+          <li><a href="xma.functional.softmax.triton_implementation.backward.html#module-xma.functional.softmax.triton_implementation.backward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.softmax.triton_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.softmax.triton_implementation.forward.html#module-xma.functional.softmax.triton_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu
+
+        <ul>
+          <li><a href="xma.functional.swiglu.html#module-xma.functional.swiglu">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.cuda_implementation
+
+        <ul>
+          <li><a href="xma.functional.swiglu.cuda_implementation.html#module-xma.functional.swiglu.cuda_implementation">module</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li>
+    xma.functional.swiglu.cuda_implementation.backward
+
+        <ul>
+          <li><a href="xma.functional.swiglu.cuda_implementation.backward.html#module-xma.functional.swiglu.cuda_implementation.backward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.cuda_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.swiglu.cuda_implementation.forward.html#module-xma.functional.swiglu.cuda_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.nki_implementation
+
+        <ul>
+          <li><a href="xma.functional.swiglu.nki_implementation.html#module-xma.functional.swiglu.nki_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.nki_implementation.backward
+
+        <ul>
+          <li><a href="xma.functional.swiglu.nki_implementation.backward.html#module-xma.functional.swiglu.nki_implementation.backward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.nki_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.swiglu.nki_implementation.forward.html#module-xma.functional.swiglu.nki_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.pallas_implementation
+
+        <ul>
+          <li><a href="xma.functional.swiglu.pallas_implementation.html#module-xma.functional.swiglu.pallas_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.pallas_implementation.backward
+
+        <ul>
+          <li><a href="xma.functional.swiglu.pallas_implementation.backward.html#module-xma.functional.swiglu.pallas_implementation.backward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.pallas_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.swiglu.pallas_implementation.forward.html#module-xma.functional.swiglu.pallas_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.triton_implementation
+
+        <ul>
+          <li><a href="xma.functional.swiglu.triton_implementation.html#module-xma.functional.swiglu.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.triton_implementation.backward
+
+        <ul>
+          <li><a href="xma.functional.swiglu.triton_implementation.backward.html#module-xma.functional.swiglu.triton_implementation.backward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu.triton_implementation.forward
+
+        <ul>
+          <li><a href="xma.functional.swiglu.triton_implementation.forward.html#module-xma.functional.swiglu.triton_implementation.forward">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.functional.swiglu_packed
+
+        <ul>
+          <li><a href="xma.functional.swiglu_packed.html#module-xma.functional.swiglu_packed">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.inductor
+
+        <ul>
+          <li><a href="xma.inductor.html#module-xma.inductor">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.jit
+
+        <ul>
+          <li><a href="xma.jit.html#module-xma.jit">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers
+
+        <ul>
+          <li><a href="xma.layers.html#module-xma.layers">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers.gru
+
+        <ul>
+          <li><a href="xma.layers.gru.html#module-xma.layers.gru">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers.linear_attention
+
+        <ul>
+          <li><a href="xma.layers.linear_attention.html#module-xma.layers.linear_attention">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers.moe
+
+        <ul>
+          <li><a href="xma.layers.moe.html#module-xma.layers.moe">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers.moe.triton_implementation
+
+        <ul>
+          <li><a href="xma.layers.moe.triton_implementation.html#module-xma.layers.moe.triton_implementation">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers.moe.triton_implementation.group_backward_kernel
+
+        <ul>
+          <li><a href="xma.layers.moe.triton_implementation.group_backward_kernel.html#module-xma.layers.moe.triton_implementation.group_backward_kernel">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers.moe.triton_implementation.group_kernel
+
+        <ul>
+          <li><a href="xma.layers.moe.triton_implementation.group_kernel.html#module-xma.layers.moe.triton_implementation.group_kernel">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers.moe.triton_implementation.scatter_kernel
+
+        <ul>
+          <li><a href="xma.layers.moe.triton_implementation.scatter_kernel.html#module-xma.layers.moe.triton_implementation.scatter_kernel">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.layers.rnn
+
+        <ul>
+          <li><a href="xma.layers.rnn.html#module-xma.layers.rnn">module</a>
+</li>
+        </ul></li>
+        <li>
     xma.math
 
         <ul>
           <li><a href="xma.math.html#module-xma.math">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.torch_utils
+
+        <ul>
+          <li><a href="xma.torch_utils.html#module-xma.torch_utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.triton_utils
+
+        <ul>
+          <li><a href="xma.triton_utils.html#module-xma.triton_utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.triton_utils.cu_seqlens
+
+        <ul>
+          <li><a href="xma.triton_utils.cu_seqlens.html#module-xma.triton_utils.cu_seqlens">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.triton_utils.math
+
+        <ul>
+          <li><a href="xma.triton_utils.math.html#module-xma.triton_utils.math">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.triton_utils.matmul
+
+        <ul>
+          <li><a href="xma.triton_utils.matmul.html#module-xma.triton_utils.matmul">module</a>
 </li>
         </ul></li>
         <li>
@@ -611,8 +1421,6 @@
           <li><a href="xma.utils.html#module-xma.utils">module</a>
 </li>
         </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li>
     xma.utils.contiguous
 
@@ -669,7 +1477,50 @@
           <li><a href="xma.utils.tensor.html#module-xma.utils.tensor">module</a>
 </li>
         </ul></li>
+        <li>
+    xma.xtuner
+
+        <ul>
+          <li><a href="xma.xtuner.html#module-xma.xtuner">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.xtuner.cache
+
+        <ul>
+          <li><a href="xma.xtuner.cache.html#module-xma.xtuner.cache">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.xtuner.config
+
+        <ul>
+          <li><a href="xma.xtuner.config.html#module-xma.xtuner.config">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.xtuner.parameter
+
+        <ul>
+          <li><a href="xma.xtuner.parameter.html#module-xma.xtuner.parameter">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.xtuner.tuner
+
+        <ul>
+          <li><a href="xma.xtuner.tuner.html#module-xma.xtuner.tuner">module</a>
+</li>
+        </ul></li>
         <li><a href="xma.custom_op.html#xma.custom_op.xma_op">xma_op() (in module xma.custom_op)</a>
+</li>
+        <li><a href="xma.xtuner.tuner.html#xma.xtuner.tuner.xtune">xtune() (in module xma.xtuner.tuner)</a>
+</li>
+        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig">XTuneConfig (class in xma.xtuner.config)</a>
+</li>
+        <li><a href="xma.xtuner.tuner.html#xma.xtuner.tuner.XTunedFunction">XTunedFunction (class in xma.xtuner.tuner)</a>
+</li>
+        <li><a href="xma.xtuner.parameter.html#xma.xtuner.parameter.XTuneParameter">XTuneParameter (class in xma.xtuner.parameter)</a>
 </li>
     </ul></td>
   </tr></table>
