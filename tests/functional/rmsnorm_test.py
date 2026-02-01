@@ -27,16 +27,6 @@ class RMSNormTest(TestCommons):
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
-            [False],  # deterministic
-            [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            [(400, 77)],  # size
-            [KernelBackend.triton],  # KernelBackend
-            [torch.float32, torch.float16],  # dtype
-            [True, False],  # memory_efficient
-            [True, False],  # has_weight
-            [True],  # deterministic
             [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
         )
     )
@@ -47,7 +37,6 @@ class RMSNormTest(TestCommons):
         dtype: torch.dtype,
         memory_efficient: bool,
         has_weight: bool,
-        deterministic: bool,
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
@@ -68,7 +57,6 @@ class RMSNormTest(TestCommons):
             weight=weight_kernel,
             eps=_EPSILON,
             memory_efficient=memory_efficient,
-            deterministic=deterministic,
             kernel_backend=KernelBackend.triton,
         )
 

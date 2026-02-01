@@ -35,7 +35,6 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             [True, False],  # memory_efficient
             [True, False],  # has_weight
             [None, 0.9],  # multiplier
-            [False],  # deterministic
             [
                 fused_residual_add_rmsnorm,
                 torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
@@ -50,7 +49,6 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         memory_efficient: bool,
         has_weight: bool,
         multiplier: float | None,
-        deterministic: bool,
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
@@ -74,7 +72,6 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             eps=_EPSILON,
             multiplier=multiplier,
             memory_efficient=memory_efficient,
-            deterministic=deterministic,
             kernel_backend=KernelBackend.triton,
         )
         z_kernel = z_kernel * 2 + r_kernel * 3
