@@ -88,7 +88,16 @@ class RMSNormTest(TestCommons):
                 rtol_float16=0.01,
             )
 
-    def test_rmsnorm_kernel_replacement(self) -> None:
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            [(4, 4)],  # size
+            [KernelBackend.triton],  # KernelBackend
+            TestCommons.get_dtypes(),  # dtype
+        )
+    )
+    def test_rmsnorm_kernel_replacement(
+        self, size: tuple[int], kernel_backend: KernelBackend, dtype: torch.dtype
+    ) -> None:
         class Model(nn.Module):
             def __init__(self) -> Model:
                 super().__init__()
@@ -105,17 +114,15 @@ class RMSNormTest(TestCommons):
         device = torch.cuda.current_device()
         enable_kernels([rmsnorm.__name__])
 
-        for size in [(4, 4)]:
-            for dtype in TestCommons.get_dtypes():
-                with torch.device(device):
-                    model = Model().to(dtype)
+        with torch.device(device):
+            model = Model().to(dtype)
 
-                x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
-                reset_counters()
-                model = torch.compile(model, fullgraph=True)
+        reset_counters()
+        model = torch.compile(model, fullgraph=True)
 
-                with enable_counters():
-                    model(x)
+        with enable_counters():
+            model(x)
 
-                assert get_counter_value("_FusedResidualAddRMSNorm-triton") == 2
+        assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 2
