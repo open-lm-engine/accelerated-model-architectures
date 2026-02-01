@@ -4,10 +4,8 @@ xma
 .. toctree::
    :maxdepth: 4
 
-   xma.cute_dsl_utils
    xma.functional
    xma.layers
-   xma.triton_utils
    xma.utils
    xma.xtuner
 
