@@ -98,10 +98,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             dW += tl.sum(dy * (xr * r[:, None]), axis=0)
 
     if W_ptr is not None:
-        if ATOMIC_ADD:
-            tl.atomic_add(dW_ptr + BLOCK_H * dW_stride[0], dW, mask=MASK_H, sem="relaxed")
-        else:
-            tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
+        tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
 
 
 @xma_op(mutates_args={"dx", "dr", "dW"})
@@ -116,7 +113,6 @@ def fused_residual_add_rmsnorm_backward_triton(
     dW: torch.Tensor | None,
     eps: float,
     multiplier: float | None,
-    deterministic: bool,
 ) -> None:
     B, H = xr.size()
 
@@ -149,7 +145,6 @@ def fused_residual_add_rmsnorm_backward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
-        ATOMIC_ADD=not deterministic,
         BLOCK_SIZE_B=BLOCK_SIZE_B,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
         num_warps=NUM_WARPS,

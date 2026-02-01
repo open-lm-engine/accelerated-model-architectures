@@ -26,7 +26,6 @@ class _FusedResidualAddRMSNorm(CustomOp):
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
-        deterministic: bool,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         if multiplier not in [None, 1]:
             x = x * multiplier
@@ -48,7 +47,6 @@ class _FusedResidualAddRMSNorm(CustomOp):
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
-        deterministic: bool,
         kernel_backend: KernelBackend,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
@@ -72,7 +70,6 @@ class _FusedResidualAddRMSNorm(CustomOp):
         ctx.eps = eps
         ctx.has_residual = has_residual
         ctx.multiplier = multiplier
-        ctx.deterministic = deterministic
 
         return y, xr
 
@@ -81,18 +78,16 @@ class _FusedResidualAddRMSNorm(CustomOp):
         ctx, dy: torch.Tensor, dxr: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
         has_residual = ctx.has_residual
-        deterministic = ctx.deterministic
 
         xr, W, s = ctx.saved_tensors
         dx = empty_like_contiguous(xr)
         dr = empty_like_contiguous(xr) if has_residual else None
 
-        if W is None:
-            dW = None
-        elif deterministic:
-            dW = torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
-        else:
-            dW = zeros_like_contiguous(W, dtype=torch.float32)
+        dW = (
+            None
+            if W is None
+            else torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
+        )
 
         if not has_residual:
             assert dxr is None
@@ -108,13 +103,10 @@ class _FusedResidualAddRMSNorm(CustomOp):
             dW=dW,
             eps=ctx.eps,
             multiplier=ctx.multiplier,
-            deterministic=deterministic,
         )
 
         if dW is not None:
-            if deterministic:
-                dW = dW.sum(0)
-
+            dW = dW.sum(0)
             dW = dW.type_as(W)
 
         return dx, dr, dW, *[None] * 5
@@ -127,7 +119,6 @@ def fused_residual_add_rmsnorm(
     eps: float | None,
     multiplier: float | None = None,
     memory_efficient: bool = False,
-    deterministic: bool = False,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
@@ -146,8 +137,6 @@ def fused_residual_add_rmsnorm(
     :type multiplier: float | None
     :param memory_efficient: memory efficient = False caches RMSNorm's denominator in the forward. Defaults to False.
     :type memory_efficient: bool
-    :param deterministic: whether to use deterministic backward. Defaults to False.
-    :type deterministic: bool
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
     :return: output activations and updated residual stream
@@ -166,7 +155,6 @@ def fused_residual_add_rmsnorm(
         eps=eps,
         multiplier=multiplier,
         memory_efficient=memory_efficient,
-        deterministic=deterministic,
         kernel_backend=kernel_backend,
     )
 

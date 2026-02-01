@@ -13,7 +13,6 @@ def rmsnorm(
     weight: torch.Tensor | None,
     eps: float | None = None,
     memory_efficient: bool = False,
-    deterministic: bool = False,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
@@ -29,8 +28,6 @@ def rmsnorm(
     :param memory_efficient: memory efficient = False caches RMSNorm's denominator in the forward.
         Defaults to False.
     :type memory_efficient: bool
-    :param deterministic: whether to use deterministic backward. Defaults to False.
-    :type deterministic: bool
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
     :return: output tensor
@@ -44,7 +41,6 @@ def rmsnorm(
         eps=eps,
         multiplier=None,
         memory_efficient=memory_efficient,
-        deterministic=deterministic,
         kernel_backend=kernel_backend,
     )
 
