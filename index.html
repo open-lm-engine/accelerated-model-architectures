@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -341,183 +341,15 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="xma-accelerated-model-architectures">
-<h1>XMA (Accelerated Model Architectures)<a class="headerlink" href="#xma-accelerated-model-architectures" title="Link to this heading">¶</a></h1>
-<p>XMA is a repository comprising of fast kernels for model training.
-We are planning on adding lots of experimental and fun model architectures with support for multiple accelerators like NVIDIA, AMD GPUs, Google TPUs and Amazon Trainiums.</p>
-<section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/open-lm-engine/accelerated-model-architectures
-<span class="nb">cd</span><span class="w"> </span>accelerated-model-architectures
-pip<span class="w"> </span>install<span class="w"> </span>.
-<span class="nb">cd</span><span class="w"> </span>..
-</pre></div>
-</div>
-</section>
-<section id="layers">
-<h2>Layers<a class="headerlink" href="#layers" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper colwidths-given docutils container">
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 20.0%" />
-<col style="width: 16.0%" />
-<col style="width: 16.0%" />
-<col style="width: 16.0%" />
-<col style="width: 16.0%" />
-<col style="width: 16.0%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Layer</p></th>
-<th class="head"><p>CUDA</p></th>
-<th class="head"><p>Pallas</p></th>
-<th class="head"><p>NKI</p></th>
-<th class="head"><p>ROCm</p></th>
-<th class="head"><p>Triton</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>GRU</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-odd"><td><p>MoE</p></td>
-<td><p>✅</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-even"><td><p>RNN</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="functional">
-<h2>Functional<a class="headerlink" href="#functional" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper colwidths-given docutils container">
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 30.0%" />
-<col style="width: 14.0%" />
-<col style="width: 14.0%" />
-<col style="width: 14.0%" />
-<col style="width: 14.0%" />
-<col style="width: 14.0%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Function</p></th>
-<th class="head"><p>CUDA</p></th>
-<th class="head"><p>Pallas</p></th>
-<th class="head"><p>NKI</p></th>
-<th class="head"><p>ROCm</p></th>
-<th class="head"><p>Triton</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>bmm</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-odd"><td><p>continuous_count</p></td>
-<td><p>✅</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-</tr>
-<tr class="row-even"><td><p>cross_entropy</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-odd"><td><p>fused_linear_cross_entropy</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-even"><td><p>fused_residual_add_rmsnorm</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-odd"><td><p>rmsnorm</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-even"><td><p>pack_sequence</p></td>
-<td><p>✅</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-odd"><td><p>softmax</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-even"><td><p>swiglu</p></td>
-<td><p>✅</p></td>
-<td><p>✅</p></td>
-<td><p>✅</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-odd"><td><p>swiglu_packed</p></td>
-<td><p>✅</p></td>
-<td><p>✅</p></td>
-<td><p>✅</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-<tr class="row-even"><td><p>unpack_sequence</p></td>
-<td><p>✅</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>❌</p></td>
-<td><p>✅</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="community">
-<h2>Community<a class="headerlink" href="#community" title="Link to this heading">¶</a></h2>
-<p>Join the <a class="reference external" href="https://discord.gg/AFDxmjH5RV">Discord server</a> if you are interested in LLM architecture or distributed training/inference research.</p>
-<div class="toctree-wrapper compound">
+          <div class="toctree-wrapper compound">
 </div>
 <div class="toctree-wrapper compound">
 </div>
-</section>
-</section>
 
         </article>
       </div>
@@ -552,32 +384,8 @@ pip<span class="w"> </span>install<span class="w"> </span>.
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">XMA (Accelerated Model Architectures)</a><ul>
-<li><a class="reference internal" href="#installation">Installation</a></li>
-<li><a class="reference internal" href="#layers">Layers</a></li>
-<li><a class="reference internal" href="#functional">Functional</a></li>
-<li><a class="reference internal" href="#community">Community</a><ul>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>
