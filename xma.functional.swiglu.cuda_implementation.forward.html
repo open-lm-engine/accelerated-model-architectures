@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.functional.swiglu.nki_implementation" href="xma.functional.swiglu.nki_implementation.html"><link rel="prev" title="xma.functional.swiglu.cuda_implementation.backward" href="xma.functional.swiglu.cuda_implementation.backward.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>xma.functional.swiglu.cuda_implementation.forward - XMA documentation</title>
@@ -191,25 +191,106 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.functional.html">xma.functional</a><input aria-label="Toggle navigation of xma.functional" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.bmm.html">xma.functional.bmm</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.continuous_count.html">xma.functional.continuous_count</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.cross_entropy.html">xma.functional.cross_entropy</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.html">xma.functional.fused_residual_add_rmsnorm</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.gru.html">xma.functional.gru</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.linear_attention.html">xma.functional.linear_attention</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.rnn.html">xma.functional.rnn</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.sequence_packing.html">xma.functional.sequence_packing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.softmax.html">xma.functional.softmax</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.swiglu.html">xma.functional.swiglu</a></li>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="xma.functional.html">xma.functional</a><input aria-label="Toggle navigation of xma.functional" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.bmm.html">xma.functional.bmm</a><input aria-label="Toggle navigation of xma.functional.bmm" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.functional.bmm.triton_implementation.html">xma.functional.bmm.triton_implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.continuous_count.html">xma.functional.continuous_count</a><input aria-label="Toggle navigation of xma.functional.continuous_count" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.functional.continuous_count.cuda_implementation.html">xma.functional.continuous_count.cuda_implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.cross_entropy.html">xma.functional.cross_entropy</a><input aria-label="Toggle navigation of xma.functional.cross_entropy" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.functional.cross_entropy.triton_implementation.html">xma.functional.cross_entropy.triton_implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.html">xma.functional.fused_residual_add_rmsnorm</a><input aria-label="Toggle navigation of xma.functional.fused_residual_add_rmsnorm" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.html">xma.functional.fused_residual_add_rmsnorm.triton_implementation</a><input aria-label="Toggle navigation of xma.functional.fused_residual_add_rmsnorm.triton_implementation" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward.html">xma.functional.fused_residual_add_rmsnorm.triton_implementation.backward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward.html">xma.functional.fused_residual_add_rmsnorm.triton_implementation.forward</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.gru.html">xma.functional.gru</a><input aria-label="Toggle navigation of xma.functional.gru" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.functional.gru.triton_implementation.html">xma.functional.gru.triton_implementation</a><input aria-label="Toggle navigation of xma.functional.gru.triton_implementation" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.gru.triton_implementation.backward.html">xma.functional.gru.triton_implementation.backward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.gru.triton_implementation.forward.html">xma.functional.gru.triton_implementation.forward</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="xma.functional.gru.utils.html">xma.functional.gru.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.linear_attention.html">xma.functional.linear_attention</a><input aria-label="Toggle navigation of xma.functional.linear_attention" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.functional.linear_attention.triton_implementation.html">xma.functional.linear_attention.triton_implementation</a><input aria-label="Toggle navigation of xma.functional.linear_attention.triton_implementation" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.linear_attention.triton_implementation.forward.html">xma.functional.linear_attention.triton_implementation.forward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.linear_attention.triton_implementation.output_forward.html">xma.functional.linear_attention.triton_implementation.output_forward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.linear_attention.triton_implementation.recurrent_state_forward.html">xma.functional.linear_attention.triton_implementation.recurrent_state_forward</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="xma.functional.linear_attention.utils.html">xma.functional.linear_attention.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.rnn.html">xma.functional.rnn</a><input aria-label="Toggle navigation of xma.functional.rnn" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.functional.rnn.triton_implementation.html">xma.functional.rnn.triton_implementation</a><input aria-label="Toggle navigation of xma.functional.rnn.triton_implementation" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.rnn.triton_implementation.backward.html">xma.functional.rnn.triton_implementation.backward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.rnn.triton_implementation.forward.html">xma.functional.rnn.triton_implementation.forward</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.sequence_packing.html">xma.functional.sequence_packing</a><input aria-label="Toggle navigation of xma.functional.sequence_packing" class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.functional.sequence_packing.cuda_implementation.html">xma.functional.sequence_packing.cuda_implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="xma.functional.sequence_packing.triton_implementation.html">xma.functional.sequence_packing.triton_implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.functional.softmax.html">xma.functional.softmax</a><input aria-label="Toggle navigation of xma.functional.softmax" class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.functional.softmax.triton_implementation.html">xma.functional.softmax.triton_implementation</a><input aria-label="Toggle navigation of xma.functional.softmax.triton_implementation" class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.softmax.triton_implementation.backward.html">xma.functional.softmax.triton_implementation.backward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.softmax.triton_implementation.forward.html">xma.functional.softmax.triton_implementation.forward</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="xma.functional.swiglu.html">xma.functional.swiglu</a><input aria-label="Toggle navigation of xma.functional.swiglu" checked="" class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" role="switch" type="checkbox"/><label for="toctree-checkbox-16"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l3 current has-children"><a class="reference internal" href="xma.functional.swiglu.cuda_implementation.html">xma.functional.swiglu.cuda_implementation</a><input aria-label="Toggle navigation of xma.functional.swiglu.cuda_implementation" checked="" class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" role="switch" type="checkbox"/><label for="toctree-checkbox-17"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.swiglu.cuda_implementation.backward.html">xma.functional.swiglu.cuda_implementation.backward</a></li>
+<li class="toctree-l4 current current-page"><a class="current reference internal" href="#">xma.functional.swiglu.cuda_implementation.forward</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.functional.swiglu.nki_implementation.html">xma.functional.swiglu.nki_implementation</a><input aria-label="Toggle navigation of xma.functional.swiglu.nki_implementation" class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" role="switch" type="checkbox"/><label for="toctree-checkbox-18"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.swiglu.nki_implementation.backward.html">xma.functional.swiglu.nki_implementation.backward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.swiglu.nki_implementation.forward.html">xma.functional.swiglu.nki_implementation.forward</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.functional.swiglu.pallas_implementation.html">xma.functional.swiglu.pallas_implementation</a><input aria-label="Toggle navigation of xma.functional.swiglu.pallas_implementation" class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" role="switch" type="checkbox"/><label for="toctree-checkbox-19"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.swiglu.pallas_implementation.backward.html">xma.functional.swiglu.pallas_implementation.backward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.swiglu.pallas_implementation.forward.html">xma.functional.swiglu.pallas_implementation.forward</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.functional.swiglu.triton_implementation.html">xma.functional.swiglu.triton_implementation</a><input aria-label="Toggle navigation of xma.functional.swiglu.triton_implementation" class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" role="switch" type="checkbox"/><label for="toctree-checkbox-20"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.swiglu.triton_implementation.backward.html">xma.functional.swiglu.triton_implementation.backward</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.swiglu.triton_implementation.forward.html">xma.functional.swiglu.triton_implementation.forward</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.fused_linear_cross_entropy.html">xma.functional.fused_linear_cross_entropy</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.rmsnorm.html">xma.functional.rmsnorm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.swiglu_packed.html">xma.functional.swiglu_packed</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.layers.html">xma.layers</a><input aria-label="Toggle navigation of xma.layers" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.layers.moe.html">xma.layers.moe</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.layers.html">xma.layers</a><input aria-label="Toggle navigation of xma.layers" class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" role="switch" type="checkbox"/><label for="toctree-checkbox-21"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="xma.layers.moe.html">xma.layers.moe</a><input aria-label="Toggle navigation of xma.layers.moe" class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" role="switch" type="checkbox"/><label for="toctree-checkbox-22"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="xma.layers.moe.triton_implementation.html">xma.layers.moe.triton_implementation</a><input aria-label="Toggle navigation of xma.layers.moe.triton_implementation" class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" role="switch" type="checkbox"/><label for="toctree-checkbox-23"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.layers.moe.triton_implementation.group_backward_kernel.html">xma.layers.moe.triton_implementation.group_backward_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.layers.moe.triton_implementation.group_kernel.html">xma.layers.moe.triton_implementation.group_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.layers.moe.triton_implementation.scatter_kernel.html">xma.layers.moe.triton_implementation.scatter_kernel</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.gru.html">xma.layers.gru</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.linear_attention.html">xma.layers.linear_attention</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a></li>
@@ -220,7 +301,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" role="switch" type="checkbox"/><label for="toctree-checkbox-24"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
@@ -274,8 +355,26 @@
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="xma.functional.swiglu.nki_implementation.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">xma.functional.swiglu.nki_implementation</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="xma.functional.swiglu.cuda_implementation.backward.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">xma.functional.swiglu.cuda_implementation.backward</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
