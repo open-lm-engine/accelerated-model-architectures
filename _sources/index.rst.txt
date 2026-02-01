@@ -136,6 +136,7 @@ Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested
    :hidden:
    :caption: API Reference
 
+   xma.functional
    xma.layers
 
 .. toctree::
