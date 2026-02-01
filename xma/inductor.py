@@ -107,14 +107,12 @@ _MAPPING = {
 }
 
 
-# @contextmanager
 def enable_kernels(kernels: list[str]):
     device = torch.cuda.current_device()
 
     for kernel in kernels:
         for search_function, replacement_function, example_inputs in _MAPPING[kernel](device):
             for trace_function in _ALL_TRACE_FUNCTIONS:
-                print("hi")
                 register_replacement(
                     search_fn=search_function,
                     replace_fn=replacement_function,
