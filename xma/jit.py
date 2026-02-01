@@ -4,7 +4,6 @@
 
 import inspect
 import os
-import sys
 from shutil import rmtree
 from typing import Callable
 from uuid import uuid4
@@ -19,18 +18,8 @@ _WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 
 _ALL_COMPILED_MODULES = {}
 
-# Detect if we're building docs (Sphinx sets this, or we're being imported by autodoc)
-_BUILDING_DOCS = "sphinx" in sys.modules
 
-
-def _maybe_compiler_disable(fn: Callable) -> Callable:
-    """Apply torch.compiler.disable only when not building docs to avoid torch._dynamo import issues."""
-    if _BUILDING_DOCS:
-        return fn
-    return torch.compiler.disable(fn)
-
-
-@_maybe_compiler_disable
+@torch.compiler.disable
 def _get_cpp_function(function_name: str, module_name: str, source_files: list[str], build_directory: str) -> Callable:
     module_name = f"{_CPP_MODULE_PREFIX}_{module_name}"
 
