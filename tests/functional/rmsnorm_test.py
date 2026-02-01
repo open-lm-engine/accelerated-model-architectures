@@ -118,4 +118,4 @@ class RMSNormTest(TestCommons):
                 with enable_counters():
                     model(x)
 
-                assert get_counter_value(rmsnorm) == 2
+                assert get_counter_value("_FusedResidualAddRMSNorm-triton") == 2
