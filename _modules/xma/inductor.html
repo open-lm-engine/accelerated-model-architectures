@@ -266,13 +266,12 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Generator</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">torch._inductor.fx_passes.joint_graph</span><span class="w"> </span><span class="kn">import</span> <span class="n">patterns</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">torch._inductor.pattern_matcher</span><span class="w"> </span><span class="kn">import</span> <span class="n">fwd_only</span><span class="p">,</span> <span class="n">joint_fwd_bwd</span><span class="p">,</span> <span class="n">register_replacement</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch._inductor.pattern_matcher</span><span class="w"> </span><span class="kn">import</span> <span class="n">PatternMatcherPass</span><span class="p">,</span> <span class="n">fwd_only</span><span class="p">,</span> <span class="n">joint_fwd_bwd</span><span class="p">,</span> <span class="n">register_replacement</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">KernelBackend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.functional</span><span class="w"> </span><span class="kn">import</span> <span class="n">fused_residual_add_rmsnorm</span><span class="p">,</span> <span class="n">rmsnorm</span>
@@ -380,24 +379,27 @@
 <span class="p">}</span>
 
 
-<span class="c1"># @contextmanager</span>
 <div class="viewcode-block" id="enable_kernels">
 <a class="viewcode-back" href="../../xma.inductor.html#xma.inductor.enable_kernels">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">enable_kernels</span><span class="p">(</span><span class="n">kernels</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">enable_kernels</span><span class="p">(</span><span class="n">kernels</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">_patterns</span><span class="p">:</span> <span class="n">PatternMatcherPass</span> <span class="o">=</span> <span class="n">patterns</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">current_device</span><span class="p">()</span>
 
     <span class="k">for</span> <span class="n">kernel</span> <span class="ow">in</span> <span class="n">kernels</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">search_function</span><span class="p">,</span> <span class="n">replacement_function</span><span class="p">,</span> <span class="n">example_inputs</span> <span class="ow">in</span> <span class="n">_MAPPING</span><span class="p">[</span><span class="n">kernel</span><span class="p">](</span><span class="n">device</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">trace_function</span> <span class="ow">in</span> <span class="n">_ALL_TRACE_FUNCTIONS</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;hi&quot;</span><span class="p">)</span>
                 <span class="n">register_replacement</span><span class="p">(</span>
                     <span class="n">search_fn</span><span class="o">=</span><span class="n">search_function</span><span class="p">,</span>
                     <span class="n">replace_fn</span><span class="o">=</span><span class="n">replacement_function</span><span class="p">,</span>
                     <span class="n">example_inputs</span><span class="o">=</span><span class="n">example_inputs</span><span class="p">,</span>
                     <span class="n">trace_fn</span><span class="o">=</span><span class="n">trace_function</span><span class="p">,</span>
-                    <span class="n">pass_dicts</span><span class="o">=</span><span class="n">patterns</span><span class="p">,</span>
+                    <span class="n">pass_dicts</span><span class="o">=</span><span class="n">_patterns</span><span class="p">,</span>
                 <span class="p">)</span></div>
 
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_CallablePatternMatcherPass</span><span class="p">(</span><span class="n">PatternMatcherPass</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">Graph</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
 </pre></div>
         </article>
       </div>
