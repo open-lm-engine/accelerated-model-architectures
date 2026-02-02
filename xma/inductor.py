@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import inspect
 from contextlib import contextmanager
+from copy import deepcopy
 from functools import partial
 from typing import Callable, Generator
 
@@ -109,7 +110,7 @@ _MAPPING = {
 
 @contextmanager
 def enable_kernels(kernels: list[str]):
-    original_patterns = {k: list(v) for k, v in patterns.items()}
+    original_patterns = deepcopy(patterns.patterns)
 
     device = torch.cuda.current_device()
 
@@ -126,5 +127,5 @@ def enable_kernels(kernels: list[str]):
 
     yield
 
-    patterns.clear()
-    patterns.update(original_patterns)
+    patterns.patterns.clear()
+    patterns.patterns.update(original_patterns)
