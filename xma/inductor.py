@@ -11,6 +11,7 @@ from typing import Callable, Generator
 import torch
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
+from torch.fx import Graph
 
 from .accelerator import KernelBackend
 from .functional import fused_residual_add_rmsnorm, rmsnorm
@@ -119,3 +120,16 @@ def enable_kernels(kernels: list[str], _patterns: PatternMatcherPass = patterns)
                     trace_fn=trace_function,
                     pass_dicts=_patterns,
                 )
+
+
+class GraphRecorderPatternMatcherPass(PatternMatcherPass):
+    def __init__(self) -> GraphRecorderPatternMatcherPass:
+        super().__init__()
+        self.saved_graph = None
+
+    def __call__(self, g: torch.fx.graph.Graph):
+        self.apply(g)
+        self.saved_graph = g
+
+    def get_saved_graph(self) -> Graph:
+        return self.saved_graph

@@ -10,9 +10,9 @@ import torch
 import torch._inductor.config as config
 import torch.nn as nn
 from parameterized import parameterized
-from torch._inductor.pattern_matcher import PatternMatcherPass
 
 from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
+from xma.inductor import GraphRecorderPatternMatcherPass
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -120,15 +120,17 @@ class RMSNormTest(TestCommons):
 
         x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
+        reset_counters()
+
+        pattern_matcher = GraphRecorderPatternMatcherPass()
+
         with config.patch(
-            pattern_matcher=False, post_grad_custom_pre_pass=None, post_grad_custom_post_pass=PatternMatcherPass()
+            pattern_matcher=False, post_grad_custom_pre_pass=None, post_grad_custom_post_pass=pattern_matcher
         ):
-            enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass)
+            enable_kernels([rmsnorm.__name__], pattern_matcher)
             model = torch.compile(model, fullgraph=True)
 
             with enable_counters():
                 model(x)
 
             assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 1
-
-        reset_counters()
