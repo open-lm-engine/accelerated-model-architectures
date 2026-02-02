@@ -113,13 +113,14 @@ class RMSNormTest(TestCommons):
 
         device = torch.cuda.current_device()
 
+        with torch.device(device):
+            model = Model().to(dtype)
+
+        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+
+        reset_counters()
+
         with enable_kernels([rmsnorm.__name__]):
-            with torch.device(device):
-                model = Model().to(dtype)
-
-            x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
-
-            reset_counters()
             model = torch.compile(model, fullgraph=True)
 
             with enable_counters():
