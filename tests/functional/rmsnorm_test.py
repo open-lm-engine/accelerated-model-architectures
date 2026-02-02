@@ -101,6 +101,7 @@ class RMSNormTest(TestCommons):
         class Model(nn.Module):
             def __init__(self) -> Model:
                 super().__init__()
+
                 self.h = nn.Sequential(
                     nn.Linear(size[-1], size[-1]), nn.RMSNorm(size[-1]), nn.Linear(size[-1], size[-1])
                 )
