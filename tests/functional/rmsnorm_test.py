@@ -136,10 +136,10 @@ class RMSNormTest(TestCommons):
         with config.patch(
             pattern_matcher=False, post_grad_custom_pre_pass=None, post_grad_custom_post_pass=pattern_matcher
         ):
-            enable_kernels([rmsnorm.__name__])
+            enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass)
             model = torch.compile(model, fullgraph=True)
 
             with enable_counters():
                 model(x)
 
-            assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 2
+            assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 1
