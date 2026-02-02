@@ -107,7 +107,7 @@ _MAPPING = {
 }
 
 
-def enable_kernels(kernels: list[str]):
+def enable_kernels(kernels: list[str], _patterns: PatternMatcherPass = patterns):
     device = torch.cuda.current_device()
 
     for kernel in kernels:
@@ -118,7 +118,7 @@ def enable_kernels(kernels: list[str]):
                     replace_fn=replacement_function,
                     example_inputs=example_inputs,
                     trace_fn=trace_function,
-                    pass_dicts=patterns,
+                    pass_dicts=_patterns,
                 )
 
 
