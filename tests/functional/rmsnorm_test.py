@@ -112,17 +112,17 @@ class RMSNormTest(TestCommons):
                 return x
 
         device = torch.cuda.current_device()
-        enable_kernels([rmsnorm.__name__])
 
-        with torch.device(device):
-            model = Model().to(dtype)
+        with enable_kernels([rmsnorm.__name__]):
+            with torch.device(device):
+                model = Model().to(dtype)
 
-        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+            x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
-        reset_counters()
-        model = torch.compile(model, fullgraph=True)
+            reset_counters()
+            model = torch.compile(model, fullgraph=True)
 
-        with enable_counters():
-            model(x)
+            with enable_counters():
+                model(x)
 
-        assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 2
+            assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 2

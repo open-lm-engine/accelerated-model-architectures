@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import inspect
+from contextlib import contextmanager
 from functools import partial
 from typing import Callable, Generator
 
@@ -106,7 +107,10 @@ _MAPPING = {
 }
 
 
+@contextmanager
 def enable_kernels(kernels: list[str]):
+    original_patterns = {k: list(v) for k, v in patterns.items()}
+
     device = torch.cuda.current_device()
 
     for kernel in kernels:
@@ -119,3 +123,8 @@ def enable_kernels(kernels: list[str]):
                     trace_fn=trace_function,
                     pass_dicts=patterns,
                 )
+
+    yield
+
+    patterns.clear()
+    patterns.update(original_patterns)
