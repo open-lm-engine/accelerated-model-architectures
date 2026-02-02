@@ -10,7 +10,7 @@ import torch.nn as nn
 from parameterized import parameterized
 
 from xma import (
-    CallablePatternMatecherPass,
+    CallablePatternMatcherPass,
     KernelBackend,
     enable_counters,
     enable_kernels,
@@ -126,7 +126,7 @@ class RMSNormTest(TestCommons):
         with torch._inductor.config.patch(
             pattern_matcher=False,
             post_grad_custom_pre_pass=None,
-            post_grad_custom_post_pass=CallablePatternMatecherPass(),
+            post_grad_custom_post_pass=CallablePatternMatcherPass(),
         ):
             enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass)
 
