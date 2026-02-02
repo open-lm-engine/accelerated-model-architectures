@@ -7,10 +7,12 @@ from __future__ import annotations
 from typing import Callable
 
 import torch
+import torch._inductor.config as config
 import torch.nn as nn
 from parameterized import parameterized
 
 from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
+from xma.inductor import _CustomPass
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -98,6 +100,8 @@ class RMSNormTest(TestCommons):
     def test_rmsnorm_kernel_replacement(
         self, size: tuple[int], kernel_backend: KernelBackend, dtype: torch.dtype
     ) -> None:
+        patterns = _CustomPass()
+
         class Model(nn.Module):
             def __init__(self) -> Model:
                 super().__init__()
@@ -110,10 +114,18 @@ class RMSNormTest(TestCommons):
                 return self.h(x)
 
         device = torch.cuda.current_device()
-        enable_kernels([rmsnorm.__name__])
 
         with torch.device(device):
             model = Model().to(dtype)
+        # with torch._inductor.config.patch(
+        #     # leave custom pass only in post_grad_passes()
+        #     pattern_matcher=False,
+        #     # define pattern match as custom post grad opt pass
+        #     post_grad_custom_pre_pass=None,
+        #     post_grad_custom_post_pass=_CustomPass(),
+        # ):
+
+        enable_kernels([rmsnorm.__name__])
 
         x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
