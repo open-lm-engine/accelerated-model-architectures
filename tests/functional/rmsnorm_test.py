@@ -100,7 +100,7 @@ class RMSNormTest(TestCommons):
         TestCommons.make_args_matrix(
             [(4, 4)],  # size
             [KernelBackend.triton],  # KernelBackend
-            TestCommons.get_dtypes()[:1],  # dtype
+            TestCommons.get_dtypes(),  # dtype
         )
     )
     def test_rmsnorm_kernel_replacement(
