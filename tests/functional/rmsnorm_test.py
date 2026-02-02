@@ -10,18 +10,9 @@ import torch
 import torch._inductor.config as config
 import torch.nn as nn
 from parameterized import parameterized
-from torch.testing import FileCheck
+from torch._inductor.pattern_matcher import PatternMatcherPass
 
-from xma import (
-    GraphRecorderPatternMatcherPass,
-    KernelBackend,
-    enable_counters,
-    enable_kernels,
-    get_counter_value,
-    reset_counters,
-    rmsnorm,
-    set_seed,
-)
+from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -129,12 +120,8 @@ class RMSNormTest(TestCommons):
 
         x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
-        reset_counters()
-
-        pattern_matcher = GraphRecorderPatternMatcherPass()
-
         with config.patch(
-            pattern_matcher=False, post_grad_custom_pre_pass=None, post_grad_custom_post_pass=pattern_matcher
+            pattern_matcher=False, post_grad_custom_pre_pass=None, post_grad_custom_post_pass=PatternMatcherPass()
         ):
             enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass)
             model = torch.compile(model, fullgraph=True)
@@ -143,3 +130,5 @@ class RMSNormTest(TestCommons):
                 model(x)
 
             assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 1
+
+        reset_counters()
