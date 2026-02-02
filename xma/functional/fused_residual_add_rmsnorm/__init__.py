@@ -145,6 +145,11 @@ def fused_residual_add_rmsnorm(
 
     if weight is not None:
         assert weight.dim() == 1, "weight should be 1D"
+        assert x.dim() == 2
+
+        if residual is not None:
+            assert residual.dim() == 2
+
         assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
         assert weight.type() == x.type(), "tensors weight and y should have same dtype"
 
