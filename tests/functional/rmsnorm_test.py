@@ -100,8 +100,6 @@ class RMSNormTest(TestCommons):
     def test_rmsnorm_kernel_replacement(
         self, size: tuple[int], kernel_backend: KernelBackend, dtype: torch.dtype
     ) -> None:
-        patterns = _CustomPass()
-
         class Model(nn.Module):
             def __init__(self) -> Model:
                 super().__init__()
@@ -118,20 +116,18 @@ class RMSNormTest(TestCommons):
 
         with torch.device(device):
             model = Model().to(dtype)
-        # with torch._inductor.config.patch(
-        #     # leave custom pass only in post_grad_passes()
-        #     pattern_matcher=False,
-        #     # define pattern match as custom post grad opt pass
-        #     post_grad_custom_pre_pass=None,
-        #     post_grad_custom_post_pass=_CustomPass(),
-        # ):
 
-        enable_kernels([rmsnorm.__name__])
+        with torch._inductor.config.patch(
+            pattern_matcher=False,
+            post_grad_custom_pre_pass=None,
+            post_grad_custom_post_pass=_CustomPass(),
+        ):
+            enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass)
 
-        reset_counters()
-        model = torch.compile(model, fullgraph=True)
+            reset_counters()
+            model = torch.compile(model, fullgraph=True)
 
-        with enable_counters():
-            model(x)
+            with enable_counters():
+                model(x)
 
-        assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 2
+            assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 1

@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import inspect
-from contextlib import contextmanager
 from functools import partial
 from typing import Callable, Generator
 
@@ -120,3 +119,13 @@ def enable_kernels(kernels: list[str], _patterns: PatternMatcherPass = patterns)
                     trace_fn=trace_function,
                     pass_dicts=_patterns,
                 )
+
+
+class _CustomPass(PatternMatcherPass):
+    def __init__(self) -> None:
+        super().__init__()
+        self.saved_graph = None
+
+    def __call__(self, g: torch.fx.graph.Graph):
+        self.apply(g)
+        self.saved_graph = g
