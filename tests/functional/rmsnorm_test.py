@@ -4,12 +4,13 @@
 
 from __future__ import annotations
 
-from typing import Callable
-
 import torch
+import torch._inductor.config as config
+import torch.nn as nn
 from parameterized import parameterized
 
-from xma import KernelBackend, rmsnorm, set_seed
+from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
+from xma.inductor import _CallablePatternMatcherPass
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -87,34 +88,44 @@ class RMSNormTest(TestCommons):
                 rtol_float16=0.01,
             )
 
-    # def test_rmsnorm_kernel_replacement(self) -> None:
-    #     class Model(nn.Module):
-    #         def __init__(self) -> Model:
-    #             super().__init__()
-    #             self.norm = nn.RMSNorm(size[-1])
-    #             self.l1 = nn.Linear(size[-1], size[-1])
-    #             self.l2 = nn.Linear(size[-1], size[-1])
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            [(4, 4)],  # size
+            [KernelBackend.triton],  # KernelBackend
+            TestCommons.get_dtypes(),  # dtype
+        )
+    )
+    def test_rmsnorm_kernel_replacement(
+        self, size: tuple[int], kernel_backend: KernelBackend, dtype: torch.dtype
+    ) -> None:
+        class Model(nn.Module):
+            def __init__(self) -> Model:
+                super().__init__()
 
-    #         def forward(self, x: torch.Tensor) -> torch.Tensor:
-    #             x = self.l1(x)
-    #             x = self.norm(x)
-    #             x = self.l2(x)
-    #             return x
+                self.h = nn.Sequential(
+                    nn.Linear(size[-1], size[-1]), nn.RMSNorm(size[-1]), nn.Linear(size[-1], size[-1])
+                )
 
-    #     device = torch.cuda.current_device()
-    #     enable_kernels([rmsnorm.__name__])
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                return self.h(x)
 
-    #     for size in [(4, 4), (4, 4, 4)]:
-    #         for dtype in TestCommons.get_dtypes():
-    #             with torch.device(device):
-    #                 model = Model().to(dtype)
+        device = torch.cuda.current_device()
+        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
-    #             x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+        with torch.device(device):
+            model = Model().to(dtype)
 
-    #             reset_counters()
-    #             model = torch.compile(model, fullgraph=True)
+        with torch._inductor.config.patch(
+            pattern_matcher=False,
+            post_grad_custom_pre_pass=None,
+            post_grad_custom_post_pass=_CallablePatternMatcherPass(),
+        ):
+            enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass)
 
-    #             with enable_counters():
-    #                 model(x)
+            reset_counters()
+            model = torch.compile(model, fullgraph=True)
 
-    #             assert get_counter_value(rmsnorm) == 2
+            with enable_counters():
+                model(x)
+
+            assert get_counter_value(f"_FusedResidualAddRMSNorm-{kernel_backend.value}") == 1
