@@ -121,11 +121,6 @@ def enable_kernels(kernels: list[str], _patterns: PatternMatcherPass = patterns)
                 )
 
 
-class _CustomPass(PatternMatcherPass):
-    def __init__(self) -> None:
-        super().__init__()
-        self.saved_graph = None
-
+class CallablePatternMatecherPass(PatternMatcherPass):
     def __call__(self, g: torch.fx.graph.Graph):
         self.apply(g)
-        self.saved_graph = g

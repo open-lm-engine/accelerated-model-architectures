@@ -4,15 +4,21 @@
 
 from __future__ import annotations
 
-from typing import Callable
-
 import torch
 import torch._inductor.config as config
 import torch.nn as nn
 from parameterized import parameterized
 
-from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
-from xma.inductor import _CustomPass
+from xma import (
+    CallablePatternMatecherPass,
+    KernelBackend,
+    enable_counters,
+    enable_kernels,
+    get_counter_value,
+    reset_counters,
+    rmsnorm,
+    set_seed,
+)
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -120,7 +126,7 @@ class RMSNormTest(TestCommons):
         with torch._inductor.config.patch(
             pattern_matcher=False,
             post_grad_custom_pre_pass=None,
-            post_grad_custom_post_pass=_CustomPass(),
+            post_grad_custom_post_pass=CallablePatternMatecherPass(),
         ):
             enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass)
 
