@@ -10,6 +10,7 @@ import torch
 import torch._inductor.config as config
 import torch.nn as nn
 from parameterized import parameterized
+from torch.testing import FileCheck
 
 from xma import (
     GraphRecorderPatternMatcherPass,
@@ -132,12 +133,10 @@ class RMSNormTest(TestCommons):
 
         pattern_matcher = GraphRecorderPatternMatcherPass()
 
-        with (
-            config.patch(
-                pattern_matcher=False, post_grad_custom_pre_pass=None, post_grad_custom_post_pass=pattern_matcher
-            ),
-            enable_kernels([rmsnorm.__name__]),
+        with config.patch(
+            pattern_matcher=False, post_grad_custom_pre_pass=None, post_grad_custom_post_pass=pattern_matcher
         ):
+            enable_kernels([rmsnorm.__name__])
             model = torch.compile(model, fullgraph=True)
 
             with enable_counters():

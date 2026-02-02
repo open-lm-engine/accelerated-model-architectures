@@ -5,20 +5,12 @@
 from __future__ import annotations
 
 import inspect
-from contextlib import contextmanager
-from copy import deepcopy
 from functools import partial
 from typing import Callable, Generator
 
 import torch
 from torch._inductor.fx_passes.joint_graph import patterns
-from torch._inductor.pattern_matcher import (
-    PatternMatcherPass,
-    _seen_patterns,
-    fwd_only,
-    joint_fwd_bwd,
-    register_replacement,
-)
+from torch._inductor.pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
 from torch.fx import Graph
 
 from .accelerator import KernelBackend
@@ -115,11 +107,7 @@ _MAPPING = {
 }
 
 
-@contextmanager
 def enable_kernels(kernels: list[str]):
-    original_patterns = deepcopy(patterns.patterns)
-    original_seen = _seen_patterns.copy()
-
     device = torch.cuda.current_device()
 
     for kernel in kernels:
@@ -132,14 +120,6 @@ def enable_kernels(kernels: list[str]):
                     trace_fn=trace_function,
                     pass_dicts=patterns,
                 )
-
-    yield
-
-    patterns.patterns.clear()
-    patterns.patterns.update(original_patterns)
-
-    _seen_patterns.clear()
-    _seen_patterns.update(original_seen)
 
 
 class GraphRecorderPatternMatcherPass(PatternMatcherPass):
