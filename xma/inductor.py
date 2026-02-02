@@ -12,7 +12,7 @@ from typing import Callable, Generator
 
 import torch
 from torch._inductor.fx_passes.joint_graph import patterns
-from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
+from torch._inductor.pattern_matcher import _seen_patterns, fwd_only, joint_fwd_bwd, register_replacement
 
 from .accelerator import KernelBackend
 from .functional import fused_residual_add_rmsnorm, rmsnorm
@@ -111,6 +111,7 @@ _MAPPING = {
 @contextmanager
 def enable_kernels(kernels: list[str]):
     original_patterns = deepcopy(patterns.patterns)
+    original_seen = _seen_patterns.copy()
 
     device = torch.cuda.current_device()
 
@@ -129,3 +130,6 @@ def enable_kernels(kernels: list[str]):
 
     patterns.patterns.clear()
     patterns.patterns.update(original_patterns)
+
+    _seen_patterns.clear()
+    _seen_patterns.update(original_seen)
