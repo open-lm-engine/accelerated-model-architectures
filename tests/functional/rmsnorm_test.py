@@ -101,15 +101,10 @@ class RMSNormTest(TestCommons):
         class Model(nn.Module):
             def __init__(self) -> Model:
                 super().__init__()
-                self.norm = nn.RMSNorm(size[-1])
-                self.l1 = nn.Linear(size[-1], size[-1])
-                self.l2 = nn.Linear(size[-1], size[-1])
+                self.h = nn.Sequential(nn.Linear(size[-1], size[-1]), nn.RMSNorm(size[-1]), nn.RMSNorm(size[-1]))
 
             def forward(self, x: torch.Tensor) -> torch.Tensor:
-                x = self.l1(x)
-                x = self.norm(x)
-                x = self.l2(x)
-                return x
+                return self.h(x)
 
         device = torch.cuda.current_device()
         enable_kernels([rmsnorm.__name__])
