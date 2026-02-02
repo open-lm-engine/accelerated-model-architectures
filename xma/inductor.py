@@ -55,10 +55,7 @@ def get_rmsnorm_replacer(
     device: torch.device,
 ) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor]]]:
     for dtype in _ALL_DTYPES:
-        example_inputs = (
-            _get_example_input(2, device=device, dtype=dtype),
-            _get_example_input(1, device=device, dtype=dtype),
-        )
+        example_inputs = [_get_example_input(2, device=device, dtype=dtype)]
 
         search_function = partialize_and_update_signature(
             rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.torch
