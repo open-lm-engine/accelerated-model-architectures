@@ -11,8 +11,16 @@ import torch._inductor.config as config
 import torch.nn as nn
 from parameterized import parameterized
 
-from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
-from xma.inductor import GraphRecorderPatternMatcherPass
+from xma import (
+    CustomPatternMatcherPass,
+    KernelBackend,
+    enable_counters,
+    enable_kernels,
+    get_counter_value,
+    reset_counters,
+    rmsnorm,
+    set_seed,
+)
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -122,7 +130,7 @@ class RMSNormTest(TestCommons):
 
         reset_counters()
 
-        pattern_matcher = GraphRecorderPatternMatcherPass()
+        pattern_matcher = CustomPatternMatcherPass()
 
         with config.patch(
             pattern_matcher=False, post_grad_custom_pre_pass=None, post_grad_custom_post_pass=pattern_matcher
