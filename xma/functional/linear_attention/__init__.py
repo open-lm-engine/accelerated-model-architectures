@@ -125,6 +125,9 @@ class _LinearAttention(CustomOp):
 
         return y, ht
 
+    @staticmethod
+    def backward(ctx, dy: torch.Tensor, dht: torch.Tensor | None) -> ...: ...
+
 
 def linear_attention(
     query: torch.Tensor,
