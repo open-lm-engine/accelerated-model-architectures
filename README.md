@@ -29,9 +29,10 @@ Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
 | rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
 | pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 | softmax | ❌ | ❌ | ❌ | ❌ | ✅ |
-| swiglu | ✅ | ✅ | ❌ | ❌ | ✅ |
-| swiglu_packed | ✅ | ✅ | ❌ | ❌ | ✅ |
+| swiglu | ✅ | ✅ | ✅ | ❌ | ✅ |
+| swiglu_packed | ✅ | ✅ | ✅ | ❌ | ✅ |
 | unpack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 
 # Discord Server
 Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested in LLM architecture or distributed training/inference research.
+
