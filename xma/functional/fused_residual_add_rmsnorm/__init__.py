@@ -17,44 +17,6 @@ if is_triton_available():
     )
 
 
-def _pre_forward(
-    ctx, x: torch.Tensor, r: torch.Tensor | None, memory_efficient: bool
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
-    if eps is None:
-        eps = torch.finfo(x.dtype).eps
-
-    B, _ = get_num_elements_and_hidden_size(x)
-
-    y = empty_like_contiguous(x)
-    xr = None if r is None else empty_like_contiguous(x)
-
-    s = None
-    if ctx_needs_gradients(ctx) and not memory_efficient:
-        s = torch.empty(B, device=x.device, dtype=torch.float32)
-
-    return y, xr, s
-
-
-def _post_forward(
-    ctx,
-    x: torch.Tensor,
-    xr: torch.Tensor,
-    W: torch.Tensor,
-    s: torch.Tensor | None,
-    r: torch.Tensor | None,
-    eps: float | None,
-    multiplier: float | None,
-    deterministic: bool,
-) -> None:
-    has_residual = r is not None
-
-    ctx_save_for_backward(ctx, xr if has_residual else x, W, s)
-    ctx.eps = eps
-    ctx.has_residual = has_residual
-    ctx.multiplier = multiplier
-    ctx.deterministic = deterministic
-
-
 class _FusedResidualAddRMSNorm(CustomOp):
     @staticmethod
     def forward_backward_torch(
