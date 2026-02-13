@@ -22,8 +22,6 @@ functional:
     - triton
   fused_residual_add_rmsnorm:
     - triton
-  grouped_gemm:
-    - cuda
   rmsnorm:
     - triton
   pack_sequence:
@@ -34,10 +32,12 @@ functional:
   swiglu:
     - cuda
     - pallas
+    - nki
     - triton
   swiglu_packed:
     - cuda
     - pallas
+    - nki
     - triton
   unpack_sequence:
     - cuda

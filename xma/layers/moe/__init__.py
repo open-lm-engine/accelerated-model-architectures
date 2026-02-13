@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from typing import Callable
 
 import torch
@@ -11,7 +13,6 @@ import torch.nn.functional as F
 from ...accelerator import Accelerator, KernelBackend
 from ...functional import continuous_count
 from ...utils import is_triton_available
-from .cuda_implementation import group_with_padding, grouped_gemm_experts, ungroup_with_padding
 
 
 if is_triton_available():
@@ -21,7 +22,7 @@ if is_triton_available():
 class Experts(nn.Module):
     def __init__(
         self, num_experts: int, in_features: int, out_features: int, add_bias: bool = True, std: float | None = None
-    ) -> None:
+    ) -> Experts:
         super().__init__()
 
         self.weight = nn.Parameter(torch.empty(num_experts, out_features, in_features))
@@ -90,11 +91,6 @@ class Experts(nn.Module):
 
         return input
 
-    def cuda_forward(self, input: torch.Tensor, expert_frequency: torch.Tensor) -> torch.Tensor:
-        return grouped_gemm_experts(
-            x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
-        )
-
     def torch_forward(
         self, input: torch.Tensor, expert_frequency: torch.Tensor | None, return_list: bool = False
     ) -> list[torch.Tensor] | torch.Tensor:
@@ -139,7 +135,7 @@ class MoE(nn.Module):
         is_glu: bool,
         add_bias: bool,
         std: float,
-    ) -> None:
+    ) -> MoE:
         super().__init__()
 
         self.num_experts = num_experts
@@ -223,36 +219,7 @@ class MoE(nn.Module):
 
         T = hidden_states.size(0)
 
-        if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(torch.cuda.current_device()) < (
-            10,
-            0,
-        ):
-            hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
-                x=hidden_states,
-                expert_frequency=expert_frequency,
-                sorted_idxs=sorted_expert_idxs,
-                scattered_idxs=sorted_scattered_idxs,
-                top_k=self.top_k,
-                pad_to_multiple_of=8,
-            )
-
-            hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
-            hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
-
-            hidden_states = ungroup_with_padding(
-                x=hidden_states,
-                expert_padding_offset=expert_padding_offset,
-                sorted_idxs=sorted_expert_idxs,
-                scattered_idxs=sorted_scattered_idxs,
-                top_k=self.top_k,
-                num_tokens=T,
-                pad_to_multiple_of=8,
-            )
-
-            hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
-            hidden_states = hidden_states.squeeze(1)
-        elif kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
             with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)
 

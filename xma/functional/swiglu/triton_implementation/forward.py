@@ -9,7 +9,6 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_powers_of_2
 from ....triton_utils import sigmoid
-from ....utils import get_num_elements_and_hidden_size
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -38,8 +37,8 @@ def swiglu_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID_B = tl.program_id(axis=0)
-    BLOCK_ID_H = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(0)
+    BLOCK_ID_H = tl.program_id(1)
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
@@ -58,11 +57,10 @@ def swiglu_forward_triton_kernel(
 
 @xma_op(mutates_args={"y"})
 def swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
-    B, H = get_num_elements_and_hidden_size(g)
+    B, H = g.size()
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
     # second last stride can be used to iterate the token dimension
-    with torch.device(g.device):
-        swiglu_forward_triton_kernel[GRID](
-            g_ptr=g, g_stride=g.stride(), u_ptr=u, u_stride=u.stride(), y_ptr=y, y_stride=y.stride(), B=B, H=H
-        )
+    swiglu_forward_triton_kernel[GRID](
+        g_ptr=g, g_stride=g.stride(), u_ptr=u, u_stride=u.stride(), y_ptr=y, y_stride=y.stride(), B=B, H=H
+    )

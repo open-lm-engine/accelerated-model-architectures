@@ -19,8 +19,7 @@ dependencies = [
     "ninja>=1.13.0",
     "numpy>=2.3.4",
     "pyyaml>=6.0.3",
-    "torch>=2.8.0",
-    "tqdm>=4.67.1",
+    "torch>=2.10.0",
 ]
 
 [project.urls]
@@ -29,9 +28,12 @@ Repository = "https://github.com/open-lm-engine/accelerated-model-architectures"
 
 [project.optional-dependencies]
 dev = [
+    "furo>=2025.12.19",
     "parameterized>=0.9.0",
     "pre-commit>=4.4.0",
     "pytest>=9.0.1",
+    "sphinx>=9.1.0",
+    "sphinx-autobuild>=2025.8.25",
 ]
 cuda = [
     "nvidia-cutlass-dsl>=4.2.1",

@@ -32,14 +32,20 @@ class _FusedLinearCrossEntropy(CustomOp):
         return l
 
     @staticmethod
-    def forward_triton(
+    def forward(
         ctx,
         x: torch.Tensor,
         W: torch.Tensor,
         y: torch.Tensor,
         reduction: str,
         logits_multiplier: float | None,
+        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
+        ctx.kernel_backend = kernel_backend
+
+        if kernel_backend not in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
+            raise NotImplementedError
+
         B, H = x.size()
         V = W.size(0)
 
@@ -84,13 +90,13 @@ class _FusedLinearCrossEntropy(CustomOp):
         return l
 
     @staticmethod
-    def backward_triton(ctx, dl: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None]:
+    def backward(ctx, dl: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None, None]:
         dx, dW = ctx.saved_tensors
 
         dx *= dl
         dW *= dl
 
-        return dx, dW, None, None, None
+        return dx, dW, None, None, None, None
 
 
 def fused_linear_cross_entropy(
@@ -102,18 +108,24 @@ def fused_linear_cross_entropy(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
-    """compute cross entropy loss without materializing the full output logits matrix
+    """
+    compute cross entropy loss without materializing the full output logits matrix
 
-    Args:
-        x (torch.Tensor): logits
-        weight (torch.Tensor): vocab weight
-        labels (torch.Tensor): labels
-        reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
-        logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
-            Defaults to None.
-
-    Returns:
-        torch.Tensor: loss
+    :param x: logits
+    :type x: torch.Tensor
+    :param weight: vocab weight
+    :type weight: torch.Tensor
+    :param labels: labels
+    :type labels: torch.Tensor
+    :param reduction: reduction should be either sum or mean. Defaults to "mean".
+    :type reduction: str
+    :param logits_multiplier: logits multiplier pre-multiplies logits, None implies 1.
+        Defaults to None.
+    :type logits_multiplier: float | None
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: loss
+    :rtype: Tensor
     """
 
     assert reduction in ["sum", "mean"]

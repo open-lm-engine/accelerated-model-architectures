@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
-from ....triton_utils import matmul, tanh
+from ....triton_utils import get_start_end, matmul, tanh
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -36,8 +36,6 @@ def rnn_forward_triton_kernel(
     y_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
-    max_seqlen_ptr,
     B,
     S,
     H: tl.constexpr,
@@ -46,8 +44,8 @@ def rnn_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID_B = tl.program_id(axis=0)
-    BLOCK_ID_N = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(0)
+    BLOCK_ID_N = tl.program_id(1)
 
     BLOCK_ID_Nx = BLOCK_ID_N // Gx
     BLOCK_ID_Nw = BLOCK_ID_N // Gw
@@ -75,33 +73,31 @@ def rnn_forward_triton_kernel(
         )
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    N_DIM: tl.constexpr = 2 - IS_VARLEN
+    H_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
-        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
-        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
-        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
+        START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
 
-        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
-
-        x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
-        y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-    else:
-        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_Nx * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
-        y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
+    BLOCK = START if IS_VARLEN else BLOCK_B[:, None]
+    x_ptrs = x_ptr + BLOCK * x_stride[0] + BLOCK_ID_Nx * x_stride[N_DIM] + BLOCK_H[None, :] * x_stride[H_DIM]
+    y_ptrs = y_ptr + BLOCK * y_stride[0] + BLOCK_ID_N * y_stride[N_DIM] + BLOCK_H[None, :] * y_stride[H_DIM]
 
     for _ in range(S):
-        MASK = ((start < end) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
+        MASK = ((START < END) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         x = tl.load(x_ptrs, mask=MASK)
+        x_ptrs += x_stride[S_DIM]
+
         h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
         h = tanh(h, output_dtype=x.dtype)
-        tl.store(y_ptrs, h, mask=MASK)
 
-        x_ptrs += x_stride[1 - IS_VARLEN]
-        y_ptrs += y_stride[1 - IS_VARLEN]
+        tl.store(y_ptrs, h, mask=MASK)
+        y_ptrs += y_stride[S_DIM]
 
         if IS_VARLEN:
-            start += 1
+            START += 1
 
 
 @xma_op(mutates_args={"y"})
@@ -111,43 +107,37 @@ def rnn_forward_triton(
     h0: torch.Tensor | None,
     y: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
-    max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
 ) -> None:
     if cu_seqlens is None:
         B, S, Nx, H = x.size()
     else:
         B = cu_seqlens.size(0) - 1
-        S = None
+        S = max_seqlen
         _, Nx, H = x.size()
 
     Nw = W.size(0)
     N = max(Nx, Nw)
 
-    is_max_seqlen_tensor = max_seqlen_tensor is not None
-
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), N)
 
-    with torch.device(x.device):
-        rnn_forward_triton_kernel[GRID](
-            x_ptr=x,
-            x_stride=x.stride(),
-            W_ptr=W,
-            W_stride=W.stride(),
-            h0_ptr=h0,
-            h0_stride=None if h0 is None else h0.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            cu_seqlens_ptr=cu_seqlens,
-            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
-            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            B=B,
-            S=S,
-            H=H,
-            Gx=N // Nx,
-            Gw=N // Nw,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+    rnn_forward_triton_kernel[GRID](
+        x_ptr=x,
+        x_stride=x.stride(),
+        W_ptr=W,
+        W_stride=W.stride(),
+        h0_ptr=h0,
+        h0_stride=None if h0 is None else h0.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+        B=B,
+        S=S,
+        H=H,
+        Gx=N // Nx,
+        Gw=N // Nw,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+    )

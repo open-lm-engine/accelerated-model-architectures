@@ -9,7 +9,6 @@ from ..custom_op import CustomOp, ctx_save_for_backward
 from ..math import divide_if_divisible
 from ..utils import (
     empty_like_contiguous,
-    ensure_contiguous,
     is_cute_dsl_available,
     is_torch_neuronx_available,
     is_torch_xla_available,
@@ -38,109 +37,76 @@ class _SwigluPacked(CustomOp):
         return swiglu(gate=gate, up=up, kernel_backend=KernelBackend.torch)
 
     @staticmethod
-    @ensure_contiguous
-    def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
+        ctx.kernel_backend = kernel_backend
+
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
+            x = x.contiguous()
+
         ctx_save_for_backward(ctx, x)
 
-        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
         u, g = x.chunk(2, dim=-1)
 
-        swiglu_forward_cuda(g=g, u=u, y=y)
+        if kernel_backend == KernelBackend.pallas:
+            return swiglu_forward_pallas(g=g, u=u)
+
+        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+
+        if kernel_backend == KernelBackend.cuda:
+            swiglu_forward_cuda(g=g, u=u, y=y)
+        elif kernel_backend == KernelBackend.nki:
+            swiglu_forward_nki(g=g, u=u, y=y)
+        elif kernel_backend == KernelBackend.triton:
+            swiglu_forward_triton(g=g, u=u, y=y)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return y
 
     @staticmethod
-    @ensure_contiguous
-    def backward_cuda(ctx, dy: torch.Tensor) -> torch.Tensor:
+    def backward(ctx, dy: torch.Tensor) -> torch.Tensor:
+        kernel_backend = ctx.kernel_backend
         x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
+
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
+            dy = dy.contiguous()
 
         u, g = x.chunk(2, dim=-1)
-        du, dg = dx.chunk(2, dim=-1)
 
-        swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
+        if kernel_backend == KernelBackend.pallas:
+            dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
+            dx = torch.cat([du, dg], dim=-1)
+        elif kernel_backend == KernelBackend.nki:
+            du = empty_like_contiguous(u)
+            dg = empty_like_contiguous(g)
 
-        return dx
+            swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
 
-    @staticmethod
-    def forward_nki(ctx, x: torch.Tensor) -> torch.Tensor:
-        ctx_save_for_backward(ctx, x)
+            dx = torch.cat([du, dg], dim=-1)
+        else:
+            dx = empty_like_contiguous(x)
+            du, dg = dx.chunk(2, dim=-1)
 
-        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        u, g = x.chunk(2, dim=-1)
+            if kernel_backend == KernelBackend.cuda:
+                swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
+            elif kernel_backend == KernelBackend.triton:
+                swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
+            else:
+                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-        swiglu_forward_nki(g=g, u=u, y=y)
-
-        return y
-
-    @staticmethod
-    def backward_nki(ctx, dy: torch.Tensor) -> torch.Tensor:
-        x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
-
-        # Trainium doesn't support non-contiguous output tensors
-        u, g = x.chunk(2, dim=-1)
-        du = empty_like_contiguous(u)
-        dg = empty_like_contiguous(g)
-
-        swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
-        dx = torch.cat([du, dg], dim=-1)
-
-        return dx
-
-    @staticmethod
-    @ensure_contiguous
-    def forward_pallas(ctx, x: torch.Tensor) -> torch.Tensor:
-        ctx_save_for_backward(ctx, x)
-        u, g = x.chunk(2, dim=-1)
-        return swiglu_forward_pallas(g=g, u=u)
-
-    @staticmethod
-    @ensure_contiguous
-    def backward_pallas(ctx, dy: torch.Tensor) -> torch.Tensor:
-        x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
-
-        u, g = x.chunk(2, dim=-1)
-        du, dg = dx.chunk(2, dim=-1)
-
-        dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
-        dx = torch.cat([du, dg], dim=-1)
-
-        return dx
-
-    @staticmethod
-    def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
-        ctx_save_for_backward(ctx, x)
-
-        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        u, g = x.chunk(2, dim=-1)
-
-        swiglu_forward_triton(g=g, u=u, y=y)
-
-        return y
-
-    @staticmethod
-    def backward_triton(ctx, dy: torch.Tensor) -> torch.Tensor:
-        x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
-
-        u, g = x.chunk(2, dim=-1)
-        du, dg = dx.chunk(2, dim=-1)
-
-        swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
-
-        return dx
+        return dx, None
 
 
 def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
-    """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
+    """
+    computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
 
-    Args:
-        x (torch.Tensor): input activation
-
-    Returns:
-        torch.Tensor: output tensor
+    :param x: input activation
+    :type x: torch.Tensor
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
     original_shape = x.size()

@@ -27,7 +27,7 @@ def group_triton_kernel(
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
 ):
-    N_block_id = tl.program_id(axis=0)
+    N_block_id = tl.program_id(0)
 
     N_blk = N_block_id * BLOCK_N + tl.arange(0, BLOCK_N)
     N_mask = N_blk < N
@@ -78,24 +78,23 @@ def group(
     K = A.size(1)
     assert A.size(0) * fan_out == N
 
-    grid = lambda meta: (triton.cdiv(meta["N"], meta["BLOCK_N"]),)
+    grid = lambda kwargs: (triton.cdiv(kwargs["N"], kwargs["BLOCK_N"]),)
 
-    with torch.device(A.device):
-        group_triton_kernel[grid](
-            # A_ptr, stride_an, stride_ai,
-            A,
-            A.stride(0),
-            A.stride(1),
-            coeff is not None,
-            coeff,
-            fan_out,
-            # Y_ptr, stride_yn, stride_yk,
-            out,
-            out.stride(0),
-            out.stride(1),
-            # grouped_idx_ptr,
-            sorted_expert_idxs,
-            # N: tl.constexpr, K: tl.constexpr,
-            N,
-            K,
-        )
+    group_triton_kernel[grid](
+        # A_ptr, stride_an, stride_ai,
+        A,
+        A.stride(0),
+        A.stride(1),
+        coeff is not None,
+        coeff,
+        fan_out,
+        # Y_ptr, stride_yn, stride_yk,
+        out,
+        out.stride(0),
+        out.stride(1),
+        # grouped_idx_ptr,
+        sorted_expert_idxs,
+        # N: tl.constexpr, K: tl.constexpr,
+        N,
+        K,
+    )

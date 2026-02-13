@@ -36,79 +36,20 @@ class CustomOp(torch.autograd.Function):
 
         increment_counter(cls._get_key(kernel_backend))
 
-        if kernel_backend == KernelBackend.torch:
-            output = cls.forward_backward_torch(**kwargs)
-        else:
-            function_map = {
-                KernelBackend.cuda: (cls.forward_cuda, cls.backward_cuda),
-                KernelBackend.rocm: (cls.forward_rocm, cls.backward_rocm),
-                KernelBackend.pallas: (cls.forward_pallas, cls.backward_pallas),
-                KernelBackend.nki: (cls.forward_nki, cls.backward_nki),
-                KernelBackend.triton: (cls.forward_triton, cls.backward_triton),
-            }
-
-            forward_function, backward_function = function_map[kernel_backend]
-            args = tuple(kwargs.values()) + (forward_function, backward_function)
-
-            output = cls.apply(*args)
+        output = (
+            cls.forward_backward_torch(**kwargs)
+            if kernel_backend == KernelBackend.torch
+            else cls.apply(*tuple(kwargs.values()), kernel_backend)
+        )
 
         return output
 
     @staticmethod
-    def forward(ctx, *args) -> Any:
-        *args, forward_function, backward_function = args
-
-        ctx.backward_function = backward_function
-
-        return forward_function(ctx, *args)
+    def forward(ctx, *args, kernel_backend: KernelBackend) -> Any:
+        raise NotImplementedError
 
     @staticmethod
     def backward(ctx, *grad_outputs) -> Any:
-        grads = ctx.backward_function(ctx, *grad_outputs)
-
-        if not isinstance(grads, tuple):
-            grads = (grads,)
-
-        return grads + (None, None)
-
-    @classmethod
-    def forward_cuda(cls, ctx, *args, **kwargs) -> Any:
-        return cls.forward_triton(ctx, *args, **kwargs)
-
-    @classmethod
-    def backward_cuda(cls, ctx, *args, **kwargs) -> Any:
-        return cls.backward_triton(ctx, *args, **kwargs)
-
-    @classmethod
-    def forward_rocm(cls, ctx, *args, **kwargs) -> Any:
-        return cls.forward_triton(ctx, *args, **kwargs)
-
-    @classmethod
-    def backward_rocm(cls, ctx, *args, **kwargs) -> Any:
-        return cls.backward_triton(ctx, *args, **kwargs)
-
-    @classmethod
-    def forward_pallas(cls, ctx, *args, **kwargs) -> Any:
-        raise NotImplementedError
-
-    @classmethod
-    def backward_pallas(cls, ctx, *args, **kwargs) -> Any:
-        raise NotImplementedError
-
-    @classmethod
-    def forward_nki(cls, ctx, *args, **kwargs) -> Any:
-        raise NotImplementedError
-
-    @classmethod
-    def backward_nki(cls, ctx, *args, **kwargs) -> Any:
-        raise NotImplementedError
-
-    @classmethod
-    def forward_triton(cls, ctx, *args, **kwargs) -> Any:
-        raise NotImplementedError
-
-    @classmethod
-    def backward_triton(cls, ctx, *args, **kwargs) -> Any:
         raise NotImplementedError
 
     @staticmethod

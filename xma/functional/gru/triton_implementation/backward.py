@@ -8,8 +8,8 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_utils import clamp, matmul, sigmoid, sigmoid_backward, tanh, tanh_backward
-from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_input_state
+from ....triton_utils import clamp, get_start_end, matmul, sigmoid, sigmoid_backward, tanh, tanh_backward
+from ...rnn.triton_implementation.backward import _get_autotune_configs
 from ..utils import _get_num_heads
 from .forward import _get_autotune_configs
 
@@ -55,12 +55,14 @@ def gru_backward_triton_kernel(
     dWf_stride,
     dWr_ptr,
     dWr_stride,
+    dh0_ptr,
+    dh0_stride,
     dy_ptr,
     dy_stride,
+    dht_ptr,
+    dht_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
-    max_seqlen_ptr,
     B,
     S,
     H: tl.constexpr,
@@ -74,8 +76,8 @@ def gru_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID_B = tl.program_id(axis=0)
-    BLOCK_ID_N = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(0)
+    BLOCK_ID_N = tl.program_id(1)
 
     BLOCK_ID_Nx = BLOCK_ID_N // Gx
     BLOCK_ID_Nxf = BLOCK_ID_N // Gxf
@@ -94,7 +96,14 @@ def gru_backward_triton_kernel(
     MASK_BH = MASK_B[:, None] & MASK_H[None, :]
     MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
-    dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    if dht_ptr is None:
+        dht = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    else:
+        dht = tl.load(
+            dht_ptr + BLOCK_B[:, None] * dht_stride[0] + BLOCK_ID_N * dht_stride[1] + BLOCK_H[None, :] * dht_stride[2],
+            mask=MASK_BH,
+        )
+
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
@@ -114,203 +123,179 @@ def gru_backward_triton_kernel(
         mask=MASK_HH,
     )
 
+    if h0_ptr is None:
+        h0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+    else:
+        h0 = tl.load(
+            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
+            mask=MASK_BH,
+        )
+
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    N_DIM: tl.constexpr = 2 - IS_VARLEN
+    H_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
-        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
-        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
-        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
+        START, END = get_start_end(cu_seqlens_ptr, cu_seqlens_stride, BLOCK_B, MASK_B)
+        END -= 1
 
-        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
-        end -= 1
+    BLOCK = END if IS_VARLEN else BLOCK_B[:, None]
+    S_LAST = 0 if IS_VARLEN else S - 1
 
-        if z_ptr is None:
-            tl.static_assert(x_ptr is not None)
-            x_ptrs = x_ptr + end * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
-        else:
-            z_ptrs = z_ptr + end * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
-
-        if f_ptr is None:
-            tl.static_assert(xf_ptr is not None)
-            xf_ptrs = xf_ptr + end * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
-        else:
-            f_ptrs = f_ptr + end * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
-
-        if r_ptr is None:
-            tl.static_assert(xr_ptr is not None)
-            xr_ptrs = xr_ptr + end * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
-        else:
-            r_ptrs = r_ptr + end * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
-
-        y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-        dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
-        dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_Nxf * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
-        dxr_ptrs = dxr_ptr + end * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
-        dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
-
-        # load before for varlen to avoid loading in the tl.where since it executes both paths
-        if IS_VARLEN:
-            h0 = _load_input_state(
-                h0_ptr=h0_ptr,
-                h0_stride=h0_stride,
-                BLOCK_ID_N=BLOCK_ID_N,
-                BLOCK_B=BLOCK_B,
-                BLOCK_H=BLOCK_H,
-                MASK_BH=MASK_BH,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                dtype=W.dtype,
-            )
+    if z_ptr is None:
+        tl.static_assert(x_ptr is not None)
+        x_ptrs = (
+            x_ptr
+            + BLOCK * x_stride[0]
+            + S_LAST * x_stride[S_DIM]
+            + BLOCK_ID_Nx * x_stride[N_DIM]
+            + BLOCK_H[None, :] * x_stride[H_DIM]
+        )
     else:
-        if z_ptr is None:
-            tl.static_assert(x_ptr is not None)
-            x_ptrs = (
-                x_ptr
-                + BLOCK_B[:, None] * x_stride[0]
-                + (S - 1) * x_stride[1]
-                + BLOCK_ID_Nx * x_stride[2]
-                + BLOCK_H[None, :] * x_stride[3]
-            )
-        else:
-            z_ptrs = (
-                z_ptr
-                + BLOCK_B[:, None] * z_stride[0]
-                + (S - 1) * z_stride[1]
-                + BLOCK_ID_N * z_stride[2]
-                + BLOCK_H[None, :] * z_stride[3]
-            )
-
-        if f_ptr is None:
-            tl.static_assert(xf_ptr is not None)
-            xf_ptrs = (
-                xf_ptr
-                + BLOCK_B[:, None] * xf_stride[0]
-                + (S - 1) * xf_stride[1]
-                + BLOCK_ID_Nxf * xf_stride[2]
-                + BLOCK_H[None, :] * xf_stride[3]
-            )
-        else:
-            f_ptrs = (
-                f_ptr
-                + BLOCK_B[:, None] * f_stride[0]
-                + (S - 1) * f_stride[1]
-                + BLOCK_ID_N * f_stride[2]
-                + BLOCK_H[None, :] * f_stride[3]
-            )
-
-        if r_ptr is None:
-            tl.static_assert(xr_ptr is not None)
-            xr_ptrs = (
-                xr_ptr
-                + BLOCK_B[:, None] * xr_stride[0]
-                + (S - 1) * xr_stride[1]
-                + BLOCK_ID_Nxr * xr_stride[2]
-                + BLOCK_H[None, :] * xr_stride[3]
-            )
-        else:
-            r_ptrs = (
-                r_ptr
-                + BLOCK_B[:, None] * r_stride[0]
-                + (S - 1) * r_stride[1]
-                + BLOCK_ID_N * r_stride[2]
-                + BLOCK_H[None, :] * r_stride[3]
-            )
-
-        y_ptrs = (
-            y_ptr
-            + BLOCK_B[:, None] * y_stride[0]
-            + (S - 1) * y_stride[1]
-            + BLOCK_ID_N * y_stride[2]
-            + BLOCK_H[None, :] * y_stride[3]
+        z_ptrs = (
+            z_ptr
+            + BLOCK * z_stride[0]
+            + S_LAST * z_stride[S_DIM]
+            + BLOCK_ID_N * z_stride[N_DIM]
+            + BLOCK_H[None, :] * z_stride[H_DIM]
         )
 
-        dx_ptrs = (
-            dx_ptr
-            + BLOCK_B[:, None] * dx_stride[0]
-            + (S - 1) * dx_stride[1]
-            + BLOCK_ID_Nx * dx_stride[2]
-            + BLOCK_H[None, :] * dx_stride[3]
+    if f_ptr is None:
+        tl.static_assert(xf_ptr is not None)
+        xf_ptrs = (
+            xf_ptr
+            + BLOCK * xf_stride[0]
+            + S_LAST * xf_stride[S_DIM]
+            + BLOCK_ID_Nxf * xf_stride[N_DIM]
+            + BLOCK_H[None, :] * xf_stride[H_DIM]
+        )
+    else:
+        f_ptrs = (
+            f_ptr
+            + BLOCK * f_stride[0]
+            + S_LAST * f_stride[S_DIM]
+            + BLOCK_ID_N * f_stride[N_DIM]
+            + BLOCK_H[None, :] * f_stride[H_DIM]
         )
 
-        dxf_ptrs = (
-            dxf_ptr
-            + BLOCK_B[:, None] * dxf_stride[0]
-            + (S - 1) * dxf_stride[1]
-            + BLOCK_ID_Nxf * dxf_stride[2]
-            + BLOCK_H[None, :] * dxf_stride[3]
+    if r_ptr is None:
+        tl.static_assert(xr_ptr is not None)
+        xr_ptrs = (
+            xr_ptr
+            + BLOCK * xr_stride[0]
+            + S_LAST * xr_stride[S_DIM]
+            + BLOCK_ID_Nxr * xr_stride[N_DIM]
+            + BLOCK_H[None, :] * xr_stride[H_DIM]
+        )
+    else:
+        r_ptrs = (
+            r_ptr
+            + BLOCK * r_stride[0]
+            + S_LAST * r_stride[S_DIM]
+            + BLOCK_ID_N * r_stride[N_DIM]
+            + BLOCK_H[None, :] * r_stride[H_DIM]
         )
 
-        dxr_ptrs = (
-            dxr_ptr
-            + BLOCK_B[:, None] * dxr_stride[0]
-            + (S - 1) * dxr_stride[1]
-            + BLOCK_ID_Nxr * dxr_stride[2]
-            + BLOCK_H[None, :] * dxr_stride[3]
-        )
+    y_ptrs = (
+        y_ptr
+        + BLOCK * y_stride[0]
+        + S_LAST * y_stride[S_DIM]
+        + BLOCK_ID_N * y_stride[N_DIM]
+        + BLOCK_H[None, :] * y_stride[H_DIM]
+    )
 
-        dy_ptrs = (
-            dy_ptr
-            + BLOCK_B[:, None] * dy_stride[0]
-            + (S - 1) * dy_stride[1]
-            + BLOCK_ID_N * dy_stride[2]
-            + BLOCK_H[None, :] * dy_stride[3]
-        )
+    dx_ptrs = (
+        dx_ptr
+        + BLOCK * dx_stride[0]
+        + S_LAST * dx_stride[S_DIM]
+        + BLOCK_ID_Nx * dx_stride[N_DIM]
+        + BLOCK_H[None, :] * dx_stride[H_DIM]
+    )
+
+    dxf_ptrs = (
+        dxf_ptr
+        + BLOCK * dxf_stride[0]
+        + S_LAST * dxf_stride[S_DIM]
+        + BLOCK_ID_Nxf * dxf_stride[N_DIM]
+        + BLOCK_H[None, :] * dxf_stride[H_DIM]
+    )
+
+    dxr_ptrs = (
+        dxr_ptr
+        + BLOCK * dxr_stride[0]
+        + S_LAST * dxr_stride[S_DIM]
+        + BLOCK_ID_Nxr * dxr_stride[N_DIM]
+        + BLOCK_H[None, :] * dxr_stride[H_DIM]
+    )
+
+    dy_ptrs = (
+        dy_ptr
+        + BLOCK * dy_stride[0]
+        + S_LAST * dy_stride[S_DIM]
+        + BLOCK_ID_N * dy_stride[N_DIM]
+        + BLOCK_H[None, :] * dy_stride[H_DIM]
+    )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
+        dh = dht
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
-        y_ptrs -= y_stride[1 - IS_VARLEN]
+        MASK = ((END >= START) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
+        y_ptrs -= y_stride[S_DIM]
 
         if IS_VARLEN:
-            y_prev = tl.where(end > start, tl.load(y_ptrs, mask=MASK), h0)
-            # to prevent accumulation of dW when sequence is exhausted
-            y_prev = tl.where(MASK, y_prev, 0)
+            y_prev = tl.where(END > START, tl.load(y_ptrs, mask=MASK), h0)
         elif s == 0:
-            y_prev = _load_input_state(
-                h0_ptr=h0_ptr,
-                h0_stride=h0_stride,
-                BLOCK_ID_N=BLOCK_ID_N,
-                BLOCK_B=BLOCK_B,
-                BLOCK_H=BLOCK_H,
-                MASK_BH=MASK_BH,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                dtype=W.dtype,
-            )
+            y_prev = h0
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
 
         if r_ptr is None:
             x = tl.load(xr_ptrs, mask=MASK)
+            xr_ptrs -= xr_stride[S_DIM]
+
             r = matmul(A=y_prev, B=Wr, C=x, output_dtype=tl.float32)
             r = sigmoid(r, output_dtype=x.dtype)
         else:
             r = tl.load(r_ptrs, mask=MASK)
+            r_ptrs -= r_stride[S_DIM]
 
         if z_ptr is None:
             x = tl.load(x_ptrs, mask=MASK)
+            x_ptrs -= x_stride[S_DIM]
+
             z = matmul(A=y_prev * r, B=W, C=x, output_dtype=tl.float32)
             z = tanh(z, output_dtype=x.dtype)
         else:
             z = tl.load(z_ptrs, mask=MASK)
+            z_ptrs -= z_stride[S_DIM]
 
         if f_ptr is None:
             x = tl.load(xf_ptrs, mask=MASK)
+            xf_ptrs -= xf_stride[S_DIM]
+
             f = matmul(A=y_prev, B=Wf, C=x, output_dtype=tl.float32)
             f = sigmoid(f, output_dtype=x.dtype)
         else:
             f = tl.load(f_ptrs, mask=MASK)
+            f_ptrs -= f_stride[S_DIM]
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
+        dy_ptrs -= dy_stride[S_DIM]
+
         dh = f * dy
         dz = dy * (1 - f)
         df = dy * (y_prev - z)
 
         dx = dz * tanh_backward(z)
         drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+
+        if IS_VARLEN:
+            y_prev = tl.where(MASK, y_prev, 0)
+
         dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
 
         if Gx == 1:
@@ -318,6 +303,7 @@ def gru_backward_triton_kernel(
         else:
             tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
 
+        dx_ptrs -= dx_stride[S_DIM]
         dh += drh * r
 
         dxf = df * sigmoid_backward(f)
@@ -329,38 +315,30 @@ def gru_backward_triton_kernel(
         else:
             tl.atomic_add(dxf_ptrs, dxf, mask=MASK, sem="relaxed")
 
+        dxf_ptrs -= dxf_stride[S_DIM]
+
         dxr = drh * y_prev * sigmoid_backward(r)
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
+
+        dht = tl.where(MASK, dh, dht) if IS_VARLEN else dh
 
         if Gxr == 1:
             tl.store(dxr_ptrs, dxr, mask=MASK)
         else:
             tl.atomic_add(dxr_ptrs, dxr, mask=MASK, sem="relaxed")
 
-        if z_ptr is None:
-            x_ptrs -= x_stride[1 - IS_VARLEN]
-        else:
-            z_ptrs -= z_stride[1 - IS_VARLEN]
-
-        if f_ptr is None:
-            xf_ptrs -= xf_stride[1 - IS_VARLEN]
-        else:
-            f_ptrs -= f_stride[1 - IS_VARLEN]
-
-        if r_ptr is None:
-            xr_ptrs -= xr_stride[1 - IS_VARLEN]
-        else:
-            r_ptrs -= r_stride[1 - IS_VARLEN]
-
-        dx_ptrs -= dx_stride[1 - IS_VARLEN]
-        dxf_ptrs -= dxf_stride[1 - IS_VARLEN]
-        dxr_ptrs -= dxr_stride[1 - IS_VARLEN]
-
-        dy_ptrs -= dy_stride[1 - IS_VARLEN]
+        dxr_ptrs -= dxr_stride[S_DIM]
 
         if IS_VARLEN:
-            end -= 1
+            END -= 1
+
+    if dh0_ptr is not None:
+        tl.store(
+            dh0_ptr + BLOCK_B[:, None] * dh0_stride[0] + BLOCK_ID_N * dh0_stride[1] + BLOCK_H[None, :] * dh0_stride[2],
+            dht,
+            mask=MASK_BH,
+        )
 
     tl.atomic_add(
         dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
@@ -384,7 +362,7 @@ def gru_backward_triton_kernel(
     )
 
 
-@xma_op(mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW"})
+@xma_op(mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW", "dh0"})
 def gru_backward_triton(
     x: torch.Tensor | None,
     W: torch.Tensor,
@@ -402,81 +380,80 @@ def gru_backward_triton(
     z: torch.Tensor | None,
     h0: torch.Tensor | None,
     dy: torch.Tensor,
+    dht: torch.Tensor | None,
     dx: torch.Tensor,
     dW: torch.Tensor,
+    dh0: torch.Tensor | None,
     cu_seqlens: torch.Tensor | None,
-    max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
     gradient_clipping: float | None,
 ) -> None:
     if cu_seqlens is None:
         assert max_seqlen is None
-        assert max_seqlen_tensor is None
-
         B, S, _, H = y.size()
     else:
         B = cu_seqlens.size(0) - 1
-        S = None
+        S = max_seqlen
         _, _, H = y.size()
 
     Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=dx, W=W, xf=dxf, Wf=Wf, xr=dxr, Wr=Wr, run_check=False)
-    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), N)
 
-    with torch.device(y.device):
-        gru_backward_triton_kernel[GRID](
-            x_ptr=x,
-            x_stride=None if x is None else x.stride(),
-            W_ptr=W,
-            W_stride=W.stride(),
-            z_ptr=z,
-            z_stride=None if z is None else z.stride(),
-            xf_ptr=xf,
-            xf_stride=None if xf is None else xf.stride(),
-            Wf_ptr=Wf,
-            Wf_stride=Wf.stride(),
-            f_ptr=f,
-            f_stride=None if f is None else f.stride(),
-            xr_ptr=xr,
-            xr_stride=None if xr is None else xr.stride(),
-            Wr_ptr=Wr,
-            Wr_stride=Wr.stride(),
-            r_ptr=r,
-            r_stride=None if r is None else r.stride(),
-            h0_ptr=h0,
-            h0_stride=None if h0 is None else h0.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            dx_ptr=dx,
-            dx_stride=dx.stride(),
-            dxf_ptr=dxf,
-            dxf_stride=dxf.stride(),
-            dxr_ptr=dxr,
-            dxr_stride=dxr.stride(),
-            dW_ptr=dW,
-            dW_stride=dW.stride(),
-            dWf_ptr=dWf,
-            dWf_stride=dWf.stride(),
-            dWr_ptr=dWr,
-            dWr_stride=dWr.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            cu_seqlens_ptr=cu_seqlens,
-            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
-            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            B=B,
-            S=S,
-            H=H,
-            Gx=N // Nx,
-            Gxf=N // Nxf,
-            Gxr=N // Nxr,
-            Gw=N // Nw,
-            Gwf=N // Nwf,
-            Gwr=N // Nwr,
-            gradient_clipping=gradient_clipping,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+    gru_backward_triton_kernel[GRID](
+        x_ptr=x,
+        x_stride=None if x is None else x.stride(),
+        W_ptr=W,
+        W_stride=W.stride(),
+        z_ptr=z,
+        z_stride=None if z is None else z.stride(),
+        xf_ptr=xf,
+        xf_stride=None if xf is None else xf.stride(),
+        Wf_ptr=Wf,
+        Wf_stride=Wf.stride(),
+        f_ptr=f,
+        f_stride=None if f is None else f.stride(),
+        xr_ptr=xr,
+        xr_stride=None if xr is None else xr.stride(),
+        Wr_ptr=Wr,
+        Wr_stride=Wr.stride(),
+        r_ptr=r,
+        r_stride=None if r is None else r.stride(),
+        h0_ptr=h0,
+        h0_stride=None if h0 is None else h0.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
+        dx_ptr=dx,
+        dx_stride=dx.stride(),
+        dxf_ptr=dxf,
+        dxf_stride=dxf.stride(),
+        dxr_ptr=dxr,
+        dxr_stride=dxr.stride(),
+        dW_ptr=dW,
+        dW_stride=dW.stride(),
+        dWf_ptr=dWf,
+        dWf_stride=dWf.stride(),
+        dWr_ptr=dWr,
+        dWr_stride=dWr.stride(),
+        dh0_ptr=dh0,
+        dh0_stride=None if dh0 is None else dh0.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        dht_ptr=dht,
+        dht_stride=None if dht is None else dht.stride(),
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+        B=B,
+        S=S,
+        H=H,
+        Gx=N // Nx,
+        Gxf=N // Nxf,
+        Gxr=N // Nxr,
+        Gw=N // Nw,
+        Gwf=N // Nwf,
+        Gwr=N // Nwr,
+        gradient_clipping=gradient_clipping,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+    )

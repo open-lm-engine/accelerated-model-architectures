@@ -9,7 +9,6 @@ from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...utils import (
     empty_like_contiguous,
-    ensure_contiguous,
     is_cute_dsl_available,
     is_torch_neuronx_available,
     is_torch_xla_available,
@@ -44,86 +43,70 @@ class _Swiglu(CustomOp):
         return y
 
     @staticmethod
-    @ensure_contiguous
-    def forward_cuda(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-        y = empty_like_contiguous(g)
-        swiglu_forward_cuda(g=g, u=u, y=y)
+    def forward(ctx, g: torch.Tensor, u: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
+        ctx.kernel_backend = kernel_backend
+
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
+            g = g.contiguous()
+            u = u.contiguous()
 
         ctx_save_for_backward(ctx, g, u)
+
+        if kernel_backend == KernelBackend.pallas:
+            return swiglu_forward_pallas(g=g, u=u)
+
+        y = empty_like_contiguous(g)
+
+        if kernel_backend == KernelBackend.cuda:
+            swiglu_forward_cuda(g=g, u=u, y=y)
+        elif kernel_backend == KernelBackend.nki:
+            swiglu_forward_nki(g=g, u=u, y=y)
+        elif kernel_backend == KernelBackend.triton:
+            swiglu_forward_triton(g=g, u=u, y=y)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return y
 
     @staticmethod
-    @ensure_contiguous
-    def backward_cuda(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         g, u = ctx.saved_tensors
+        kernel_backend = ctx.kernel_backend
+
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
+            dy = dy.contiguous()
+
+        if kernel_backend == KernelBackend.pallas:
+            dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
+            return dg, du, None
+
         dg = empty_like_contiguous(g)
         du = empty_like_contiguous(u)
 
-        swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
+        if kernel_backend == KernelBackend.cuda:
+            swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
+        elif kernel_backend == KernelBackend.nki:
+            swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
+        elif kernel_backend == KernelBackend.triton:
+            swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-        return dg, du
-
-    @staticmethod
-    def forward_nki(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-        y = empty_like_contiguous(g)
-        swiglu_forward_nki(g=g, u=u, y=y)
-
-        ctx_save_for_backward(ctx, g, u)
-
-        return y
-
-    @staticmethod
-    def backward_nki(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        g, u = ctx.saved_tensors
-        dg = empty_like_contiguous(g)
-        du = empty_like_contiguous(u)
-
-        swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
-
-        return dg, du
-
-    @staticmethod
-    @ensure_contiguous
-    def forward_pallas(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-        ctx_save_for_backward(ctx, g, u)
-        return swiglu_forward_pallas(g=g, u=u)
-
-    @staticmethod
-    @ensure_contiguous
-    def backward_pallas(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        g, u = ctx.saved_tensors
-        return swiglu_backward_pallas(g=g, u=u, dy=dy)
-
-    @staticmethod
-    def forward_triton(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-        y = empty_like_contiguous(g)
-        swiglu_forward_triton(g=g, u=u, y=y)
-
-        ctx_save_for_backward(ctx, g, u)
-
-        return y
-
-    @staticmethod
-    def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        g, u = ctx.saved_tensors
-        dg = empty_like_contiguous(g)
-        du = empty_like_contiguous(u)
-
-        swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
-
-        return dg, du
+        return dg, du, None
 
 
 def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
-    """computes swiglu activation as `up` * `gate` * sigmoid(`gate`)
+    """
+    computes swiglu activation as `up * gate * sigmoid(gate)`
 
-    Args:
-        gate (torch.Tensor): `gate` activation tensor
-        up (torch.Tensor): `up` activation tensor
-
-    Returns:
-        torch.Tensor: output tensor
+    :param gate: `gate` activation tensor
+    :type gate: torch.Tensor
+    :param up: `up` activation tensor
+    :type up: torch.Tensor
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
     assert gate.size() == up.size(), "tensors gate and up should have same shape"

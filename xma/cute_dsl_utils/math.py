@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import cutlass.cute as cute
 from cutlass import Float32, Numeric, const_expr, range_constexpr
 from cutlass._mlir.dialects import llvm
@@ -30,7 +32,7 @@ def tanh(x: Numeric | TensorSSA, output_dtype: Numeric | None = None) -> Numeric
         output_dtype = x.dtype
 
     if const_expr(isinstance(x, TensorSSA)):
-        y = cute.make_fragment(x.shape, Float32)
+        y = cute.make_rmem_tensor(x.shape, Float32)
         y.store(x.to(Float32))
 
         for i in range_constexpr(cute.size(y.shape)):

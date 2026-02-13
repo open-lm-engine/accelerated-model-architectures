@@ -36,7 +36,7 @@ def cross_entropy_forward_backward_triton_kernel(
     BLOCK_SIZE_V: tl.constexpr,
     reduction: tl.constexpr,
 ):
-    BLOCK_ID = tl.program_id(axis=0)
+    BLOCK_ID = tl.program_id(0)
 
     BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     MASK_B = BLOCK_B < B
@@ -53,6 +53,8 @@ def cross_entropy_forward_backward_triton_kernel(
         MASK_BV = MASK_B[:, None] & MASK_V[None, :]
 
         x = tl.load(x_ptrs, mask=MASK_BV, other=-float("inf")).to(tl.float32)
+        x_ptrs += BLOCK_SIZE_V * x_stride[1]
+
         if logits_multiplier is not None:
             x *= logits_multiplier
 
@@ -65,7 +67,6 @@ def cross_entropy_forward_backward_triton_kernel(
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
         BLOCK_V += BLOCK_SIZE_V
-        x_ptrs += BLOCK_SIZE_V * x_stride[1]
 
     y = tl.load(y_ptr + BLOCK_B * y_stride[0], mask=MASK_B)
 
@@ -92,6 +93,8 @@ def cross_entropy_forward_backward_triton_kernel(
             MASK_BV = MASK_B[:, None] & MASK_V[None, :]
 
             x = tl.load(x_ptrs, mask=MASK_BV).to(tl.float32)
+            x_ptrs += BLOCK_SIZE_V * x_stride[1]
+
             if logits_multiplier is not None:
                 x *= logits_multiplier
 
@@ -107,10 +110,9 @@ def cross_entropy_forward_backward_triton_kernel(
                 x /= B
 
             tl.store(dx_ptrs, x, mask=MASK_BV)
+            dx_ptrs += BLOCK_SIZE_V * dx_stride[1]
 
             BLOCK_V += BLOCK_SIZE_V
-            x_ptrs += BLOCK_SIZE_V * x_stride[1]
-            dx_ptrs += BLOCK_SIZE_V * dx_stride[1]
 
 
 @xma_op(mutates_args={"loss", "x_grad"})
@@ -125,20 +127,19 @@ def cross_entropy_forward_backward_triton(
     B, V = x.size()
 
     BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
 
-    with torch.device(x.device):
-        cross_entropy_forward_backward_triton_kernel[GRID](
-            x_ptr=x,
-            x_stride=x.stride(),
-            y_ptr=labels,
-            y_stride=labels.stride(),
-            l_ptr=loss,
-            dx_ptr=x_grad,
-            dx_stride=None if x_grad is None else x_grad.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            V=V,
-            reduction=reduction,
-            BLOCK_SIZE_V=BLOCK_SIZE_V,
-        )
+    cross_entropy_forward_backward_triton_kernel[GRID](
+        x_ptr=x,
+        x_stride=x.stride(),
+        y_ptr=labels,
+        y_stride=labels.stride(),
+        l_ptr=loss,
+        dx_ptr=x_grad,
+        dx_stride=None if x_grad is None else x_grad.stride(),
+        logits_multiplier=logits_multiplier,
+        B=B,
+        V=V,
+        reduction=reduction,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
+    )

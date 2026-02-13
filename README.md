@@ -7,6 +7,8 @@ Copyright (c) 2025, Mayank Mishra
 XMA is a repository comprising of fast kernels for model training.  
 We are planning on adding lots of experimental and fun model architectures with support for multiple accelerators like NVIDIA, AMD GPUs, Google TPUs and Amazon Trainiums.
 
+Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
+
 ## layers
 
 | functional | CUDA | Pallas | NKI | ROCm | Triton |
@@ -24,7 +26,6 @@ We are planning on adding lots of experimental and fun model architectures with 
 | cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
 | fused_linear_cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
 | fused_residual_add_rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
-| grouped_gemm | ✅ | ❌ | ❌ | ❌ | ❌ |
 | rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
 | pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 | softmax | ❌ | ❌ | ❌ | ❌ | ✅ |

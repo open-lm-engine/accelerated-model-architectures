@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from xma import RNN, KernelBackend, device_synchronize
+from xma import RNN, Accelerator, KernelBackend
 
 
 n = 100
@@ -16,9 +16,20 @@ B = 16
 S = 4096
 N = 64
 H = 768
+NH = 1024
 
 with torch.device(torch.cuda.current_device()):
-    rnn = RNN(input_size=H, state_size=1024, output_size=H, num_heads=N, add_bias=False, gradient_clipping=None)
+    rnn = RNN(
+        input_size=H,
+        state_head_dim=NH // N,
+        output_size=H,
+        num_input_heads=N,
+        num_weight_heads=N,
+        add_bias=False,
+        gradient_clipping=None,
+    )
+
+print(rnn)
 
 headers = ["dtype", "torch", "kernel"]
 
@@ -46,7 +57,7 @@ for dtype in [torch.float32]:
             z = kernel(input)
         e.record()
 
-        device_synchronize()
+        Accelerator.synchronize()
 
         row.append(s.elapsed_time(e) / n)
     table.append(row)

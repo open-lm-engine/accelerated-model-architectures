@@ -66,8 +66,8 @@ def bmm_triton_kernel(
     # B -> N x K if is_B_transposed else K x N
     # C -> M x N
 
-    BLOCK_ID = tl.program_id(axis=0)
-    BLOCK_ID_L = tl.program_id(axis=1)
+    BLOCK_ID = tl.program_id(0)
+    BLOCK_ID_L = tl.program_id(1)
 
     NUM_BLOCKS_M = tl.cdiv(M, BLOCK_SIZE_M)
     NUM_BLOCKS_N = tl.cdiv(N, BLOCK_SIZE_N)
@@ -165,26 +165,25 @@ def bmm_triton(
 
     N = B.size(1 if is_B_transposed else 2)
 
-    GRID = lambda meta: (
-        ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),
+    GRID = lambda kwargs: (
+        ceil_divide(M, kwargs["BLOCK_SIZE_M"]) * ceil_divide(N, kwargs["BLOCK_SIZE_N"]),
         L,
     )
 
-    with torch.device(A.device):
-        bmm_triton_kernel[GRID](
-            A_ptr=A,
-            A_stride=A.stride(),
-            B_ptr=B,
-            B_stride=B.stride(),
-            C_ptr=C,
-            C_stride=None if C is None else C.stride(),
-            D_ptr=D,
-            D_stride=D.stride(),
-            alpha=None if alpha == 1 else alpha,
-            beta=None if beta == 1 else beta,
-            IS_A_TRANSPOSED=is_A_transposed,
-            IS_B_TRANSPOSED=is_B_transposed,
-            M=M,
-            K=K,
-            N=N,
-        )
+    bmm_triton_kernel[GRID](
+        A_ptr=A,
+        A_stride=A.stride(),
+        B_ptr=B,
+        B_stride=B.stride(),
+        C_ptr=C,
+        C_stride=None if C is None else C.stride(),
+        D_ptr=D,
+        D_stride=D.stride(),
+        alpha=None if alpha == 1 else alpha,
+        beta=None if beta == 1 else beta,
+        IS_A_TRANSPOSED=is_A_transposed,
+        IS_B_TRANSPOSED=is_B_transposed,
+        M=M,
+        K=K,
+        N=N,
+    )

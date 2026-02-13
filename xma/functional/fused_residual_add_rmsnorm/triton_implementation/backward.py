@@ -10,7 +10,6 @@ from ....accelerator import Accelerator
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -35,12 +34,11 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
     multiplier,
     B,
     H,
-    ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID = tl.program_id(axis=0)
-    NUM_BLOCKS = tl.num_programs(axis=0)
+    BLOCK_ID = tl.program_id(0)
+    NUM_BLOCKS = tl.num_programs(0)
 
     NUM_ELEMENTS_PER_BLOCK = tl.cdiv(B, NUM_BLOCKS)
 
@@ -99,10 +97,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             dW += tl.sum(dy * (xr * r[:, None]), axis=0)
 
     if W_ptr is not None:
-        if ATOMIC_ADD:
-            tl.atomic_add(dW_ptr + BLOCK_H * dW_stride[0], dW, mask=MASK_H, sem="relaxed")
-        else:
-            tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
+        tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
 
 
 @xma_op(mutates_args={"dx", "dr", "dW"})
@@ -117,9 +112,8 @@ def fused_residual_add_rmsnorm_backward_triton(
     dW: torch.Tensor | None,
     eps: float,
     multiplier: float | None,
-    deterministic: bool,
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(xr)
+    B, H = xr.size()
 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
@@ -129,30 +123,28 @@ def fused_residual_add_rmsnorm_backward_triton(
     sm_count = Accelerator.get_sm_count(xr.device)
     NUM_BLOCKS = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
-    with torch.device(xr.device):
-        fused_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
-            xr_ptr=xr,
-            xr_stride=None if xr is None else xr.stride(),
-            W_ptr=W,
-            W_stride=None if W is None else W.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            dxr_ptr=dxr,
-            dxr_stride=None if dxr is None else dxr.stride(),
-            dx_ptr=dx,
-            dx_stride=dx.stride(),
-            dr_ptr=dr,
-            dr_stride=None if dr is None else dr.stride(),
-            dW_ptr=dW,
-            dW_stride=None if dW is None else dW.stride(),
-            s_ptr=s,
-            s_stride=None if s is None else s.stride(),
-            eps=eps,
-            multiplier=multiplier,
-            B=B,
-            H=H,
-            ATOMIC_ADD=not deterministic,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
-        )
+    fused_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
+        xr_ptr=xr,
+        xr_stride=None if xr is None else xr.stride(),
+        W_ptr=W,
+        W_stride=None if W is None else W.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        dxr_ptr=dxr,
+        dxr_stride=None if dxr is None else dxr.stride(),
+        dx_ptr=dx,
+        dx_stride=dx.stride(),
+        dr_ptr=dr,
+        dr_stride=None if dr is None else dr.stride(),
+        dW_ptr=dW,
+        dW_stride=None if dW is None else dW.stride(),
+        s_ptr=s,
+        s_stride=None if s is None else s.stride(),
+        eps=eps,
+        multiplier=multiplier,
+        B=B,
+        H=H,
+        BLOCK_SIZE_B=BLOCK_SIZE_B,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+        num_warps=NUM_WARPS,
+    )

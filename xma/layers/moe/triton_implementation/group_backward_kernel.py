@@ -37,8 +37,8 @@ def groupXtY_triton_kernel(
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
 ):
-    pid0 = tl.program_id(axis=0)
-    pid1 = tl.program_id(axis=1)
+    pid0 = tl.program_id(0)
+    pid1 = tl.program_id(1)
     num0 = tl.num_programs(0)
     num1 = tl.num_programs(1)
     pid1, pid0 = tl.swizzle2d(pid1, pid0, num1, num0, 128)
@@ -101,26 +101,28 @@ def groupXtY_triton_kernel(
 
 @xma_op(mutates_args={"DW"})
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
-    grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
+    grid = lambda kwargs: (
+        E * ceil_divide(kwargs["K"], kwargs["BLOCK_K"]),
+        ceil_divide(kwargs["N"], kwargs["BLOCK_N"]),
+    )
 
-    with torch.device(X.device):
-        groupXtY_triton_kernel[grid](
-            # DY_ptr, stride_dym, stride_dyk,
-            DY,
-            DY.stride(0),
-            DY.stride(1),
-            # X_ptr, stride_xm, stride_xn,
-            X,
-            X.stride(0),
-            X.stride(1),
-            # DW_ptr, stride_dwe, stride_dwk, stride_dwn,
-            DW,
-            DW.stride(0),
-            DW.stride(1),
-            DW.stride(2),
-            # expert_offsets_ptr,
-            expert_offsets,
-            # K: tl.constexpr, N: tl.constexpr,
-            N=DY.size(-1),
-            K=X.size(-1),
-        )
+    groupXtY_triton_kernel[grid](
+        # DY_ptr, stride_dym, stride_dyk,
+        DY,
+        DY.stride(0),
+        DY.stride(1),
+        # X_ptr, stride_xm, stride_xn,
+        X,
+        X.stride(0),
+        X.stride(1),
+        # DW_ptr, stride_dwe, stride_dwk, stride_dwn,
+        DW,
+        DW.stride(0),
+        DW.stride(1),
+        DW.stride(2),
+        # expert_offsets_ptr,
+        expert_offsets,
+        # K: tl.constexpr, N: tl.constexpr,
+        N=DY.size(-1),
+        K=X.size(-1),
+    )

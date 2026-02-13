@@ -29,7 +29,9 @@ class _Softmax(CustomOp):
         return x
 
     @staticmethod
-    def forward_triton(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, logits_multiplier: float | None, kernel_backend: KernelBackend) -> torch.Tensor:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
         y = empty_like_contiguous(x)
 
         softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
@@ -40,38 +42,30 @@ class _Softmax(CustomOp):
         return y
 
     @staticmethod
-    def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
         y = ctx.saved_tensors[0]
         dx = empty_like_contiguous(y)
 
         softmax_backward_triton(y=y, dy=dy, dx=dx, logits_multiplier=ctx.logits_multiplier)
 
-        return dx, None
+        return dx, None, None
 
 
 def softmax(
     x: torch.Tensor, logits_multiplier: float | None = None, *, kernel_backend: KernelBackend | None = None
 ) -> torch.Tensor:
-    """computes softmax activation
+    """
+    computes softmax activation
 
-    Args:
-        x (torch.Tensor): input activation tensor
-        logits_multiplier (float, optional): pre-multiplies `x` with `logits_multiplier` before computing softmax.
-            Defaults to None.
-
-    Returns:
-        torch.Tensor: output tensor
+    :param x: input activation tensor
+    :type x: torch.Tensor
+    :param logits_multiplier: pre-multiplies `x` with `logits_multiplier` before computing softmax.
+        Defaults to None.
+    :type logits_multiplier: float | None
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
-    # if 1D -> make 2D
-    is_flat = x.dim() == 1
-    if is_flat:
-        x = x[None, ...]
-
-    x = _Softmax.run(x=x, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend)
-
-    # convert back to 1D
-    if is_flat:
-        x = x.squeeze(0)
-
-    return x
+    return _Softmax.run(x=x, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend)

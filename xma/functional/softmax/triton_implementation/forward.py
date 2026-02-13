@@ -7,10 +7,20 @@ import triton
 import triton.language as tl
 
 from ....custom_op import xma_op
-from ....math import ceil_divide, get_next_power_of_2
-from ....utils import get_num_elements_and_hidden_size
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....xtuner import XTuneConfig, xtune
 
 
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_B in get_powers_of_2(1, 64):
+        for num_warps in get_powers_of_2(4, 32):
+            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def softmax_forward_triton_kernel(
     x_ptr,
@@ -23,7 +33,57 @@ def softmax_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID = tl.program_id(axis=0)
+    BLOCK_ID = tl.program_id(0)
+
+    BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
+
+    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+
+    x = tl.load(
+        x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1], mask=MASK_BH, other=-float("inf")
+    )
+
+    x = x.to(tl.float32)
+
+    if logits_multiplier is not None:
+        x *= logits_multiplier
+
+    x = tl.exp(x)
+    x /= tl.sum(x, axis=1, keep_dims=True)
+
+    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], x, mask=MASK_BH)
+
+
+def _get_online_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_B in get_powers_of_2(1, 4):
+        for BLOCK_SIZE_H in get_powers_of_2(16, 8192):
+            for num_warps in get_powers_of_2(4, 32):
+                configs.append(
+                    triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B, "BLOCK_SIZE_H": BLOCK_SIZE_H}, num_warps=num_warps)
+                )
+
+    return configs
+
+
+@triton.autotune(configs=_get_online_autotune_configs(), key=[])
+@triton.jit
+def online_softmax_forward_triton_kernel(
+    x_ptr,
+    x_stride,
+    y_ptr,
+    y_stride,
+    logits_multiplier,
+    B,
+    H,
+    BLOCK_SIZE_B: tl.constexpr,
+    BLOCK_SIZE_H: tl.constexpr,
+):
+    BLOCK_ID = tl.program_id(0)
 
     BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     MASK_B = BLOCK_B < B
@@ -66,6 +126,7 @@ def softmax_forward_triton_kernel(
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
         x = tl.load(x_ptrs, mask=MASK_BH)
+        x_ptrs += BLOCK_SIZE_H * x_stride[1]
 
         x = x.to(tl.float32)
         if logits_multiplier is not None:
@@ -76,32 +137,40 @@ def softmax_forward_triton_kernel(
         x /= Z
 
         tl.store(y_ptrs, x, mask=MASK_BH)
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
 
         BLOCK_H += BLOCK_SIZE_H
-        x_ptrs += BLOCK_SIZE_H * x_stride[1]
-        y_ptrs += BLOCK_SIZE_H * y_stride[1]
+
+
+@xtune(
+    configs=[
+        XTuneConfig({"use_online_softmax": False}, condition=lambda **kwargs: kwargs["x"].size(1) <= 1024),
+        XTuneConfig({"use_online_softmax": True}),
+    ],
+    functional_triggers={"H": lambda **kwargs: get_next_power_of_2(kwargs["x"].size(1))},
+)
+def _autotuned_softmax_forward_triton(
+    x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None, use_online_softmax: bool
+) -> None:
+    B, H = x.size()
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
+
+    kwargs = {
+        "x_ptr": x,
+        "x_stride": x.stride(),
+        "y_ptr": y,
+        "y_stride": y.stride(),
+        "logits_multiplier": logits_multiplier,
+        "B": B,
+        "H": H,
+    }
+
+    if use_online_softmax:
+        online_softmax_forward_triton_kernel[GRID](**kwargs)
+    else:
+        softmax_forward_triton_kernel[GRID](**kwargs, BLOCK_SIZE_H=get_next_power_of_2(H))
 
 
 @xma_op(mutates_args={"y"})
 def softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
-    if x.dim() == 1:
-        B = 1
-        H = x.size(-1)
-    else:
-        B, H = get_num_elements_and_hidden_size(x)
-
-    BLOCK_SIZE_B = 1
-    BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if x.dtype == torch.float32 else 8192)
-
-    with torch.device(x.device):
-        softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
-            x_ptr=x,
-            x_stride=x.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+    _autotuned_softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
