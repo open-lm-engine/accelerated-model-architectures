@@ -10,10 +10,11 @@ from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
-def swiglu_backward_nki_kernel(g_ptr, u_ptr, dy_ptr, dg_ptr, du_ptr):
-    BLOCK_SIZE_B = 128
-    BLOCK_SIZE_H = 512
+BLOCK_SIZE_B = 128
+BLOCK_SIZE_H = 512
 
+
+def swiglu_backward_nki_kernel(g_ptr, u_ptr, dy_ptr, dg_ptr, du_ptr):
     B, H = g_ptr.shape
 
     BLOCK_ID_B = nl.program_id(0)
@@ -49,9 +50,6 @@ _CACHE = {}
 def swiglu_backward_nki(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
-    BLOCK_SIZE_B = 128
-    BLOCK_SIZE_H = 512
-
     B, H = g.size()
 
     compile_key = (B, H, g.dtype)

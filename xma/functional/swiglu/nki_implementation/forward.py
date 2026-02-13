@@ -10,9 +10,11 @@ from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
+BLOCK_SIZE_B = 128
+BLOCK_SIZE_H = 512
+
+
 def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
-    BLOCK_SIZE_B = 128
-    BLOCK_SIZE_H = 512
 
     B, H = g_ptr.shape
 
@@ -41,9 +43,6 @@ _CACHE = {}
 
 @xma_op(mutates_args={"y"})
 def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
-    BLOCK_SIZE_B = 128
-    BLOCK_SIZE_H = 512
-
     B, H = g.size()
 
     compile_key = (B, H, g.dtype)
