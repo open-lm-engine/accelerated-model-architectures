@@ -43,17 +43,14 @@ class _HiPPO(CustomOp):
         for s in range(S):
             if cu_seqlens is None:
                 h = h0.flatten(0, 1) @ A.T + x[:, s].flatten()[..., None] * B
+                y[:, s] = h
+                h0 = h
             else:
                 offset = start + s
                 unfinished = offset < end
                 offset_unfinished = offset[unfinished]
 
                 h = h0[unfinished].flatten(0, 1) @ A.T + x[offset_unfinished].flatten()[..., None] * B
-
-            if cu_seqlens is None:
-                y[:, s] = h
-                h0 = h
-            else:
                 y[offset_unfinished] = h
                 h0[unfinished] = h
 
