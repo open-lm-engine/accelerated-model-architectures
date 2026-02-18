@@ -68,7 +68,7 @@ class HiPPOTest(TestCommons):
         if is_compiling:
             hippo_kernel = torch.compile(hippo_kernel, fullgraph=True)
 
-        y_kernel, output_state_kernel = hippo_kernel(
+        y_kernel = hippo_kernel(
             input=x_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
@@ -76,7 +76,7 @@ class HiPPOTest(TestCommons):
             kernel_backend=KernelBackend.triton,
         )
 
-        y_torch, output_state_torch = hippo_torch(
+        y_torch = hippo_torch(
             input=x_torch,
             input_state=input_state_torch,
             cu_seqlens=cu_seqlens,
@@ -85,7 +85,6 @@ class HiPPOTest(TestCommons):
         )
 
         self.assert_equal_tensors(y_kernel, y_torch, False)
-        self.assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
