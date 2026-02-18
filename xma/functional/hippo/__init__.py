@@ -42,20 +42,18 @@ def hippo(
     :rtype: Tensor
     """
 
-    assert input.dim() == 3 + (cu_seqlens is None)
+    assert input.dim() == 2 + (cu_seqlens is None)
 
     if cu_seqlens is None:
         assert max_seqlen is None
-        B, _, _, H = input.size()
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
 
-        B = cu_seqlens.size(0) - 1
-        H = input.size(-1)
+    N = B.size(-1)
 
-    assert A.size() == (H, H)
-    assert B.size() == (H,)
+    assert A.size() == (N, N)
+    assert B.size() == (N,)
 
     if input_state is not None:
         assert input_state.size() == (B, H)
