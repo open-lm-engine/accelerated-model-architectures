@@ -17,7 +17,7 @@ class HiPPOTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.triton],  # KernelBackend
-            [torch.float32, torch.float16],  # dtype
+            [torch.float32, torch.bfloat16],  # dtype
             [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             [(8, 37)],  # state_head_dim, hidden_size
             [False, True],  # has_input_state
