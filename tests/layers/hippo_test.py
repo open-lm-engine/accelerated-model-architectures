@@ -38,7 +38,7 @@ class HiPPOTest(TestCommons):
 
         set_seed(_SEED)
 
-        state_head_dim, hidden_size, num_weight_heads = problem_shape
+        state_head_dim, hidden_size = problem_shape
 
         B, S, cu_seqlens = input_shape
         max_seqlen = None
@@ -92,7 +92,7 @@ class HiPPOTest(TestCommons):
             [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
+            [(8, 37, 8)],  # state_head_dim, hidden_size
             [False, True],  # has_input_state
         )
     )
@@ -101,7 +101,7 @@ class HiPPOTest(TestCommons):
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        snn: tuple[int, int, int],
+        problem_shape: tuple[int, int],
         has_input_state: bool,
     ) -> None:
         if Accelerator.get_accelerator() != Accelerator.cuda:
@@ -116,15 +116,14 @@ class HiPPOTest(TestCommons):
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
 
-        state_head_dim, num_input_heads, num_weight_heads = snn
-        num_heads = max(num_input_heads, num_weight_heads)
-        state_size = state_head_dim * num_heads
+        state_head_dim, hidden_size = problem_shape
 
         x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
             sequence_length=None,
             total_tokens=cu_seqlens[-1],
-            state_size=state_size,
+            hidden_size=hidden_size,
+            state_head_dim=state_head_dim,
             has_input_state=has_input_state,
             dtype=dtype,
             device=device,
@@ -133,7 +132,7 @@ class HiPPOTest(TestCommons):
         with torch.device(device):
             hippo = HiPPO(state_head_dim=state_head_dim, measure="legS").to(dtype)
 
-        y_kernel, _ = hippo(
+        y_kernel = hippo(
             input=x_packed_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
@@ -143,7 +142,7 @@ class HiPPOTest(TestCommons):
 
         y_torch = []
         for i in range(batch_size):
-            y, _ = hippo(
+            y = hippo(
                 input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
