@@ -68,8 +68,8 @@ def hippo_triton_kernel(
         ).to(tl.float32)
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
-    S_DIM = 1 + IS_VARLEN
-    H_DIM = 2 + IS_VARLEN
+    S_DIM: tl.constexpr = 1 - IS_VARLEN
+    H_DIM: tl.constexpr = 2 - IS_VARLEN
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
