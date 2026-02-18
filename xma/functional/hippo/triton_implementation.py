@@ -74,7 +74,7 @@ def hippo_triton(
     h0: torch.Tensor | None,
     h: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
-    max_seqlen: int,
+    max_seqlen: int | None,
 ) -> None:
     if cu_seqlens is None:
         BS, S, H = x.size()
