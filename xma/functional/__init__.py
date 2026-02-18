@@ -8,6 +8,7 @@ from .cross_entropy import cross_entropy
 from .fused_linear_cross_entropy import fused_linear_cross_entropy
 from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
 from .gru import gru
+from .hippo import hippo
 from .linear_attention import linear_attention
 from .rmsnorm import rmsnorm
 from .rnn import rnn
