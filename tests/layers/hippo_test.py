@@ -25,7 +25,7 @@ class HiPPOTest(TestCommons):
             [False, True],  # is_compiling
         )
     )
-    def test_rnn(
+    def test_hippo(
         self,
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
@@ -61,7 +61,7 @@ class HiPPOTest(TestCommons):
         )
 
         with torch.device(device):
-            hippo = HiPPO(state_head_dim=state_head_dim, measure="legs").to(dtype)
+            hippo = HiPPO(state_head_dim=state_head_dim, measure="legS").to(dtype)
 
         hippo_torch = hippo
         hippo_kernel = hippo
@@ -97,7 +97,7 @@ class HiPPOTest(TestCommons):
             [False, True],  # has_input_state
         )
     )
-    def test_rnn_varlen_torch(
+    def test_hippo_varlen_torch(
         self,
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
@@ -132,19 +132,9 @@ class HiPPOTest(TestCommons):
         )
 
         with torch.device(device):
-            rnn = RNN(
-                input_size=state_size,
-                state_head_dim=state_head_dim,
-                output_size=state_size,
-                num_input_heads=num_input_heads,
-                num_weight_heads=num_weight_heads,
-                add_bias=False,
-                gradient_clipping=None,
-            ).to(dtype)
+            hippo = HiPPO(state_head_dim=state_head_dim, measure="legS").to(dtype)
 
-            nn.init.normal_(rnn.state_weight, std=0.1)
-
-        y_kernel, _ = rnn(
+        y_kernel, _ = hippo(
             input=x_packed_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
@@ -154,7 +144,7 @@ class HiPPOTest(TestCommons):
 
         y_torch = []
         for i in range(batch_size):
-            y, _ = rnn(
+            y, _ = hippo(
                 input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
