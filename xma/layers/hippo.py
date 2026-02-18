@@ -35,7 +35,13 @@ class HiPPO(nn.Module):
         kernel_backend: KernelBackend | None = KernelBackend,
     ) -> torch.Tensor:
         return hippo(
-            input=input, A=self.A, B=self.B, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+            input=input,
+            A=self.A,
+            B=self.B,
+            input_state=input_state,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=kernel_backend,
         )
 
     @torch.no_grad()
