@@ -89,7 +89,7 @@ def hippo_triton_kernel(
         z = matmul(A=x[:, None], B=B[None, :], C=None, output_dtype=tl.float32)
         h = matmul(A=h, B=A.T, C=z, output_dtype=tl.float32)
 
-        tl.store(h_ptrs[None, :], h, mask=MASK_HN)
+        tl.store(h_ptrs, h, mask=MASK_HN)
         h_ptrs += h_stride[S_DIM]
 
 
