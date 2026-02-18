@@ -50,6 +50,8 @@ def hippo(
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
+
+        BS = cu_seqlens.size(0) - 1
         H = input.size(-1)
 
     N = B.size(-1)
