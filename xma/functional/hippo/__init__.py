@@ -5,6 +5,7 @@
 import torch
 
 from ...accelerator import Accelerator, KernelBackend
+from .triton_implementation import hippo_triton
 
 
 def hippo(
@@ -36,9 +37,9 @@ def hippo(
     :type max_seqlen: int | None
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
-    :return: output tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H) and output state of
+    :return: optimal compression tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H) and output state of
         shape (B, N, H).
-    :rtype: tuple[Tensor, Tensor]
+    :rtype: Tensor
     """
 
     assert input.dim() == 3 + (cu_seqlens is None)
@@ -67,15 +68,14 @@ def hippo(
     x = input
     h0 = input_state
 
-    if kernel_backend == KernelBackend.triton:
-        pass
-    elif kernel_backend == KernelBackend.torch:
-        y = torch.empty_like(x)
+    h = torch.empty_like(x)
 
+    if kernel_backend == KernelBackend.triton:
+        hippo_triton(x=x, A=A, B=B, h0=h0, h=h, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
+    elif kernel_backend == KernelBackend.torch:
         if cu_seqlens is None:
-            B, S, H = x.size()
+            _, S, H = x.size()
         else:
-            B = cu_seqlens.size(0) - 1
             S = max_seqlen
             H = x.size(-1)
 
@@ -84,7 +84,7 @@ def hippo(
         if h0 is None:
             h0 = torch.zeros(B, H, N, device=x.device, dtype=x.dtype)
 
-        if cu_seqlens is None:
+        if cu_seqlens is not None:
             h0 = h0.clone()
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
@@ -100,14 +100,10 @@ def hippo(
                 offset_unfinished = offset[unfinished]
 
                 h = h0[unfinished].flatten(0, 1) @ A.T + x[offset_unfinished].flatten()[..., None] * B
-
-            if cu_seqlens is None:
-                y[:, s] = h
-                h0 = h
-            else:
-                y[offset_unfinished] = h
                 h0[unfinished] = h
+
+            h = h0
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return y, h0
+    return h
