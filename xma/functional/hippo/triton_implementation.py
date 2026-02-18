@@ -129,6 +129,6 @@ def hippo_triton(
         H=H,
         N=N,
         cu_seqlens_ptr=cu_seqlens,
-        cu_seqlens_stride=cu_seqlens.stride(),
+        cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
         BLOCK_SIZE_N=BLOCK_SIZE_N,
     )
