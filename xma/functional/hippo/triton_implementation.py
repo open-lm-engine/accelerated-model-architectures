@@ -54,7 +54,7 @@ def hippo_triton_kernel(
     MASK_HN = MASK_H[:, None] & MASK_N[None, :]
     MASK_NN = MASK_N[:, None] & MASK_N[None, :]
 
-    A = tl.load(A_ptr + BLOCK_N[:, None] * A_stride[0] + BLOCK_N[None, :] * A_stride, mask=MASK_NN)
+    A = tl.load(A_ptr + BLOCK_N[:, None] * A_stride[0] + BLOCK_N[None, :] * A_stride[1], mask=MASK_NN)
     B = tl.load(B_ptr + BLOCK_N * B_stride[0], mask=MASK_N)
 
     if h0_ptr is None:
