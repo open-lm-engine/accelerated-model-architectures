@@ -108,7 +108,7 @@ def hippo(
                 _h = h0[unfinished].flatten(0, 1) @ A.T + x[offset_unfinished].flatten()[..., None] * B
                 _h = _h.view(-1, H, N)
                 h[offset_unfinished] = _h
-                h0 = _h
+                h0[unfinished] = _h
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
