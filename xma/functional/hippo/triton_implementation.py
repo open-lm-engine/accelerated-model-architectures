@@ -68,6 +68,8 @@ def hippo_triton_kernel(
         ).to(tl.float32)
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+    S_DIM = 1 + IS_VARLEN
+    H_DIM = 2 + IS_VARLEN
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
@@ -76,18 +78,18 @@ def hippo_triton_kernel(
 
         S = end - start
 
-    x_ptrs = x_ptr + BLOCK_ID_B * x_stride[0] + BLOCK_H * x_stride[2]
-    h_ptrs = h_ptr + BLOCK_ID_B * h_stride[0] + BLOCK_H * h_stride[2]
+    x_ptrs = x_ptr + BLOCK_ID_B * x_stride[0] + BLOCK_H * x_stride[H_DIM]
+    h_ptrs = h_ptr + BLOCK_ID_B * h_stride[0] + BLOCK_H * h_stride[H_DIM]
 
     for _ in range(S):
         x = tl.load(x_ptrs, mask=MASK_H)
-        x_ptrs += x_stride[1]
+        x_ptrs += x_stride[S_DIM]
 
         z = matmul(A=x[:, None], B=B[None, :], C=None)
         h = matmul(A=h, B=A.T, C=z, output_dtype=tl.float32)
 
         tl.store(h_ptrs, h, mask=MASK_HN)
-        h_ptrs += h_stride[1]
+        h_ptrs += h_stride[S_DIM]
 
 
 @xma_op(mutates_args={"h"})
@@ -126,5 +128,7 @@ def hippo_triton(
         S=S,
         H=H,
         N=N,
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=cu_seqlens.stride(),
         BLOCK_SIZE_N=BLOCK_SIZE_N,
     )
