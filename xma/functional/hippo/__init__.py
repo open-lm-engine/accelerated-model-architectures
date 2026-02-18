@@ -82,6 +82,7 @@ def hippo(
             H = x.size(-1)
 
         N = B.size(0)
+        h = torch.empty(*x.size(), N, device=x.device, dtype=x.dtype)
 
         if h0 is None:
             h0 = torch.zeros(BS, H, N, device=x.device, dtype=x.dtype)
@@ -95,16 +96,19 @@ def hippo(
 
         for s in range(S):
             if cu_seqlens is None:
-                h = h0.flatten(0, 1) @ A.T + x[:, s].flatten()[..., None] * B
+                _h = h0.flatten(0, 1) @ A.T + x[:, s].flatten()[..., None] * B
+                _h = _h.view(-1, H, N)
+                h[:, s] = _h
+                h0 = _h
             else:
                 offset = start + s
                 unfinished = offset < end
                 offset_unfinished = offset[unfinished]
 
-                h = h0[unfinished].flatten(0, 1) @ A.T + x[offset_unfinished].flatten()[..., None] * B
-                h0[unfinished] = h
-
-            h = h0
+                _h = h0[unfinished].flatten(0, 1) @ A.T + x[offset_unfinished].flatten()[..., None] * B
+                _h = _h.view(-1, H, N)
+                h[offset_unfinished] = _h
+                h0 = _h
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
