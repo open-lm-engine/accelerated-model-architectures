@@ -46,9 +46,11 @@ def hippo(
 
     if cu_seqlens is None:
         assert max_seqlen is None
+        BS, _, H = input.size()
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
+        H = input.size(-1)
 
     N = B.size(-1)
 
@@ -56,7 +58,7 @@ def hippo(
     assert B.size() == (N,)
 
     if input_state is not None:
-        assert input_state.size() == (B, H)
+        assert input_state.size() == (BS, H, N)
 
     if kernel_backend is None:
         kernel_backend = Accelerator.get_kernel_backend()
