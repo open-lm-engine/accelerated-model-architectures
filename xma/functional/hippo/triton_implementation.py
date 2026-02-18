@@ -70,6 +70,7 @@ def hippo_triton_kernel(
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
     S_DIM: tl.constexpr = 1 - IS_VARLEN
     H_DIM: tl.constexpr = 2 - IS_VARLEN
+    N_DIM: tl.constexpr = 3 - IS_VARLEN
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
@@ -79,7 +80,7 @@ def hippo_triton_kernel(
         S = end - start
 
     x_ptrs = x_ptr + BLOCK_ID_B * x_stride[0] + BLOCK_H * x_stride[H_DIM]
-    h_ptrs = h_ptr + BLOCK_ID_B * h_stride[0] + BLOCK_H * h_stride[H_DIM]
+    h_ptrs = h_ptr + BLOCK_ID_B * h_stride[0] + BLOCK_H[:, None] * h_stride[H_DIM] + BLOCK_N[None, :] * h_stride[N_DIM]
 
     for _ in range(S):
         x = tl.load(x_ptrs, mask=MASK_H)
