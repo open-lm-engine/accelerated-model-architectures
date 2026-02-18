@@ -82,7 +82,7 @@ def hippo(
         N = B.size(0)
 
         if h0 is None:
-            h0 = torch.zeros(B, H, N, device=x.device, dtype=x.dtype)
+            h0 = torch.zeros(BS, H, N, device=x.device, dtype=x.dtype)
 
         if cu_seqlens is not None:
             h0 = h0.clone()
