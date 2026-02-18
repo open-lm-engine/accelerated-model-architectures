@@ -7,6 +7,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
+from ..accelerator import KernelBackend
 from ..functional import hippo
 
 
@@ -30,6 +31,8 @@ class HiPPO(nn.Module):
         input_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
+        *,
+        kernel_backend: KernelBackend | None = KernelBackend,
     ) -> torch.Tensor:
         return hippo(
             input=input, A=self.A, B=self.B, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
