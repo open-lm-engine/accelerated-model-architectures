@@ -12,6 +12,8 @@ from ..functional import hippo
 
 class HiPPO(nn.Module):
     def __init__(self, state_head_dim: int, measure: str = "legS") -> HiPPO:
+        super().__init__()
+
         self.state_head_dim = state_head_dim
         self.measure = measure
 
