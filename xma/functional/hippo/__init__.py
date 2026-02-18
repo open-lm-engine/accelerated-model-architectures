@@ -70,7 +70,7 @@ def hippo(
     x = input
     h0 = input_state
 
-    h = torch.empty_like(x)
+    h = torch.empty(*x.size(), N, device=x.device, dtype=x.dtype)
 
     if kernel_backend == KernelBackend.triton:
         hippo_triton(x=x, A=A, B=B, h0=h0, h=h, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
