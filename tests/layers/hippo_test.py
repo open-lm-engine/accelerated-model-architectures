@@ -3,7 +3,6 @@
 # **************************************************
 
 import torch
-import torch.nn as nn
 from parameterized import parameterized
 
 from xma import Accelerator, HiPPO, KernelBackend, set_seed
