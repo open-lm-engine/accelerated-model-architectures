@@ -19,7 +19,7 @@ class HiPPOTest(TestCommons):
             [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.float16],  # dtype
             [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
-            [(8, 37, 8)],  # state_head_dim, hidden_size
+            [(8, 37)],  # state_head_dim, hidden_size
             [False, True],  # has_input_state
             [False, True],  # is_compiling
         )
@@ -92,7 +92,7 @@ class HiPPOTest(TestCommons):
             [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [(8, 37, 8)],  # state_head_dim, hidden_size
+            [(8, 37)],  # state_head_dim, hidden_size
             [False, True],  # has_input_state
         )
     )
