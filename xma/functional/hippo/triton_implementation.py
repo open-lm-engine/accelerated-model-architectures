@@ -39,6 +39,8 @@ def hippo_triton_kernel(
     S,
     H,
     N,
+    cu_seqlens_ptr,
+    cu_seqlens_stride,
     BLOCK_SIZE_H: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
 ):
@@ -64,6 +66,15 @@ def hippo_triton_kernel(
             h0_ptr + BLOCK_ID_B * h0_stride[0] + BLOCK_H[:, None] * h_stride[2] + BLOCK_N[None, :] * h0_stride[2],
             mask=MASK_HN,
         ).to(tl.float32)
+
+    IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+
+    if IS_VARLEN:
+        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
+        start = tl.load(cu_seqlens_ptrs)
+        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
+
+        S = end - start
 
     x_ptrs = x_ptr + BLOCK_ID_B * x_stride[0] + BLOCK_H * x_stride[2]
     h_ptrs = h_ptr + BLOCK_ID_B * h_stride[0] + BLOCK_H * h_stride[2]
