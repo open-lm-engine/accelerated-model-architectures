@@ -35,6 +35,7 @@ class HiPPO(nn.Module):
             input=input, A=self.A, B=self.B, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
         )
 
+    @torch.no_grad
     def reset_parameters(self) -> None:
         self.A.normal_()
         self.B.normal_()
