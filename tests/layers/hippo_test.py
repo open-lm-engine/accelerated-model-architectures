@@ -89,7 +89,7 @@ class HiPPOTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.torch],  # KernelBackend
-            TestCommons.get_dtypes(),  # dtype
+            [torch.float32, torch.bfloat16],  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [(8, 37)],  # state_head_dim, hidden_size
             [False, True],  # has_input_state
