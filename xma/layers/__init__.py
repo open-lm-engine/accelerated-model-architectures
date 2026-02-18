@@ -3,6 +3,7 @@
 # **************************************************
 
 from .gru import GRU
+from .hippo import HiPPO
 from .linear_attention import LinearAttention
 from .moe import MoE
 from .rnn import RNN
