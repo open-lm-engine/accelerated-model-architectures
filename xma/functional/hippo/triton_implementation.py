@@ -111,7 +111,9 @@ def hippo_triton(
         S = max_seqlen
 
     N = B.size(0)
+
     BLOCK_SIZE_N = get_next_power_of_2(N)
+    BLOCK_SIZE_N = max(16, BLOCK_SIZE_N)
 
     GRID = lambda kwargs: (BS, ceil_divide(H, kwargs["BLOCK_SIZE_H"]))
 
