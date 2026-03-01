@@ -29,51 +29,36 @@ class _PNorm(CustomOp):
 
         B = x.size(0)
 
-        y = torch.empty(B, device=x.device, dtype=torch.float32)
+        if p == "inf":
+            indices = torch.empty(B, device=x.device, dtype=torch.int32)
+            y = torch.empty(B, device=x.device, dtype=x.dtype)
+        else:
+            indices = None
+            y = torch.empty(B, device=x.device, dtype=torch.float32)
+
         pnorm_forward_triton(x=x, y=y, p=p)
 
-        ctx_save_for_backward(ctx, x)
+        ctx_save_for_backward(ctx, x, y, indices)
         ctx.multiplier = multiplier
+        ctx.p = p
 
         return y
 
     @staticmethod
-    def backward(
-        ctx, dy: torch.Tensor, dxr: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
-        has_residual = ctx.has_residual
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None]:
+        x, y, indices = ctx.saved_tensors
+        dx = empty_like_contiguous(x)
 
-        xr, W, s = ctx.saved_tensors
-        dx = empty_like_contiguous(xr)
-        dr = empty_like_contiguous(xr) if has_residual else None
-
-        dW = (
-            None
-            if W is None
-            else torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
-        )
-
-        if not has_residual:
-            assert dxr is None
-
-        fused_residual_add_rmsnorm_backward_triton(
-            xr=xr,
-            W=W,
+        pnorm_backward_triton(
+            x=x,
+            y=y,
             dy=dy,
-            dxr=dxr,
-            s=s,
             dx=dx,
-            dr=dr,
-            dW=dW,
-            eps=ctx.eps,
             multiplier=ctx.multiplier,
+            p=ctx.p,
         )
 
-        if dW is not None:
-            dW = dW.sum(0)
-            dW = dW.type_as(W)
-
-        return dx, dr, dW, *[None] * 5
+        return dx, None, None
 
 
 def p_norm(

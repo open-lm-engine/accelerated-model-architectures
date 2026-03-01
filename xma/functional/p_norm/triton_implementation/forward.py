@@ -41,8 +41,9 @@ def pnorm_forward_triton_kernel(
         x *= multiplier
 
     if P == "inf":
-        ...
+        x = tl.max(x, axis=1)
     else:
+        x = x.to(tl.float32)
         x = tl.abs(x)
         x = tl.log(x)
         x *= P
@@ -56,7 +57,7 @@ def pnorm_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def pnorm_forward_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, P: int) -> None:
+def pnorm_forward_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int) -> None:
     B, H = x.size()
 
     BLOCK_SIZE_B = 1
@@ -72,8 +73,8 @@ def pnorm_forward_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | N
         multiplier=multiplier,
         B=B,
         H=H,
-        P=P,
-        P_inv=1 / P,
+        P=p,
+        P_inv=1 / p,
         BLOCK_SIZE_B=BLOCK_SIZE_B,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
         num_warps=NUM_WARPS,

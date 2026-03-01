@@ -13,27 +13,20 @@ from ....math import ceil_divide, get_next_power_of_2
 
 
 @triton.jit
-def fused_residual_add_rmsnorm_backward_triton_kernel(
-    xr_ptr,
-    xr_stride,
-    W_ptr,
-    W_stride,
+def pnorm_backward_triton_kernel(
+    x_ptr,
+    x_stride,
+    y_ptr,
+    y_stride,
     dy_ptr,
     dy_stride,
-    dxr_ptr,
-    dxr_stride,
     dx_ptr,
     dx_stride,
-    dr_ptr,
-    dr_stride,
-    dW_ptr,
-    dW_stride,
-    s_ptr,
-    s_stride,
-    eps,
     multiplier,
     B,
     H,
+    P: tl.constexpr,
+    P_inv: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -100,50 +93,34 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
 
 
-@xma_op(mutates_args={"dx", "dr", "dW"})
-def fused_residual_add_rmsnorm_backward_triton(
-    xr: torch.Tensor,
-    W: torch.Tensor | None,
-    dy: torch.Tensor,
-    dxr: torch.Tensor | None,
-    s: torch.Tensor | None,
-    dx: torch.Tensor,
-    dr: torch.Tensor | None,
-    dW: torch.Tensor | None,
-    eps: float,
-    multiplier: float | None,
+@xma_op(mutates_args={"dx"})
+def pnorm_backward_triton(
+    x: torch.Tensor, y: torch.Tensor, dy: torch.Tensor, dx: torch.Tensor, multiplier: float | None, p: int
 ) -> None:
-    B, H = xr.size()
+    B, H = x.size()
 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
     NUM_WARPS = 8
 
-    sm_count = Accelerator.get_sm_count(xr.device)
+    sm_count = Accelerator.get_sm_count(x.device)
     NUM_BLOCKS = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
-    fused_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
-        xr_ptr=xr,
-        xr_stride=None if xr is None else xr.stride(),
-        W_ptr=W,
-        W_stride=None if W is None else W.stride(),
+    pnorm_backward_triton_kernel[NUM_BLOCKS,](
+        x_ptr=x,
+        x_stride=x.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
         dy_ptr=dy,
         dy_stride=dy.stride(),
-        dxr_ptr=dxr,
-        dxr_stride=None if dxr is None else dxr.stride(),
         dx_ptr=dx,
         dx_stride=dx.stride(),
-        dr_ptr=dr,
-        dr_stride=None if dr is None else dr.stride(),
-        dW_ptr=dW,
-        dW_stride=None if dW is None else dW.stride(),
-        s_ptr=s,
-        s_stride=None if s is None else s.stride(),
-        eps=eps,
         multiplier=multiplier,
         B=B,
         H=H,
+        P=p,
+        P_inv=1 / p,
         BLOCK_SIZE_B=BLOCK_SIZE_B,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
         num_warps=NUM_WARPS,
