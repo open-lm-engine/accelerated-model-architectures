@@ -27,7 +27,9 @@ class _PNorm(CustomOp):
     def forward(ctx, x: torch.Tensor, multiplier: float | None, p: int, kernel_backend: KernelBackend) -> torch.Tensor:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
-        y = empty_like_contiguous(x)
+        B = x.size(0)
+
+        y = torch.empty(B, device=x.device, dtype=torch.float32)
         pnorm_forward_triton(x=x, y=y, p=p)
 
         ctx_save_for_backward(ctx, x)
