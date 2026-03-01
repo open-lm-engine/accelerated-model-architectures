@@ -44,17 +44,13 @@ def pnorm_backward_triton_kernel(
 
     NUM_LOOPS = tl.cdiv(NUM_ELEMENTS_IN_CURRENT_BLOCK, BLOCK_SIZE_B)
 
-    if W_ptr is not None:
-        W = tl.load(W_ptr + BLOCK_H * W_stride[0], mask=MASK_H)[None, :]
-        dW = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
-
     for i in range(NUM_LOOPS):
         BLOCK_B = start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
 
         MASK_B = BLOCK_B < end
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-        xr = tl.load(xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_H[None, :] * xr_stride[1], mask=MASK_BH).to(
+        x = tl.load(x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1], mask=MASK_BH).to(
             tl.float32
         )
 
@@ -88,9 +84,6 @@ def pnorm_backward_triton_kernel(
 
         if W_ptr is not None:
             dW += tl.sum(dy * (xr * r[:, None]), axis=0)
-
-    if W_ptr is not None:
-        tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
 
 
 @xma_op(mutates_args={"dx"})
