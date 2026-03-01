@@ -49,14 +49,7 @@ class _PNorm(CustomOp):
         x, y, indices = ctx.saved_tensors
         dx = empty_like_contiguous(x)
 
-        pnorm_backward_triton(
-            x=x,
-            y=y,
-            dy=dy,
-            dx=dx,
-            multiplier=ctx.multiplier,
-            p=ctx.p,
-        )
+        pnorm_backward_triton(x=x, y=y, dy=dy, dx=dx, multiplier=ctx.multiplier, p=ctx.p)
 
         return dx, None, None
 
