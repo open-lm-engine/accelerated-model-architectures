@@ -6,13 +6,13 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import MAX_TRITON_BLOCK_SIZE
-from ....custom_op import xma_op
-from ....math import ceil_divide, get_next_power_of_2
+from ...constants import MAX_TRITON_BLOCK_SIZE
+from ...custom_op import xma_op
+from ...math import ceil_divide, get_next_power_of_2
 
 
 @triton.jit
-def norm_forward_triton_kernel(
+def norm_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -64,9 +64,7 @@ def norm_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def norm_forward_triton(
-    x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | None, is_p_inf: bool
-) -> None:
+def norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | None, is_p_inf: bool) -> None:
     B, H = x.size()
 
     BLOCK_SIZE_B = 1

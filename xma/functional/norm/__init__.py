@@ -9,7 +9,7 @@ from ...utils import is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import norm_backward_triton, norm_forward_triton
+    from .triton_implementation import norm_triton
 
 
 def norm(
