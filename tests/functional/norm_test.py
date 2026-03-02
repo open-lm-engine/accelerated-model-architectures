@@ -26,7 +26,7 @@ class NormTest(TestCommons):
             [torch.float32],  # dtype
             [1, 2, 3, "inf"],  # p
             [None, 0.9],  # multiplier
-            [norm],  # function
+            [norm, torch.compile(norm, fullgraph=True)],  # function
         )
     )
     def test_p_norm(
