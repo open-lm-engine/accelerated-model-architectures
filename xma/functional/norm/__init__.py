@@ -21,7 +21,10 @@ class _Norm(CustomOp):
         if multiplier not in [None, 1]:
             x = x * multiplier
 
-        x = torch.norm(x, p=p, dim=-1)
+        if p == "inf":
+            x = x.abs().max()
+        else:
+            x = torch.norm(x, p=p, dim=-1)
 
         return x.to(output_dtype)
 

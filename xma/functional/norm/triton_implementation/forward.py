@@ -42,7 +42,7 @@ def norm_forward_triton_kernel(
         x *= multiplier
 
     if is_P_inf:
-        x = tl.max(x, axis=1)
+        x = tl.max(tl.abs(x), axis=1)
     else:
         x = x.to(tl.float32)
         x = tl.abs(x)
