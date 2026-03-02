@@ -46,13 +46,13 @@ def norm_forward_triton_kernel(
     else:
         x = x.to(tl.float32)
         x = tl.abs(x)
-        x = tl.log(x)
+        x = tl.log2(x)
         x *= P
-        x = tl.exp(x)
+        x = tl.exp2(x)
         x = tl.sum(x, axis=1)
-        x = tl.log(x)
+        x = tl.log2(x)
         x *= P_inv
-        x = tl.exp(x)
+        x = tl.exp2(x)
 
     tl.store(y_ptr + BLOCK_B * y_stride[0], x, mask=MASK_B)
 
