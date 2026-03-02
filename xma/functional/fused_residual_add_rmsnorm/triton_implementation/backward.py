@@ -120,9 +120,13 @@ def fused_residual_add_rmsnorm_backward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    sm_count = Accelerator.get_sm_count() if dW is None else dW.size(0)
+    if dW is None:
+        sm_count = Accelerator.get_sm_count()
+        GRID = lambda kwargs: (min(sm_count, ceil_divide(B, kwargs["BLOCK_SIZE_B"])),)
+    else:
+        GRID = (dW.size(0),)
 
-    fused_residual_add_rmsnorm_backward_triton_kernel[sm_count,](
+    fused_residual_add_rmsnorm_backward_triton_kernel[GRID](
         xr_ptr=xr,
         xr_stride=None if xr is None else xr.stride(),
         W_ptr=W,
