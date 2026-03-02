@@ -13,7 +13,7 @@ from ....math import ceil_divide, get_next_power_of_2
 
 
 @triton.jit
-def pnorm_backward_triton_kernel(
+def norm_backward_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -87,7 +87,7 @@ def pnorm_backward_triton_kernel(
 
 
 @xma_op(mutates_args={"dx"})
-def pnorm_backward_triton(
+def norm_backward_triton(
     x: torch.Tensor, y: torch.Tensor, dy: torch.Tensor, dx: torch.Tensor, multiplier: float | None, p: int
 ) -> None:
     B, H = x.size()
@@ -100,7 +100,7 @@ def pnorm_backward_triton(
     sm_count = Accelerator.get_sm_count(x.device)
     NUM_BLOCKS = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
-    pnorm_backward_triton_kernel[NUM_BLOCKS,](
+    norm_backward_triton_kernel[NUM_BLOCKS,](
         x_ptr=x,
         x_stride=x.stride(),
         y_ptr=y,

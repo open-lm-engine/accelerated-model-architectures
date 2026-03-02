@@ -9,7 +9,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from xma import KernelBackend, set_seed
+from xma import KernelBackend, norm, set_seed
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -18,7 +18,7 @@ from .fused_residual_add_rmsnorm_test import _get_sizes
 _SEED = 42
 
 
-class P_NormTest(TestCommons):
+class NormTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             _get_sizes(),  # size
@@ -26,7 +26,7 @@ class P_NormTest(TestCommons):
             [torch.float32, torch.float16],  # dtype
             [1, 2, 3, "inf"],  # p
             [None, 0.9],  # multiplier
-            [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
+            [norm, torch.compile(norm, fullgraph=True)],  # function
         )
     )
     def test_p_norm(
@@ -46,7 +46,7 @@ class P_NormTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         z_kernel = function(x=x_kernel, multiplier=multiplier, p=p)
-        z_expected = rmsnorm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
+        z_expected = norm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
 
         z_kernel.sum().backward()
         z_expected.sum().backward()

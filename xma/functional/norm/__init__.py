@@ -10,10 +10,10 @@ from ...utils import empty_like_contiguous, is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import pnorm_backward_triton, pnorm_forward_triton
+    from .triton_implementation import norm_backward_triton, norm_forward_triton
 
 
-class _PNorm(CustomOp):
+class _Norm(CustomOp):
     @staticmethod
     def forward_backward_torch(x: torch.Tensor, multiplier: float | None, p: int) -> torch.Tensor:
         if multiplier not in [None, 1]:
@@ -36,7 +36,7 @@ class _PNorm(CustomOp):
             indices = None
             y = torch.empty(B, device=x.device, dtype=torch.float32)
 
-        pnorm_forward_triton(x=x, y=y, p=p)
+        norm_forward_triton(x=x, y=y, p=p)
 
         ctx_save_for_backward(ctx, x, y, indices)
         ctx.multiplier = multiplier
@@ -49,16 +49,16 @@ class _PNorm(CustomOp):
         x, y, indices = ctx.saved_tensors
         dx = empty_like_contiguous(x)
 
-        pnorm_backward_triton(x=x, y=y, dy=dy, dx=dx, multiplier=ctx.multiplier, p=ctx.p)
+        norm_backward_triton(x=x, y=y, dy=dy, dx=dx, multiplier=ctx.multiplier, p=ctx.p)
 
         return dx, None, None
 
 
-def p_norm(
+def norm(
     x: torch.Tensor, multiplier: float | None = None, p: int | str = 2, *, kernel_backend: KernelBackend | None = None
 ) -> torch.Tensor:
     """
-    fused residual add RMSNorm computation
+    computes norm of a vector
 
     :param x: input activation
     :type x: torch.Tensor
@@ -72,6 +72,6 @@ def p_norm(
 
     assert x.dim() == 2
 
-    x = _PNorm.run(x=x, multiplier=multiplier, p=p, kernel_backend=kernel_backend)
+    x = _Norm.run(x=x, multiplier=multiplier, p=p, kernel_backend=kernel_backend)
 
     return x

@@ -12,7 +12,7 @@ from ....math import ceil_divide, get_next_power_of_2
 
 
 @triton.jit
-def pnorm_forward_triton_kernel(
+def norm_forward_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -57,7 +57,7 @@ def pnorm_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def pnorm_forward_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int) -> None:
+def norm_forward_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int) -> None:
     B, H = x.size()
 
     BLOCK_SIZE_B = 1
@@ -65,7 +65,7 @@ def pnorm_forward_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | N
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
     NUM_WARPS = 8
 
-    pnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+    norm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
         x_ptr=x,
         x_stride=x.stride(),
         y_ptr=y,
