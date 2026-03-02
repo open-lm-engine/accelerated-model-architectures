@@ -57,7 +57,7 @@ def norm_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def norm_forward_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int) -> None:
+def norm_forward_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | str) -> None:
     B, H = x.size()
 
     BLOCK_SIZE_B = 1

@@ -15,26 +15,35 @@ if is_triton_available():
 
 class _Norm(CustomOp):
     @staticmethod
-    def forward_backward_torch(x: torch.Tensor, multiplier: float | None, p: int) -> torch.Tensor:
+    def forward_backward_torch(
+        x: torch.Tensor, multiplier: float | None, p: int, output_dtype: torch.dtype
+    ) -> torch.Tensor:
         if multiplier not in [None, 1]:
             x = x * multiplier
 
         x = torch.norm(x, p=p, dim=-1)
 
-        return x
+        return x.to(output_dtype)
 
     @staticmethod
-    def forward(ctx, x: torch.Tensor, multiplier: float | None, p: int, kernel_backend: KernelBackend) -> torch.Tensor:
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        multiplier: float | None,
+        p: int,
+        output_dtype: torch.dtype,
+        kernel_backend: KernelBackend,
+    ) -> torch.Tensor:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
         B = x.size(0)
 
         if p == "inf":
             indices = torch.empty(B, device=x.device, dtype=torch.int32)
-            y = torch.empty(B, device=x.device, dtype=x.dtype)
+            y = torch.empty(B, device=x.device, dtype=output_dtype)
         else:
             indices = None
-            y = torch.empty(B, device=x.device, dtype=torch.float32)
+            y = torch.empty(B, device=x.device, dtype=output_dtype)
 
         norm_forward_triton(x=x, y=y, multiplier=multiplier, p=p)
 
@@ -55,7 +64,12 @@ class _Norm(CustomOp):
 
 
 def norm(
-    x: torch.Tensor, multiplier: float | None = None, p: int | str = 2, *, kernel_backend: KernelBackend | None = None
+    x: torch.Tensor,
+    multiplier: float | None = None,
+    p: int | str = 2,
+    output_dtype: torch.dtype = torch.float32,
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
     """
     computes norm of a vector
@@ -72,6 +86,6 @@ def norm(
 
     assert x.dim() == 2
 
-    x = _Norm.run(x=x, multiplier=multiplier, p=p, kernel_backend=kernel_backend)
+    x = _Norm.run(x=x, multiplier=multiplier, p=p, output_dtype=output_dtype, kernel_backend=kernel_backend)
 
     return x
