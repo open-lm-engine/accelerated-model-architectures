@@ -4,7 +4,7 @@
 
 import torch
 
-from ...accelerator import KernelBackend
+from ...accelerator import Accelerator, KernelBackend
 from ...utils import is_triton_available
 
 
@@ -35,13 +35,18 @@ def norm(
 
     assert x.dim() == 2
 
+    if kernel_backend is None:
+        kernel_backend = Accelerator.get_kernel_backend()
+    else:
+        assert kernel_backend.verify_accelerator()
+
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
         B = x.size(0)
         is_p_inf = p == "inf"
 
         y = torch.empty(B, device=x.device, dtype=output_dtype)
         norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
-    if kernel_backend == KernelBackend.torch:
+    elif kernel_backend == KernelBackend.torch:
         if multiplier not in [None, 1]:
             x = x * multiplier
 
@@ -51,5 +56,7 @@ def norm(
             y = torch.norm(x, p=p, dim=-1)
 
         y = y.to(output_dtype)
+    else:
+        raise NotImplementedError(f"unexpected kernel_backend ({kernel_backend})")
 
     return y
