@@ -47,7 +47,7 @@ def norm_forward_triton_kernel(
         x = tl.sum(tl.abs(x), axis=1)
     elif P == 2:
         x = x.to(tl.float32)
-        x = tl.sum(x * x, axis=1)
+        x = tl.sqrt(tl.sum(x * x, axis=1))
     else:
         x = x.to(tl.float32)
         x = tl.abs(x)
