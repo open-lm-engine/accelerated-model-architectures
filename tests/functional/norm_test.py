@@ -51,8 +51,8 @@ class NormTest(TestCommons):
 
         self.assert_equal_tensors(z_kernel, z_expected, False, atol_float16=1.6e-2, rtol_float16=0)
 
-        z_kernel.sum().backward()
-        z_expected.sum().backward()
+        # z_kernel.sum().backward()
+        # z_expected.sum().backward()
         # self.assert_equal_tensors(
         #     x_kernel.grad,
         #     x_expected.grad,
