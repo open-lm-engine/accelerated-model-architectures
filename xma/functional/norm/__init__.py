@@ -27,6 +27,10 @@ def norm(
     :type x: torch.Tensor
     :param multiplier: if not None, pre-multiplies `x` with `multiplier`. Defaults to None.
     :type multiplier: float | None
+    :param p: norm type. can be integer >= 1 or `inf`
+    :type p: int | str
+    :param output_dtype: output dtype
+    :type torch.dtype
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
     :return: output activation
