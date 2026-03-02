@@ -49,10 +49,10 @@ class NormTest(TestCommons):
         z_kernel = function(x=x_kernel, multiplier=multiplier, p=p)
         z_expected = norm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
 
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float16=1.6e-2, rtol_float16=0)
+
         z_kernel.sum().backward()
         z_expected.sum().backward()
-
-        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float16=1.6e-2, rtol_float16=0)
         # self.assert_equal_tensors(
         #     x_kernel.grad,
         #     x_expected.grad,
