@@ -8,9 +8,19 @@ import triton.language as tl
 
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 
 
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for num_warps in get_powers_of_2(4, 8):
+        for BLOCK_SIZE_B in get_powers_of_2(1, 16):
+            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def fused_residual_add_rmsnorm_forward_triton_kernel(
     x_ptr,
@@ -82,12 +92,12 @@ def fused_residual_add_rmsnorm_forward_triton(
 ) -> None:
     B, H = x.size()
 
-    BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-    NUM_WARPS = 8
 
-    fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
+
+    fused_residual_add_rmsnorm_forward_triton_kernel[GRID](
         x_ptr=x,
         x_stride=x.stride(),
         r_ptr=r,
@@ -104,7 +114,5 @@ def fused_residual_add_rmsnorm_forward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
-        BLOCK_SIZE_B=BLOCK_SIZE_B,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
-        num_warps=NUM_WARPS,
     )
