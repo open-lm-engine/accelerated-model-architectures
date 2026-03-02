@@ -36,7 +36,7 @@ class _Norm(CustomOp):
             indices = None
             y = torch.empty(B, device=x.device, dtype=torch.float32)
 
-        norm_forward_triton(x=x, y=y, p=p)
+        norm_forward_triton(x=x, y=y, multiplier=multiplier, p=p)
 
         ctx_save_for_backward(ctx, x, y, indices)
         ctx.multiplier = multiplier
