@@ -9,7 +9,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from xma import KernelBackend, rmsnorm, set_seed
+from xma import KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
