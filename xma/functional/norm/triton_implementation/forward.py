@@ -20,6 +20,7 @@ def norm_forward_triton_kernel(
     multiplier,
     B,
     H,
+    is_P_inf: tl.constexpr,
     P: tl.constexpr,
     P_inv: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
@@ -40,7 +41,7 @@ def norm_forward_triton_kernel(
     if multiplier is not None:
         x *= multiplier
 
-    if P == "inf":
+    if is_P_inf:
         x = tl.max(x, axis=1)
     else:
         x = x.to(tl.float32)
@@ -75,6 +76,7 @@ def norm_forward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
+        is_P_inf=is_p_inf,
         P=p,
         P_inv=None if is_p_inf else 1 / p,
         BLOCK_SIZE_B=BLOCK_SIZE_B,
