@@ -30,7 +30,7 @@ def norm(
     :param p: norm type. can be integer >= 1 or `inf`
     :type p: int | str
     :param output_dtype: output dtype
-    :type torch.dtype
+    :type output_dtype: torch.dtype
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
     :return: output activation
