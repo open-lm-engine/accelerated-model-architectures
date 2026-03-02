@@ -20,6 +20,7 @@ def norm_forward_triton_kernel(
     multiplier,
     B,
     H,
+    eps,
     is_P_inf: tl.constexpr,
     P: tl.constexpr,
     P_inv: tl.constexpr,
@@ -50,11 +51,11 @@ def norm_forward_triton_kernel(
         x = tl.sqrt(tl.sum(x * x, axis=1))
     else:
         x = x.to(tl.float32)
-        x = tl.abs(x)
+        x = tl.abs(x) + eps
         x = tl.log2(x)
         x *= P
         x = tl.exp2(x)
-        x = tl.sum(x, axis=1)
+        x = tl.sum(x, axis=1) + eps
         x = tl.log2(x)
         x *= P_inv
         x = tl.exp2(x)
@@ -81,6 +82,7 @@ def norm_forward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
+        eps=torch.finfo(torch.float32).eps,
         is_P_inf=is_p_inf,
         P=p,
         P_inv=None if is_p_inf else 1 / p,
