@@ -278,15 +278,17 @@
 <li><p><strong>x</strong> (<em>torch.Tensor</em>) – input activation</p></li>
 <li><p><strong>multiplier</strong> (<em>float</em><em> | </em><em>None</em>) – if not None, pre-multiplies <cite>x</cite> with <cite>multiplier</cite>. Defaults to None.</p></li>
 <li><p><strong>p</strong> (<em>int</em><em> | </em><em>str</em>) – norm type. can be integer &gt;= 1 or <cite>inf</cite></p></li>
-<li><p><strong>output_dtype</strong> – output dtype</p></li>
+<li><p><strong>output_dtype</strong> (<em>torch.dtype</em>) – output dtype</p></li>
+<li><p><strong>kernel_backend</strong> (<a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend" title="xma.accelerator.KernelBackend"><em>KernelBackend</em></a><em> | </em><em>None</em>) – KernelBackend</p></li>
 </ul>
 </dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>output activation</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tensor</p>
+</dd>
 </dl>
-<p>:type torch.dtype
-:param kernel_backend: KernelBackend
-:type kernel_backend: KernelBackend | None
-:return: output activation
-:rtype: Tensor</p>
 </dd></dl>
 
 </section>
