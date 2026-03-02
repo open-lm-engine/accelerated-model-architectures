@@ -72,7 +72,7 @@ def norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: i
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
     NUM_WARPS = 8
 
-    norm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+    norm_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
         x_ptr=x,
         x_stride=x.stride(),
         y_ptr=y,
