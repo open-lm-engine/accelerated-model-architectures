@@ -22,7 +22,7 @@ jobs:
       - name: setup python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.14
+          python-version: 3.12
 
       - name: clone and install uv
         run: |
@@ -30,9 +30,6 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Build documentation
-        env:
-          UV_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
-          UV_INDEX_STRATEGY: unsafe-best-match
         run: make website
 
       - name: Deploy to GitHub Pages
