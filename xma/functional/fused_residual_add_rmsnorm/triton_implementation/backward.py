@@ -6,7 +6,6 @@ import torch
 import triton
 import triton.language as tl
 
-from ....accelerator import Accelerator
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
@@ -120,7 +119,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    sm_count = Accelerator.get_sm_count(xr.device)
+    sm_count = dW.size(0)
     GRID = lambda kwargs: (min(sm_count, ceil_divide(B, kwargs["BLOCK_SIZE_B"])),)
 
     fused_residual_add_rmsnorm_backward_triton_kernel[GRID](
