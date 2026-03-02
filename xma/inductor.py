@@ -5,13 +5,12 @@
 from __future__ import annotations
 
 import inspect
-from contextlib import contextmanager
 from functools import partial
 from typing import Callable, Generator
 
 import torch
 from torch._inductor.fx_passes.joint_graph import patterns
-from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
+from torch._inductor.pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
 
 from .accelerator import KernelBackend
 from .functional import fused_residual_add_rmsnorm, rmsnorm
@@ -107,18 +106,21 @@ _MAPPING = {
 }
 
 
-# @contextmanager
-def enable_kernels(kernels: list[str]):
+def enable_kernels(kernels: list[str], _patterns: PatternMatcherPass = patterns) -> None:
     device = torch.cuda.current_device()
 
     for kernel in kernels:
         for search_function, replacement_function, example_inputs in _MAPPING[kernel](device):
             for trace_function in _ALL_TRACE_FUNCTIONS:
-                print("hi")
                 register_replacement(
                     search_fn=search_function,
                     replace_fn=replacement_function,
                     example_inputs=example_inputs,
                     trace_fn=trace_function,
-                    pass_dicts=patterns,
+                    pass_dicts=_patterns,
                 )
+
+
+class _CallablePatternMatcherPass(PatternMatcherPass):
+    def __call__(self, g: torch.fx.graph.Graph):
+        self.apply(g)

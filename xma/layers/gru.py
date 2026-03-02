@@ -10,10 +10,9 @@ import torch.nn as nn
 from ..accelerator import KernelBackend
 from ..functional import gru
 from ..math import divide_if_divisible
-from ..module import XMAModule
 
 
-class GRU(XMAModule):
+class GRU(nn.Module):
     def __init__(
         self,
         input_size: int,
@@ -72,7 +71,7 @@ class GRU(XMAModule):
             torch.empty(self.num_reset_weight_heads, self.state_head_dim, self.state_head_dim)
         )
 
-        self.output_projection = nn.Linear(self.state_size, output_size, bias=False)
+        self.output_projection = nn.Linear(self.state_size, output_size, bias=add_bias)
 
         self.reset_parameters()
 

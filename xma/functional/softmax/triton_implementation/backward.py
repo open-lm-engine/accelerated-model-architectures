@@ -85,15 +85,16 @@ def online_softmax_backward_triton_kernel(
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
         y = tl.load(y_ptrs, mask=MASK_BH)
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
+
         dy = tl.load(dy_ptrs, mask=MASK_BH)
+        dy_ptrs += BLOCK_SIZE_H * dy_stride[1]
 
         acc = dy * y
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
 
         BLOCK_H += BLOCK_SIZE_H
-        y_ptrs += BLOCK_SIZE_H * y_stride[1]
-        dy_ptrs += BLOCK_SIZE_H * dy_stride[1]
 
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
     y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
@@ -105,7 +106,10 @@ def online_softmax_backward_triton_kernel(
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
         y = tl.load(y_ptrs, mask=MASK_BH)
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
+
         dy = tl.load(dy_ptrs, mask=MASK_BH)
+        dy_ptrs += BLOCK_SIZE_H * dy_stride[1]
 
         dy -= accumulator
         y *= dy
@@ -113,11 +117,9 @@ def online_softmax_backward_triton_kernel(
             y *= logits_multiplier
 
         tl.store(dx_ptrs, y, mask=MASK_BH)
+        dx_ptrs += BLOCK_SIZE_H * dx_stride[1]
 
         BLOCK_H += BLOCK_SIZE_H
-        y_ptrs += BLOCK_SIZE_H * y_stride[1]
-        dy_ptrs += BLOCK_SIZE_H * dy_stride[1]
-        dx_ptrs += BLOCK_SIZE_H * dx_stride[1]
 
 
 @xtune(

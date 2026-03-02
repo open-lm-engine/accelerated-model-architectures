@@ -12,7 +12,6 @@ import torch.nn.functional as F
 
 from ...accelerator import Accelerator, KernelBackend
 from ...functional import continuous_count
-from ...module import XMAModule
 from ...utils import is_triton_available
 
 
@@ -20,7 +19,7 @@ if is_triton_available():
     from .triton_implementation import scattered_experts
 
 
-class Experts(XMAModule):
+class Experts(nn.Module):
     def __init__(
         self, num_experts: int, in_features: int, out_features: int, add_bias: bool = True, std: float | None = None
     ) -> Experts:
@@ -125,7 +124,7 @@ class Experts(XMAModule):
         self.K_array.fill_(self.in_features)
 
 
-class MoE(XMAModule):
+class MoE(nn.Module):
     def __init__(
         self,
         num_experts: int,

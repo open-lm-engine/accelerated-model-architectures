@@ -10,10 +10,9 @@ import torch.nn as nn
 from ..accelerator import KernelBackend
 from ..functional import rnn
 from ..math import divide_if_divisible
-from ..module import XMAModule
 
 
-class RNN(XMAModule):
+class RNN(nn.Module):
     def __init__(
         self,
         input_size: int,
@@ -40,7 +39,7 @@ class RNN(XMAModule):
 
         self.input_projection = nn.Linear(input_size, self.num_input_heads * self.state_head_dim, bias=add_bias)
         self.state_weight = nn.Parameter(torch.empty(self.num_weight_heads, self.state_head_dim, self.state_head_dim))
-        self.output_projection = nn.Linear(self.state_size, output_size, bias=False)
+        self.output_projection = nn.Linear(self.state_size, output_size, bias=add_bias)
 
         self.reset_parameters()
 

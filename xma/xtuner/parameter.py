@@ -2,5 +2,11 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from typing import Generic, TypeVar
 
-class XTuneParameter: ...
+
+T = TypeVar("T")
+
+
+class XTuneParameter(Generic[T]):
+    """Marker annotation for XTune parameters."""

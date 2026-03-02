@@ -10,8 +10,10 @@ from ....accelerator import Accelerator
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
+from .forward import _get_autotune_configs
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def fused_residual_add_rmsnorm_backward_triton_kernel(
     xr_ptr,
@@ -34,7 +36,6 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
     multiplier,
     B,
     H,
-    ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -98,10 +99,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             dW += tl.sum(dy * (xr * r[:, None]), axis=0)
 
     if W_ptr is not None:
-        if ATOMIC_ADD:
-            tl.atomic_add(dW_ptr + BLOCK_H * dW_stride[0], dW, mask=MASK_H, sem="relaxed")
-        else:
-            tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
+        tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
 
 
 @xma_op(mutates_args={"dx", "dr", "dW"})
@@ -116,19 +114,19 @@ def fused_residual_add_rmsnorm_backward_triton(
     dW: torch.Tensor | None,
     eps: float,
     multiplier: float | None,
-    deterministic: bool,
 ) -> None:
     B, H = xr.size()
 
-    BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-    NUM_WARPS = 8
 
-    sm_count = Accelerator.get_sm_count(xr.device)
-    NUM_BLOCKS = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
+    if dW is None:
+        sm_count = Accelerator.get_sm_count()
+        GRID = lambda kwargs: (min(sm_count, ceil_divide(B, kwargs["BLOCK_SIZE_B"])),)
+    else:
+        GRID = (dW.size(0),)
 
-    fused_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
+    fused_residual_add_rmsnorm_backward_triton_kernel[GRID](
         xr_ptr=xr,
         xr_stride=None if xr is None else xr.stride(),
         W_ptr=W,
@@ -149,8 +147,5 @@ def fused_residual_add_rmsnorm_backward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
-        ATOMIC_ADD=not deterministic,
-        BLOCK_SIZE_B=BLOCK_SIZE_B,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
-        num_warps=NUM_WARPS,
     )
