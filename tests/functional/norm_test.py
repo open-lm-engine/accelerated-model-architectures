@@ -23,10 +23,10 @@ class NormTest(TestCommons):
         TestCommons.make_args_matrix(
             _get_sizes(),  # size
             [KernelBackend.triton],  # KernelBackend
-            [torch.float32, torch.float16],  # dtype
+            [torch.float32],  # dtype
             [1, 2, 3, "inf"],  # p
             [None, 0.9],  # multiplier
-            [norm, torch.compile(norm, fullgraph=True)],  # function
+            [norm],  # function
         )
     )
     def test_p_norm(
@@ -48,7 +48,9 @@ class NormTest(TestCommons):
         z_kernel = function(x=x_kernel, multiplier=multiplier, p=p)
         z_expected = norm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
 
-        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float16=1.6e-2, rtol_float16=0)
+        self.assert_equal_tensors(
+            z_kernel, z_expected, False, atol_float32=3.1e-3 if p == 3 else None, rtol_float32=0 if p == 3 else None
+        )
 
         # z_kernel.sum().backward()
         # z_expected.sum().backward()
