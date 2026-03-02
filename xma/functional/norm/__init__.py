@@ -22,7 +22,7 @@ class _Norm(CustomOp):
             x = x * multiplier
 
         if p == "inf":
-            x = x.abs().max(dim=-1)
+            x = x.abs().max(dim=-1)[0]
         else:
             x = torch.norm(x, p=p, dim=-1)
 
