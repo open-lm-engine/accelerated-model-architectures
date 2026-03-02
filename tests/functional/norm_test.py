@@ -51,15 +51,3 @@ class NormTest(TestCommons):
         self.assert_equal_tensors(
             z_kernel, z_expected, False, atol_float32=3.1e-3 if p == 3 else None, rtol_float32=0 if p == 3 else None
         )
-
-        # z_kernel.sum().backward()
-        # z_expected.sum().backward()
-        # self.assert_equal_tensors(
-        #     x_kernel.grad,
-        #     x_expected.grad,
-        #     False,
-        #     atol_float32=1.2e-5,
-        #     rtol_float32=0,
-        #     atol_float16=9e-2,
-        #     rtol_float16=0,
-        # )
