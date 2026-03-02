@@ -10,6 +10,7 @@ xma.functional
    xma.functional.fused_residual_add_rmsnorm
    xma.functional.gru
    xma.functional.linear_attention
+   xma.functional.norm
    xma.functional.rnn
    xma.functional.sequence_packing
    xma.functional.softmax
