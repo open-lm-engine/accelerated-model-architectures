@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.functional.rnn" href="xma.functional.rnn.html"><link rel="prev" title="xma.functional.linear_attention" href="xma.functional.linear_attention.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.utils.contiguous - XMA documentation</title>
+        <title>xma.functional.norm - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -191,15 +191,15 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.functional.html">xma.functional</a><input aria-label="Toggle navigation of xma.functional" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="xma.functional.html">xma.functional</a><input aria-label="Toggle navigation of xma.functional" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.bmm.html">xma.functional.bmm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.continuous_count.html">xma.functional.continuous_count</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.cross_entropy.html">xma.functional.cross_entropy</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.html">xma.functional.fused_residual_add_rmsnorm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.gru.html">xma.functional.gru</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.linear_attention.html">xma.functional.linear_attention</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.norm.html">xma.functional.norm</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">xma.functional.norm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.rnn.html">xma.functional.rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.sequence_packing.html">xma.functional.sequence_packing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.softmax.html">xma.functional.softmax</a></li>
@@ -248,7 +248,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="_sources/xma.utils.contiguous.rst.txt" title="View this page">
+  <a class="muted-link" href="_sources/xma.functional.norm.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -266,12 +266,28 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.utils.contiguous">
-<span id="xma-utils-contiguous"></span><h1>xma.utils.contiguous<a class="headerlink" href="#module-xma.utils.contiguous" title="Link to this heading">¶</a></h1>
+          <section id="module-xma.functional.norm">
+<span id="xma-functional-norm"></span><h1>xma.functional.norm<a class="headerlink" href="#module-xma.functional.norm" title="Link to this heading">¶</a></h1>
 <dl class="py function">
-<dt class="sig sig-object py" id="xma.utils.contiguous.ensure_contiguous">
-<span class="sig-name descname"><span class="pre">ensure_contiguous</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference internal" href="_modules/xma/utils/contiguous.html#ensure_contiguous"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.utils.contiguous.ensure_contiguous" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt class="sig sig-object py" id="xma.functional.norm.norm">
+<span class="sig-name descname"><span class="pre">norm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multiplier</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dtype</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">torch.float32</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_backend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend" title="xma.accelerator.KernelBackend"><span class="pre">KernelBackend</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="_modules/xma/functional/norm.html#norm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.functional.norm.norm" title="Link to this definition">¶</a></dt>
+<dd><p>computes norm of a vector</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>torch.Tensor</em>) – input activation</p></li>
+<li><p><strong>multiplier</strong> (<em>float</em><em> | </em><em>None</em>) – if not None, pre-multiplies <cite>x</cite> with <cite>multiplier</cite>. Defaults to None.</p></li>
+<li><p><strong>p</strong> (<em>int</em><em> | </em><em>str</em>) – norm type. can be integer &gt;= 1 or <cite>inf</cite></p></li>
+<li><p><strong>output_dtype</strong> – output dtype</p></li>
+</ul>
+</dd>
+</dl>
+<p>:type torch.dtype
+:param kernel_backend: KernelBackend
+:type kernel_backend: KernelBackend | None
+:return: output activation
+:rtype: Tensor</p>
+</dd></dl>
 
 </section>
 
@@ -280,8 +296,26 @@
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="xma.functional.rnn.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">xma.functional.rnn</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="xma.functional.linear_attention.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">xma.functional.linear_attention</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -312,8 +346,8 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">xma.utils.contiguous</a><ul>
-<li><a class="reference internal" href="#xma.utils.contiguous.ensure_contiguous"><code class="docutils literal notranslate"><span class="pre">ensure_contiguous()</span></code></a></li>
+<li><a class="reference internal" href="#">xma.functional.norm</a><ul>
+<li><a class="reference internal" href="#xma.functional.norm.norm"><code class="docutils literal notranslate"><span class="pre">norm()</span></code></a></li>
 </ul>
 </li>
 </ul>

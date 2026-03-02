@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.cute_dsl_utils.math - XMA documentation</title>
+        <title>xma.functional.norm - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -259,66 +259,75 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <h1>Source code for xma.cute_dsl_utils.math</h1><div class="highlight"><pre>
+          <h1>Source code for xma.functional.norm</h1><div class="highlight"><pre>
 <span></span><span class="c1"># **************************************************</span>
 <span class="c1"># Copyright (c) 2025, Mayank Mishra</span>
 <span class="c1"># **************************************************</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">cutlass.cute</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cute</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">cutlass</span><span class="w"> </span><span class="kn">import</span> <span class="n">Float32</span><span class="p">,</span> <span class="n">Numeric</span><span class="p">,</span> <span class="n">const_expr</span><span class="p">,</span> <span class="n">range_constexpr</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">cutlass._mlir.dialects</span><span class="w"> </span><span class="kn">import</span> <span class="n">llvm</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">cutlass.cute</span><span class="w"> </span><span class="kn">import</span> <span class="n">TensorSSA</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">cutlass.cutlass_dsl</span><span class="w"> </span><span class="kn">import</span> <span class="n">T</span><span class="p">,</span> <span class="n">dsl_user_op</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">Accelerator</span><span class="p">,</span> <span class="n">KernelBackend</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_triton_available</span>
 
 
-<span class="nd">@dsl_user_op</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">_tanh</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Float32</span> <span class="o">|</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ip</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Float32</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">Float32</span><span class="p">(</span>
-        <span class="n">llvm</span><span class="o">.</span><span class="n">inline_asm</span><span class="p">(</span>
-            <span class="n">res</span><span class="o">=</span><span class="n">T</span><span class="o">.</span><span class="n">f32</span><span class="p">(),</span>
-            <span class="n">operands_</span><span class="o">=</span><span class="p">[</span><span class="n">Float32</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">ir_value</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="n">loc</span><span class="p">,</span> <span class="n">ip</span><span class="o">=</span><span class="n">ip</span><span class="p">)],</span>
-            <span class="n">asm_string</span><span class="o">=</span><span class="s2">&quot;tanh.approx.f32 $0, $1;&quot;</span><span class="p">,</span>
-            <span class="n">constraints</span><span class="o">=</span><span class="s2">&quot;=f,f&quot;</span><span class="p">,</span>
-            <span class="n">has_side_effects</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">is_align_stack</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">asm_dialect</span><span class="o">=</span><span class="n">llvm</span><span class="o">.</span><span class="n">AsmDialect</span><span class="o">.</span><span class="n">AD_ATT</span><span class="p">,</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
+<span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">norm_triton</span>
 
 
-<span class="nd">@cute</span><span class="o">.</span><span class="n">jit</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">tanh</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Numeric</span> <span class="o">|</span> <span class="n">TensorSSA</span><span class="p">,</span> <span class="n">output_dtype</span><span class="p">:</span> <span class="n">Numeric</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Numeric</span> <span class="o">|</span> <span class="n">TensorSSA</span><span class="p">:</span>
-    <span class="k">if</span> <span class="n">const_expr</span><span class="p">(</span><span class="n">output_dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="n">output_dtype</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span>
+<div class="viewcode-block" id="norm">
+<a class="viewcode-back" href="../../../xma.functional.norm.html#xma.functional.norm.norm">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">norm</span><span class="p">(</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">p</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">output_dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    computes norm of a vector</span>
 
-    <span class="k">if</span> <span class="n">const_expr</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">TensorSSA</span><span class="p">)):</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">cute</span><span class="o">.</span><span class="n">make_rmem_tensor</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">Float32</span><span class="p">)</span>
-        <span class="n">y</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">Float32</span><span class="p">))</span>
+<span class="sd">    :param x: input activation</span>
+<span class="sd">    :type x: torch.Tensor</span>
+<span class="sd">    :param multiplier: if not None, pre-multiplies `x` with `multiplier`. Defaults to None.</span>
+<span class="sd">    :type multiplier: float | None</span>
+<span class="sd">    :param p: norm type. can be integer &gt;= 1 or `inf`</span>
+<span class="sd">    :type p: int | str</span>
+<span class="sd">    :param output_dtype: output dtype</span>
+<span class="sd">    :type torch.dtype</span>
+<span class="sd">    :param kernel_backend: KernelBackend</span>
+<span class="sd">    :type kernel_backend: KernelBackend | None</span>
+<span class="sd">    :return: output activation</span>
+<span class="sd">    :rtype: Tensor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">range_constexpr</span><span class="p">(</span><span class="n">cute</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">)):</span>
-            <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">_tanh</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span>
 
-        <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">kernel_backend</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">kernel_backend</span> <span class="o">=</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">get_kernel_backend</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">_tanh</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">Float32</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="n">kernel_backend</span><span class="o">.</span><span class="n">verify_accelerator</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">kernel_backend</span> <span class="ow">in</span> <span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">,</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">]:</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">is_p_inf</span> <span class="o">=</span> <span class="n">p</span> <span class="o">==</span> <span class="s2">&quot;inf&quot;</span>
+
+        <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">output_dtype</span><span class="p">)</span>
+        <span class="n">norm_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">is_p_inf</span> <span class="k">else</span> <span class="n">p</span><span class="p">,</span> <span class="n">is_p_inf</span><span class="o">=</span><span class="n">is_p_inf</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">torch</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">multiplier</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">multiplier</span>
+
+        <span class="k">if</span> <span class="n">p</span> <span class="o">==</span> <span class="s2">&quot;inf&quot;</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
         <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">output_dtype</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected kernel_backend (</span><span class="si">{</span><span class="n">kernel_backend</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">y</span>
-
-
-<div class="viewcode-block" id="sigmoid">
-<a class="viewcode-back" href="../../../xma.cute_dsl_utils.math.html#xma.cute_dsl_utils.math.sigmoid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">sigmoid</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Numeric</span> <span class="o">|</span> <span class="n">TensorSSA</span><span class="p">,</span> <span class="n">output_dtype</span><span class="p">:</span> <span class="n">Numeric</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Numeric</span> <span class="o">|</span> <span class="n">TensorSSA</span><span class="p">:</span>
-    <span class="k">if</span> <span class="n">const_expr</span><span class="p">(</span><span class="n">output_dtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="n">output_dtype</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span>
-
-    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">Float32</span><span class="p">)</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">tanh</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">x</span><span class="p">,</span> <span class="n">output_dtype</span><span class="o">=</span><span class="n">Float32</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.5</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">output_dtype</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">x</span></div>
+    <span class="k">return</span> <span class="n">y</span></div>
 
 </pre></div>
         </article>
