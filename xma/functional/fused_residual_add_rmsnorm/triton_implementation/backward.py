@@ -13,7 +13,7 @@ from ....math import ceil_divide, get_next_power_of_2
 from .forward import _get_autotune_configs
 
 
-# @triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def fused_residual_add_rmsnorm_backward_triton_kernel(
     xr_ptr,
@@ -119,9 +119,7 @@ def fused_residual_add_rmsnorm_backward_triton(
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-    NUM_WARPS = 8
 
-    BLOCK_SIZE_B = 1
     sm_count = Accelerator.get_sm_count(xr.device)
     GRID = lambda kwargs: (min(sm_count, ceil_divide(B, kwargs["BLOCK_SIZE_B"])),)
 
@@ -146,7 +144,5 @@ def fused_residual_add_rmsnorm_backward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
-        BLOCK_SIZE_B=BLOCK_SIZE_B,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
-        num_warps=NUM_WARPS,
     )
