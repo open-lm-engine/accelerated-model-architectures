@@ -1,0 +1,63 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
+from __future__ import annotations
+
+from typing import Callable
+
+import torch
+from parameterized import parameterized
+
+from xma import KernelBackend, rmsnorm, set_seed
+
+from ..test_commons import TestCommons
+from .fused_residual_add_rmsnorm_test import _get_sizes
+
+
+_SEED = 42
+
+
+class P_NormTest(TestCommons):
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            _get_sizes(),  # size
+            [KernelBackend.triton],  # KernelBackend
+            [torch.float32, torch.float16],  # dtype
+            [1, 2, 3, "inf"],  # p
+            [None, 0.9],  # multiplier
+            [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
+        )
+    )
+    def test_p_norm(
+        self,
+        size: tuple[int],
+        kernel_backend: KernelBackend,
+        dtype: torch.dtype,
+        p: int | str,
+        multiplier: float | None,
+        function: Callable,
+    ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
+
+        set_seed(_SEED)
+
+        x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
+
+        z_kernel = function(x=x_kernel, multiplier=multiplier, p=p)
+        z_expected = rmsnorm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
+
+        z_kernel.sum().backward()
+        z_expected.sum().backward()
+
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float16=1.6e-2, rtol_float16=0)
+        self.assert_equal_tensors(
+            x_kernel.grad,
+            x_expected.grad,
+            False,
+            atol_float32=1.2e-5,
+            rtol_float32=0,
+            atol_float16=9e-2,
+            rtol_float16=0,
+        )
