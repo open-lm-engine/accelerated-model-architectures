@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 import torch
 import torch._inductor.config as config
 import torch.nn as nn

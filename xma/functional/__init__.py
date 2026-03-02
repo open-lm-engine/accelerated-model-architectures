@@ -9,6 +9,7 @@ from .fused_linear_cross_entropy import fused_linear_cross_entropy
 from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
 from .gru import gru
 from .linear_attention import linear_attention
+from .norm import norm
 from .rmsnorm import rmsnorm
 from .rnn import rnn
 from .sequence_packing import pack_sequence, unpack_sequence
