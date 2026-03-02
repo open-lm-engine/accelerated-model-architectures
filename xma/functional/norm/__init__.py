@@ -40,7 +40,7 @@ def norm(
         is_p_inf = p == "inf"
 
         y = torch.empty(B, device=x.device, dtype=output_dtype)
-        norm_forward_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
+        norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
     if kernel_backend == KernelBackend.torch:
         if multiplier not in [None, 1]:
             x = x * multiplier
