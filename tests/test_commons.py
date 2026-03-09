@@ -33,7 +33,8 @@ class TestCommons(TestCase):
     @staticmethod
     def get_1d_tensor_sizes(
         log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
-    ) -> set[int]:
+    ) -> list[int]:
+        rng = random.Random(42)
         sizes = set()
         # powers of 2
         for i in range(log_max_power_of_2):
@@ -42,13 +43,14 @@ class TestCommons(TestCase):
                 sizes.add(start + j)
         # not powers of 2
         for _ in range(num_not_powers_of_2):
-            sizes.add(3000 + random.randint(-1000, 1000))
-        return sizes
+            sizes.add(3000 + rng.randint(-1000, 1000))
+        return sorted(sizes)
 
     @staticmethod
     def get_2d_tensor_sizes(
         log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
-    ) -> set[int]:
+    ) -> list[tuple[int, int]]:
+        rng = random.Random(42)
         sizes = set()
         # powers of 2
         for i in range(log_max_power_of_2):
@@ -57,8 +59,8 @@ class TestCommons(TestCase):
                 sizes.add((start + j, start + j))
         # not powers of 2
         for _ in range(num_not_powers_of_2):
-            sizes.add((3000 + random.randint(-1000, 1000), 3000 + random.randint(-1000, 1000)))
-        return sizes
+            sizes.add((3000 + rng.randint(-1000, 1000), 3000 + rng.randint(-1000, 1000)))
+        return sorted(sizes)
 
     def make_args_matrix(*args_lists) -> list[Any]:
         return [p for p in product(*args_lists)]
