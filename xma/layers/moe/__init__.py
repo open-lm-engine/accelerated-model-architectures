@@ -16,7 +16,7 @@ from ...utils import is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import down_projection_experts, up_projection_experts
+    from .triton_implementation import scattered_experts
 
 
 class Experts(nn.Module):
@@ -52,13 +52,16 @@ class Experts(nn.Module):
     ) -> torch.Tensor:
         assert self.bias is None
 
-        input = up_projection_experts(
+        input = scattered_experts(
             inputs=input,
             expert_weights=self.weight.permute(0, 2, 1),
             k=num_experts_per_token,
             sorted_expert_idxs=sorted_expert_idxs,
             sorted_scattered_idxs=sorted_scattered_idxs,
             expert_offsets=expert_offsets,
+            gates=None,
+            grouped_in=False,
+            grouped_out=True,
         )
 
         return input
@@ -74,7 +77,7 @@ class Experts(nn.Module):
     ) -> torch.Tensor:
         assert self.bias is None
 
-        input = down_projection_experts(
+        input = scattered_experts(
             inputs=input,
             expert_weights=self.weight.permute(0, 2, 1),
             k=num_experts_per_token,
@@ -82,6 +85,8 @@ class Experts(nn.Module):
             sorted_scattered_idxs=sorted_scattered_idxs,
             expert_offsets=expert_offsets,
             gates=gates,
+            grouped_in=True,
+            grouped_out=False,
         )
 
         return input
