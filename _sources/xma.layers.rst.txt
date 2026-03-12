@@ -11,6 +11,7 @@ xma.layers
 
    xma.layers.gru
    xma.layers.linear_attention
+   xma.layers.m2rnn
    xma.layers.rnn
 
 .. automodule:: xma.layers

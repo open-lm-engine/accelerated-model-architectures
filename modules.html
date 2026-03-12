@@ -199,6 +199,7 @@
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.html">xma.functional.fused_residual_add_rmsnorm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.gru.html">xma.functional.gru</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.linear_attention.html">xma.functional.linear_attention</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.functional.m2rnn.html">xma.functional.m2rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.norm.html">xma.functional.norm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.rnn.html">xma.functional.rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.sequence_packing.html">xma.functional.sequence_packing</a></li>
@@ -213,6 +214,7 @@
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.moe.html">xma.layers.moe</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.gru.html">xma.layers.gru</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.linear_attention.html">xma.layers.linear_attention</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.m2rnn.html">xma.layers.m2rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a></li>
 </ul>
 </li>
@@ -296,6 +298,10 @@
 <li class="toctree-l4"><a class="reference internal" href="xma.functional.linear_attention.html#xma.functional.linear_attention.linear_attention"><code class="docutils literal notranslate"><span class="pre">linear_attention()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="xma.functional.m2rnn.html">xma.functional.m2rnn</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.functional.m2rnn.html#xma.functional.m2rnn.m2rnn"><code class="docutils literal notranslate"><span class="pre">m2rnn()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="xma.functional.norm.html">xma.functional.norm</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="xma.functional.norm.html#xma.functional.norm.norm"><code class="docutils literal notranslate"><span class="pre">norm()</span></code></a></li>
 </ul>
@@ -345,48 +351,12 @@
 <li class="toctree-l4"><a class="reference internal" href="xma.layers.linear_attention.html#xma.layers.linear_attention.LinearAttention"><code class="docutils literal notranslate"><span class="pre">LinearAttention</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.m2rnn.html">xma.layers.m2rnn</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.layers.m2rnn.html#xma.layers.m2rnn.M2RNN"><code class="docutils literal notranslate"><span class="pre">M2RNN</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="xma.layers.rnn.html#xma.layers.rnn.RNN"><code class="docutils literal notranslate"><span class="pre">RNN</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="xma.utils.html">xma.utils</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="xma.utils.contiguous.html">xma.utils.contiguous</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.contiguous.html#xma.utils.contiguous.ensure_contiguous"><code class="docutils literal notranslate"><span class="pre">ensure_contiguous()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="xma.utils.debugging.html">xma.utils.debugging</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.debugging.html#xma.utils.debugging.print_gradient"><code class="docutils literal notranslate"><span class="pre">print_gradient()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="xma.utils.env.html">xma.utils.env</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.env.html#xma.utils.env.get_boolean_env_variable"><code class="docutils literal notranslate"><span class="pre">get_boolean_env_variable()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="xma.utils.packages.html">xma.utils.packages</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.packages.html#xma.utils.packages.is_cute_dsl_available"><code class="docutils literal notranslate"><span class="pre">is_cute_dsl_available()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.packages.html#xma.utils.packages.is_torch_neuronx_available"><code class="docutils literal notranslate"><span class="pre">is_torch_neuronx_available()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.packages.html#xma.utils.packages.is_torch_xla_available"><code class="docutils literal notranslate"><span class="pre">is_torch_xla_available()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.packages.html#xma.utils.packages.is_triton_available"><code class="docutils literal notranslate"><span class="pre">is_triton_available()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="xma.utils.ptx.html">xma.utils.ptx</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.ptx.html#xma.utils.ptx.get_ptx_from_triton_kernel"><code class="docutils literal notranslate"><span class="pre">get_ptx_from_triton_kernel()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="xma.utils.random.html">xma.utils.random</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.random.html#xma.utils.random.set_seed"><code class="docutils literal notranslate"><span class="pre">set_seed()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="xma.utils.settings.html">xma.utils.settings</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.settings.html#xma.utils.settings.get_triton_num_warps"><code class="docutils literal notranslate"><span class="pre">get_triton_num_warps()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="xma.utils.tensor.html">xma.utils.tensor</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.tensor.html#xma.utils.tensor.empty_like_contiguous"><code class="docutils literal notranslate"><span class="pre">empty_like_contiguous()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.tensor.html#xma.utils.tensor.get_alignment"><code class="docutils literal notranslate"><span class="pre">get_alignment()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="xma.utils.tensor.html#xma.utils.tensor.zeros_like_contiguous"><code class="docutils literal notranslate"><span class="pre">zeros_like_contiguous()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -439,7 +409,6 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="xma.constants.html">xma.constants</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.counters.html">xma.counters</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="xma.counters.html#xma.counters.enable_counters"><code class="docutils literal notranslate"><span class="pre">enable_counters()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="xma.counters.html#xma.counters.get_counter_value"><code class="docutils literal notranslate"><span class="pre">get_counter_value()</span></code></a></li>
@@ -479,12 +448,6 @@
 <li class="toctree-l3"><a class="reference internal" href="xma.math.html#xma.math.divide_if_divisible"><code class="docutils literal notranslate"><span class="pre">divide_if_divisible()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="xma.math.html#xma.math.get_next_power_of_2"><code class="docutils literal notranslate"><span class="pre">get_next_power_of_2()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="xma.math.html#xma.math.get_powers_of_2"><code class="docutils literal notranslate"><span class="pre">get_powers_of_2()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="xma.torch_utils.html">xma.torch_utils</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="xma.torch_utils.html#xma.torch_utils.clip_gradients"><code class="docutils literal notranslate"><span class="pre">clip_gradients()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="xma.torch_utils.html#xma.torch_utils.sigmoid"><code class="docutils literal notranslate"><span class="pre">sigmoid()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="xma.torch_utils.html#xma.torch_utils.tanh"><code class="docutils literal notranslate"><span class="pre">tanh()</span></code></a></li>
 </ul>
 </li>
 </ul>

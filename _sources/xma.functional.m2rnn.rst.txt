@@ -1,7 +1,7 @@
-xma.utils.contiguous
+xma.functional.m2rnn
 ====================
 
-.. automodule:: xma.utils.contiguous
+.. automodule:: xma.functional.m2rnn
    :members:
    :show-inheritance:
    :undoc-members:

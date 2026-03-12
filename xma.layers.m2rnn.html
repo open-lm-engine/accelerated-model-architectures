@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.layers.rnn" href="xma.layers.rnn.html"><link rel="prev" title="xma.layers.linear_attention" href="xma.layers.linear_attention.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.utils.contiguous - XMA documentation</title>
+        <title>xma.layers.m2rnn - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -191,7 +191,7 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1 has-children"><a class="reference internal" href="xma.functional.html">xma.functional</a><input aria-label="Toggle navigation of xma.functional" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.bmm.html">xma.functional.bmm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.continuous_count.html">xma.functional.continuous_count</a></li>
@@ -199,6 +199,7 @@
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.html">xma.functional.fused_residual_add_rmsnorm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.gru.html">xma.functional.gru</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.linear_attention.html">xma.functional.linear_attention</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.functional.m2rnn.html">xma.functional.m2rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.norm.html">xma.functional.norm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.rnn.html">xma.functional.rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.sequence_packing.html">xma.functional.sequence_packing</a></li>
@@ -209,10 +210,11 @@
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.swiglu_packed.html">xma.functional.swiglu_packed</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.layers.html">xma.layers</a><input aria-label="Toggle navigation of xma.layers" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="xma.layers.html">xma.layers</a><input aria-label="Toggle navigation of xma.layers" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.moe.html">xma.layers.moe</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.gru.html">xma.layers.gru</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.linear_attention.html">xma.layers.linear_attention</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">xma.layers.m2rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a></li>
 </ul>
 </li>
@@ -248,7 +250,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="_sources/xma.utils.contiguous.rst.txt" title="View this page">
+  <a class="muted-link" href="_sources/xma.layers.m2rnn.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -266,12 +268,32 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.utils.contiguous">
-<span id="xma-utils-contiguous"></span><h1>xma.utils.contiguous<a class="headerlink" href="#module-xma.utils.contiguous" title="Link to this heading">¶</a></h1>
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.utils.contiguous.ensure_contiguous">
-<span class="sig-name descname"><span class="pre">ensure_contiguous</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference internal" href="_modules/xma/utils/contiguous.html#ensure_contiguous"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.utils.contiguous.ensure_contiguous" title="Link to this definition">¶</a></dt>
+          <section id="module-xma.layers.m2rnn">
+<span id="xma-layers-m2rnn"></span><h1>xma.layers.m2rnn<a class="headerlink" href="#module-xma.layers.m2rnn" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="xma.layers.m2rnn.M2RNN">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">M2RNN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key_head_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value_head_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_query_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_key_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_value_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_forget_input_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_weight_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradient_clipping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/layers/m2rnn.html#M2RNN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers.m2rnn.M2RNN" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="xma.layers.m2rnn.M2RNN.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cu_seqlens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_seqlen</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_backend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend" title="xma.accelerator.KernelBackend"><span class="pre">KernelBackend</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/layers/m2rnn.html#M2RNN.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers.m2rnn.M2RNN.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Define the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="xma.layers.m2rnn.M2RNN.reset_parameters">
+<span class="sig-name descname"><span class="pre">reset_parameters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/xma/layers/m2rnn.html#M2RNN.reset_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers.m2rnn.M2RNN.reset_parameters" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
+
+</dd></dl>
 
 </section>
 
@@ -280,8 +302,26 @@
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="xma.layers.rnn.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">xma.layers.rnn</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="xma.layers.linear_attention.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">xma.layers.linear_attention</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -312,8 +352,12 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">xma.utils.contiguous</a><ul>
-<li><a class="reference internal" href="#xma.utils.contiguous.ensure_contiguous"><code class="docutils literal notranslate"><span class="pre">ensure_contiguous()</span></code></a></li>
+<li><a class="reference internal" href="#">xma.layers.m2rnn</a><ul>
+<li><a class="reference internal" href="#xma.layers.m2rnn.M2RNN"><code class="docutils literal notranslate"><span class="pre">M2RNN</span></code></a><ul>
+<li><a class="reference internal" href="#xma.layers.m2rnn.M2RNN.forward"><code class="docutils literal notranslate"><span class="pre">M2RNN.forward()</span></code></a></li>
+<li><a class="reference internal" href="#xma.layers.m2rnn.M2RNN.reset_parameters"><code class="docutils literal notranslate"><span class="pre">M2RNN.reset_parameters()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
