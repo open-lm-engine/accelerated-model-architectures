@@ -201,7 +201,7 @@ class M2RNNTest(TestCommons):
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        problem_shape: tuple[int, int, int],
+        problem_shape: tuple[int, int, int, int, int, int, int],
         has_input_state: bool,
     ) -> None:
         if Accelerator.get_accelerator() != Accelerator.cuda:
