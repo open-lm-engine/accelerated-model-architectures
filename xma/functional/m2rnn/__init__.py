@@ -248,13 +248,13 @@ def m2rnn(
     computes M2RNN recurrence
 
     :param query: query tensor of shape (B, S, Nq, K) where Nq is the number of query heads and K is the key head
-        dimension. Should have shape (T, Nq, H) and `cu_seqlens` should be passed.
+        dimension. Should have shape (T, Nq, K) and `cu_seqlens` should be passed.
     :type query: torch.Tensor
     :param key: key tensor of shape (B, S, Nk, K) where Nk is the number of key heads and K is the key head
-        dimension. Should have shape (T, Nk, H) and `cu_seqlens` should be passed.
+        dimension. Should have shape (T, Nk, K) and `cu_seqlens` should be passed.
     :type key: torch.Tensor
     :param value: value tensor of shape (B, S, Nv, V) where Nv is the number of value heads and V is the value head
-        dimension. Should have shape (T, Nv, H) and `cu_seqlens` should be passed.
+        dimension. Should have shape (T, Nv, V) and `cu_seqlens` should be passed.
     :type value: torch.Tensor
     :param weight: weight tensor of shape (Nw, V, V)
     :type weight: torch.Tensor
