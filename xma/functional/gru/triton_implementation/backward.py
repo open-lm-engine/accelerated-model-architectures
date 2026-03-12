@@ -394,7 +394,7 @@ def gru_backward_triton(
     else:
         B = cu_seqlens.size(0) - 1
         S = max_seqlen
-        _, _, H = y.size()
+        H = y.size(-1)
 
     Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=dx, W=W, xf=dxf, Wf=Wf, xr=dxr, Wr=Wr, run_check=False)
 

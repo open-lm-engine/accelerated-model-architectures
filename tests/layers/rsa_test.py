@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from xma import GRU, Accelerator, KernelBackend, set_seed
+from xma import M2RNN, Accelerator, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -14,10 +14,10 @@ from ..test_commons import TestCommons
 _SEED = 42
 
 
-def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
-    result = [(9, 7, 7, 7, 7, 7, 7)]
+def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int]]:
+    base = [64, 64, 8, 8, 8, 8, 8]
 
-    base = [8, 8, 8, 8, 8, 8, 8]
+    result = [(9, 9, 7, 7, 7, 7, 7)]
     for i in range(1, len(base)):
         t = base.copy()
         t[i] = 4
@@ -26,18 +26,26 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
     return result
 
 
-class GRUTest(TestCommons):
+class M2RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.triton],  # KernelBackend
-            [torch.float32, torch.float16],  # dtype
+            [torch.float32, torch.bfloat16],
+            [(4, 977, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
+            [(9, 9, 7, 7, 7, 7, 7)],
+            [False, True],  # has_input_state
+            [False, True],  # is_compiling
+        )
+        + TestCommons.make_args_matrix(
+            [KernelBackend.triton],  # KernelBackend
+            [torch.float32, torch.bfloat16],
             [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
-            _get_problem_shapes(),  # problem_shape
+            _get_problem_shapes(),
             [False, True],  # has_input_state
             [False, True],  # is_compiling
         )
     )
-    def test_gru(
+    def test_m2rnn(
         self,
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
@@ -52,17 +60,17 @@ class GRUTest(TestCommons):
         set_seed(_SEED)
 
         (
-            state_head_dim,
-            num_input_heads,
+            key_head_dim,
+            value_head_dim,
+            num_query_heads,
+            num_key_heads,
+            num_value_heads,
             num_forget_input_heads,
-            num_reset_input_heads,
             num_weight_heads,
-            num_forget_weight_heads,
-            num_reset_weight_heads,
         ) = problem_shape
 
-        num_heads = max(*problem_shape[1:])
-        state_size = num_heads * state_head_dim
+        num_heads = max(num_query_heads, num_key_heads, num_value_heads, num_forget_input_heads, num_weight_heads)
+        state_size = num_heads * key_head_dim * value_head_dim
 
         B, S, cu_seqlens = input_shape
         max_seqlen = None
@@ -83,29 +91,29 @@ class GRUTest(TestCommons):
         )
 
         with torch.device(device):
-            gru = GRU(
+            m2rnn = M2RNN(
                 input_size=state_size,
-                state_head_dim=state_head_dim,
+                key_head_dim=key_head_dim,
+                value_head_dim=value_head_dim,
                 output_size=state_size,
-                num_input_heads=num_input_heads,
+                num_query_heads=num_query_heads,
+                num_key_heads=num_key_heads,
+                num_value_heads=num_value_heads,
                 num_forget_input_heads=num_forget_input_heads,
-                num_reset_input_heads=num_reset_input_heads,
                 num_weight_heads=num_weight_heads,
-                num_forget_weight_heads=num_forget_weight_heads,
-                num_reset_weight_heads=num_reset_weight_heads,
                 add_bias=False,
                 gradient_clipping=None,
             ).to(dtype)
 
-            nn.init.normal_(gru.state_weight, std=0.01)
+            nn.init.normal_(m2rnn.state_weight, std=0.01)
 
-        gru_torch = gru
-        gru_kernel = gru
+        m2rnn_torch = m2rnn
+        m2rnn_kernel = m2rnn
 
         if is_compiling:
-            gru_kernel = torch.compile(gru_kernel, fullgraph=True)
+            m2rnn_kernel = torch.compile(m2rnn_kernel, fullgraph=True)
 
-        y_kernel, output_state_kernel = gru_kernel(
+        y_kernel, output_state_kernel = m2rnn_kernel(
             input=x_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
@@ -113,7 +121,7 @@ class GRUTest(TestCommons):
             kernel_backend=KernelBackend.triton,
         )
 
-        y_torch, output_state_torch = gru_torch(
+        y_torch, output_state_torch = m2rnn_torch(
             input=x_torch,
             input_state=input_state_torch,
             cu_seqlens=cu_seqlens,
@@ -127,8 +135,8 @@ class GRUTest(TestCommons):
             False,
             atol_float32=4e-6,
             rtol_float32=0,
-            atol_float16=6.5e-5,
-            rtol_float16=0,
+            atol_bfloat16=2e-4,
+            rtol_bfloat16=0,
         )
 
         self.assert_equal_tensors(
@@ -137,22 +145,24 @@ class GRUTest(TestCommons):
             False,
             atol_float32=4e-6,
             rtol_float32=0,
-            atol_float16=6.5e-5,
-            rtol_float16=0,
+            atol_bfloat16=2e-4,
+            rtol_bfloat16=0,
         )
 
         y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(m2rnn)
 
         y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(m2rnn)
 
         self.assert_equal_tensors(
             x_kernel.grad,
             x_torch.grad,
             False,
-            atol_float16=1e-3,
-            rtol_float16=0,
+            atol_float32=1.7e-4,
+            rtol_float32=0,
+            atol_bfloat16=8e-3,
+            rtol_bfloat16=0,
         )
 
         if has_input_state:
@@ -160,10 +170,10 @@ class GRUTest(TestCommons):
                 input_state_kernel.grad,
                 input_state_torch.grad,
                 False,
-                atol_float32=4e-6,
+                atol_float32=2e-5,
                 rtol_float32=0,
-                atol_float16=3e-3,
-                rtol_float16=0,
+                atol_bfloat16=1e-3,
+                rtol_bfloat16=0,
             )
 
         for weight_name in weight_kernel_grads:
@@ -173,8 +183,8 @@ class GRUTest(TestCommons):
                 False,
                 atol_float32=6e-3,
                 rtol_float32=0,
-                atol_float16=2.3e-2,
-                rtol_float16=0,
+                atol_bfloat16=8e-2,
+                rtol_bfloat16=0,
             )
 
     @parameterized.expand(
@@ -182,16 +192,16 @@ class GRUTest(TestCommons):
             [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            _get_problem_shapes(),  # problem_shape
+            _get_problem_shapes(),
             [False, True],  # has_input_state
         )
     )
-    def test_gru_varlen_torch(
+    def test_rnn_varlen_torch(
         self,
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        problem_shape: tuple[int, int, int, int, int, int, int],
+        problem_shape: tuple[int, int, int],
         has_input_state: bool,
     ) -> None:
         if Accelerator.get_accelerator() != Accelerator.cuda:
@@ -207,17 +217,17 @@ class GRUTest(TestCommons):
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
 
         (
-            state_head_dim,
-            num_input_heads,
+            key_head_dim,
+            value_head_dim,
+            num_query_heads,
+            num_key_heads,
+            num_value_heads,
             num_forget_input_heads,
-            num_reset_input_heads,
             num_weight_heads,
-            num_forget_weight_heads,
-            num_reset_weight_heads,
         ) = problem_shape
 
-        num_heads = max(*problem_shape[1:])
-        state_size = num_heads * state_head_dim
+        num_heads = max(num_query_heads, num_key_heads, num_value_heads, num_forget_input_heads, num_weight_heads)
+        state_size = num_heads * key_head_dim * value_head_dim
 
         x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
@@ -230,23 +240,23 @@ class GRUTest(TestCommons):
         )
 
         with torch.device(device):
-            gru = GRU(
+            m2rnn = M2RNN(
                 input_size=state_size,
-                state_head_dim=state_head_dim,
+                key_head_dim=key_head_dim,
+                value_head_dim=value_head_dim,
                 output_size=state_size,
-                num_input_heads=num_input_heads,
+                num_query_heads=num_query_heads,
+                num_key_heads=num_key_heads,
+                num_value_heads=num_value_heads,
                 num_forget_input_heads=num_forget_input_heads,
-                num_reset_input_heads=num_reset_input_heads,
                 num_weight_heads=num_weight_heads,
-                num_forget_weight_heads=num_forget_weight_heads,
-                num_reset_weight_heads=num_reset_weight_heads,
                 add_bias=False,
                 gradient_clipping=None,
             ).to(dtype)
 
-            nn.init.normal_(gru.state_weight, std=0.01)
+            nn.init.normal_(m2rnn.state_weight, std=0.1)
 
-        y_kernel, _ = gru(
+        y_kernel, _ = m2rnn(
             input=x_packed_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
@@ -256,7 +266,7 @@ class GRUTest(TestCommons):
 
         y_torch = []
         for i in range(batch_size):
-            y, _ = gru(
+            y, _ = m2rnn(
                 input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
@@ -264,24 +274,36 @@ class GRUTest(TestCommons):
             y_torch.append(y.squeeze(0))
         y_torch = torch.cat(y_torch)
 
-        self.assert_equal_tensors(y_kernel, y_torch, False, atol_bfloat16=3.1e-5, rtol_bfloat16=0)
+        self.assert_equal_tensors(y_kernel, y_torch, False)
 
         y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(m2rnn)
 
         y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(m2rnn)
+
+        self.assert_equal_tensors(
+            x_packed_kernel.grad,
+            x_packed_torch.grad,
+            False,
+            atol_float32=2e-5,
+            rtol_float32=0,
+            atol_float16=6.2e-5,
+            rtol_float16=0,
+            atol_bfloat16=5e-4,
+            rtol_bfloat16=0,
+        )
 
         for weight_name in weight_kernel_grads:
             self.assert_equal_tensors(
                 weight_kernel_grads[weight_name],
                 weight_torch_grads[weight_name],
                 False,
-                atol_float32=2.4e-7,
+                atol_float32=3e-7,
                 rtol_float32=0,
-                atol_float16=1.5e-3,
+                atol_float16=5e-4,
                 rtol_float16=0,
-                atol_bfloat16=6e-3,
+                atol_bfloat16=5e-3,
                 rtol_bfloat16=0,
             )
 
@@ -306,10 +328,7 @@ class GRUTest(TestCommons):
         input_state_torch = None
         if has_input_state:
             input_state_kernel, input_state_torch = self.get_random_duplicated_tensors(
-                (batch_size, state_size),
-                device=device,
-                dtype=dtype,
-                std=0.01,
+                (batch_size, state_size), device=device, dtype=dtype, std=0.01
             )
 
         return x_kernel, x_torch, input_state_kernel, input_state_torch

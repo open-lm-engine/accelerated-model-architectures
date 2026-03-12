@@ -183,7 +183,7 @@ def gru_forward_triton(
     else:
         B = cu_seqlens.size(0) - 1
         S = max_seqlen
-        _, _, H = x.size()
+        H = x.size(-1)
 
     Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
 

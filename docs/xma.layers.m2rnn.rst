@@ -1,7 +1,7 @@
-xma.torch\_utils
+xma.layers.m2rnn
 ================
 
-.. automodule:: xma.torch_utils
+.. automodule:: xma.layers.m2rnn
    :members:
    :show-inheritance:
    :undoc-members:
