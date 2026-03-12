@@ -53,7 +53,7 @@ class Experts(nn.Module):
         assert self.bias is None
 
         x = up_projection_experts(
-            inputs=x,
+            x=x,
             expert_weights=self.weight.permute(0, 2, 1),
             k=num_experts_per_token,
             sorted_expert_idxs=sorted_expert_idxs,
@@ -75,7 +75,7 @@ class Experts(nn.Module):
         assert self.bias is None
 
         x = down_projection_experts(
-            inputs=x,
+            x=x,
             expert_weights=self.weight.permute(0, 2, 1),
             k=num_experts_per_token,
             sorted_expert_idxs=sorted_expert_idxs,
