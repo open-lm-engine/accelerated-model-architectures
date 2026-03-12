@@ -70,7 +70,7 @@ class Experts(nn.Module):
         sorted_expert_idxs: torch.Tensor | None = None,
         sorted_scattered_idxs: torch.Tensor | None = None,
         expert_offsets: torch.Tensor | None = None,
-        gates: torch.Tensor | None = None,
+        router_weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         assert self.bias is None
 
@@ -81,7 +81,7 @@ class Experts(nn.Module):
             sorted_expert_idxs=sorted_expert_idxs,
             sorted_scattered_idxs=sorted_scattered_idxs,
             expert_offsets=expert_offsets,
-            gates=gates,
+            router_weights=router_weights,
         )
 
         return x
@@ -230,7 +230,7 @@ class MoE(nn.Module):
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
                 expert_offsets=expert_offsets,
-                gates=router_weights,
+                router_weights=router_weights,
             )
         elif kernel_backend == KernelBackend.torch:
             # sort and group input tokens according to expert assignment

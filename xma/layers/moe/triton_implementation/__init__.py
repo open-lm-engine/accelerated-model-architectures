@@ -82,7 +82,7 @@ class _DownProjectionExperts(torch.autograd.Function):
         sorted_expert_idxs,
         sorted_scattered_idxs,
         expert_offsets,
-        gates,
+        router_weights,
     ):
         output = torch.empty(sorted_expert_idxs.size(0), expert_weights.size(-1), device=x.device, dtype=x.dtype)
 
@@ -97,17 +97,21 @@ class _DownProjectionExperts(torch.autograd.Function):
             y_grouped=False,
         )
 
-        output_expanded = output.view(gates.size(0), gates.size(1), output.size(-1))
-        output = torch.bmm(gates.unsqueeze(1), output_expanded).squeeze(1)
+        output_expanded = output.view(router_weights.size(0), router_weights.size(1), output.size(-1))
+        output = torch.bmm(router_weights.unsqueeze(1), output_expanded).squeeze(1)
 
-        ctx.save_for_backward(x, expert_weights, sorted_expert_idxs, sorted_scattered_idxs, expert_offsets, gates)
+        ctx.save_for_backward(
+            x, expert_weights, sorted_expert_idxs, sorted_scattered_idxs, expert_offsets, router_weights
+        )
         ctx.k = k
 
         return output
 
     @staticmethod
     def backward(ctx, grad_out):
-        x, expert_weights, sorted_expert_idxs, sorted_scattered_idxs, expert_offsets, gates = ctx.saved_tensors
+        x, expert_weights, sorted_expert_idxs, sorted_scattered_idxs, expert_offsets, router_weights = (
+            ctx.saved_tensors
+        )
         k = ctx.k
 
         output = torch.empty(sorted_expert_idxs.size(0), expert_weights.size(-1), device=x.device, dtype=x.dtype)
@@ -123,16 +127,16 @@ class _DownProjectionExperts(torch.autograd.Function):
             y_grouped=False,
         )
 
-        output_expanded = output.view(gates.size(0), gates.size(1), output.size(-1))
-        d_gates = torch.bmm(output_expanded, grad_out.unsqueeze(2)).squeeze(-1)
+        output_expanded = output.view(router_weights.size(0), router_weights.size(1), output.size(-1))
+        d_router_weights = torch.bmm(output_expanded, grad_out.unsqueeze(2)).squeeze(-1)
         grouped_grad_out = output_expanded.flatten(0, 1)
 
         group(
             A=grad_out,
             sorted_expert_idxs=sorted_scattered_idxs,
             out=grouped_grad_out,
-            coeff=gates.flatten(),
-            fan_out=gates.size(1),
+            coeff=router_weights.flatten(),
+            fan_out=router_weights.size(1),
         )
 
         d_weights = torch.zeros_like(expert_weights)
@@ -155,7 +159,7 @@ class _DownProjectionExperts(torch.autograd.Function):
 
         d_input = d_expanded_input.view(x.size(0), k, d_expanded_input.size(-1)).sum(-2)
 
-        return d_input, d_weights, None, None, None, None, d_gates
+        return d_input, d_weights, None, None, None, None, d_router_weights
 
 
 def up_projection_experts(
@@ -183,7 +187,7 @@ def down_projection_experts(
     sorted_expert_idxs,
     sorted_scattered_idxs,
     expert_offsets,
-    gates=None,
+    router_weights,
 ):
     return _DownProjectionExperts.apply(
         x,
@@ -192,5 +196,5 @@ def down_projection_experts(
         sorted_expert_idxs,
         sorted_scattered_idxs,
         expert_offsets,
-        gates,
+        router_weights,
     )
