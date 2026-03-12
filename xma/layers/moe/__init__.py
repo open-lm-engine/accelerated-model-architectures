@@ -241,11 +241,9 @@ class MoE(nn.Module):
             batch_gates = router_weights[sorted_scattered_idxs]
 
             x = x[fan_in_index]
-
-            x = self.c_fc.torch_forward(input=x, expert_frequency=expert_frequency, return_list=True)
-
+            x = self.c_fc.torch_forward(x=x, expert_frequency=expert_frequency, return_list=True)
             x = [self.act(i) for i in x]
-            x = self.c_proj.torch_forward(input=x, expert_frequency=None, return_list=False)
+            x = self.c_proj.torch_forward(x=x, expert_frequency=None, return_list=False)
 
             x = x * batch_gates.unsqueeze(-1)
             zeros = torch.zeros((T, self.hidden_size), dtype=x.dtype, device=x.device)
