@@ -276,8 +276,13 @@
 </ul>
 </div>
 <dl class="py function" id="module-xma.layers.moe.triton_implementation">
-<dt class="sig sig-object py" id="xma.layers.moe.triton_implementation.scattered_experts">
-<span class="sig-name descname"><span class="pre">scattered_experts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expert_weights</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sorted_expert_idxs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sorted_scattered_idxs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expert_offsets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gates</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grouped_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grouped_out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/layers/moe/triton_implementation.html#scattered_experts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers.moe.triton_implementation.scattered_experts" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="xma.layers.moe.triton_implementation.down_projection_experts">
+<span class="sig-name descname"><span class="pre">down_projection_experts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expert_weights</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sorted_expert_idxs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sorted_scattered_idxs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expert_offsets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">router_weights</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/layers/moe/triton_implementation.html#down_projection_experts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers.moe.triton_implementation.down_projection_experts" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="xma.layers.moe.triton_implementation.up_projection_experts">
+<span class="sig-name descname"><span class="pre">up_projection_experts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expert_weights</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sorted_expert_idxs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sorted_scattered_idxs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expert_offsets</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/layers/moe/triton_implementation.html#up_projection_experts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers.moe.triton_implementation.up_projection_experts" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </section>
@@ -320,7 +325,8 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">xma.layers.moe.triton_implementation</a><ul>
-<li><a class="reference internal" href="#xma.layers.moe.triton_implementation.scattered_experts"><code class="docutils literal notranslate"><span class="pre">scattered_experts()</span></code></a></li>
+<li><a class="reference internal" href="#xma.layers.moe.triton_implementation.down_projection_experts"><code class="docutils literal notranslate"><span class="pre">down_projection_experts()</span></code></a></li>
+<li><a class="reference internal" href="#xma.layers.moe.triton_implementation.up_projection_experts"><code class="docutils literal notranslate"><span class="pre">up_projection_experts()</span></code></a></li>
 </ul>
 </li>
 </ul>
