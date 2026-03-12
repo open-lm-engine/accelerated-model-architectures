@@ -159,7 +159,7 @@ class _DownProjectionExperts(torch.autograd.Function):
 
 
 def up_projection_experts(
-    inputs,
+    x,
     expert_weights,
     k,
     sorted_expert_idxs,
@@ -167,7 +167,7 @@ def up_projection_experts(
     expert_offsets,
 ):
     return _UpProjectionExperts.apply(
-        inputs,
+        x,
         expert_weights,
         k,
         sorted_expert_idxs,
@@ -177,7 +177,7 @@ def up_projection_experts(
 
 
 def down_projection_experts(
-    inputs,
+    x,
     expert_weights,
     k,
     sorted_expert_idxs,
@@ -186,7 +186,7 @@ def down_projection_experts(
     gates=None,
 ):
     return _DownProjectionExperts.apply(
-        inputs,
+        x,
         expert_weights,
         k,
         sorted_expert_idxs,

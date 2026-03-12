@@ -217,7 +217,7 @@ class MoE(nn.Module):
                 expert_offsets = expert_frequency.cumsum(-1)
 
             x = self.c_fc.up_projection_triton_forward(
-                input=x,
+                x=x,
                 num_experts_per_token=self.top_k,
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
@@ -225,7 +225,7 @@ class MoE(nn.Module):
             )
             x = self.act(x)
             x = self.c_proj.down_projection_triton_forward(
-                input=x,
+                x=x,
                 num_experts_per_token=1,
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
