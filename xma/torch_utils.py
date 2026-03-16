@@ -2,16 +2,14 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from typing import Callable
+
 import torch
 import torch.nn.functional as F
 
 
-def sigmoid(x: torch.Tensor) -> torch.Tensor:
-    return F.sigmoid(x.float()).type_as(x)
-
-
-def tanh(x: torch.Tensor) -> torch.Tensor:
-    return F.tanh(x.float()).type_as(x)
+def compute_upcast_activation(x: torch.Tensor, activation_function: Callable) -> torch.Tensor:
+    return activation_function(x.float()).type_as(x)
 
 
 class _ClipGradients(torch.autograd.Function):

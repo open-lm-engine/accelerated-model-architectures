@@ -11,6 +11,7 @@ import torch.nn.functional as F
 
 from ..accelerator import Accelerator, KernelBackend
 from ..custom_op import CustomOp
+from ..torch_utils import compute_upcast_activation
 from ..utils import is_causal_conv1d_available
 
 
@@ -72,7 +73,12 @@ class _CausalConvolution(CustomOp):
             if not return_cache_state:
                 input_state = None
 
-        x = activation_function(x)
+        if activation_function in ["silu", "swish"]:
+            activation_function = F.silu
+        elif activation_function is None:
+            activation_function = lambda a: a
+
+        x = compute_upcast_activation(x, activation_function=activation_function)
         x = _apply_mask_to_padding_states(x, attention_mask)
 
         return x, input_state
