@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 import torch
 import torch.nn.functional as F
 
@@ -33,9 +35,9 @@ def causal_convolution(
     conv1d_bias: torch.Tensor | None,
     conv1d_num_groups: int,
     return_cache_state: bool,
-    activation_string: str,
     conv1d_padding: int,
     conv1d_stride: int = 1,
+    activation_function: str | Callable | None = "silu",
 ) -> tuple[torch.Tensor, torch.Tensor]:
     casual_conv1d_compatible = conv1d_num_groups == conv1d_weight.size(0) and conv1d_weight.size(1) == 1
     sequence_length = x.size(1)
@@ -47,7 +49,7 @@ def causal_convolution(
     x = _apply_mask_to_padding_states(x, attention_mask)
 
     if is_kernel_allowed(Kernel.causal_conv1d) and casual_conv1d_compatible:
-        use_activation_inside_kernel = activation_string in [None, "silu", "swish"]
+        use_activation_inside_kernel = activation_function in [None, "silu", "swish"]
 
         if input_state is None:
             x = x.transpose(-1, -2)
@@ -60,7 +62,7 @@ def causal_convolution(
                 x=x,
                 weight=conv1d_weight.squeeze(1),
                 bias=conv1d_bias,
-                activation=activation_string if use_activation_inside_kernel else None,
+                activation=activation_function if use_activation_inside_kernel else None,
             )
 
             x = x.transpose(-1, -2)
@@ -70,18 +72,21 @@ def causal_convolution(
             # we clone to prevent modification in-place
             # torch compile can remove the clone if its not needed
             # this is to prevent silent incorrectness down the line in the model
-            input_state_buffer = input_state.clone()
+            input_state = input_state.clone()
+
             x = causal_conv1d_update(
                 x=x,
-                conv_state=input_state_buffer,
+                conv_state=input_state,
                 weight=conv1d_weight.squeeze(1),
                 bias=conv1d_bias,
                 activation=activation_string if use_activation_inside_kernel else None,
             )
-            input_state = input_state_buffer if return_cache_state else None
+
+            if not return_cache_state:
+                input_state = None
 
         if not use_activation_inside_kernel:
-            x = get_activation_function(activation_string)(x)
+            x = activation_function(x)
     else:
         if input_state is None:
             x = x.transpose(-1, -2)
@@ -116,7 +121,7 @@ def causal_convolution(
             if not return_cache_state:
                 input_state = None
 
-        x = get_activation_function(activation_string)(x)
+        x = activation_function(x)
         x = _apply_mask_to_padding_states(x, attention_mask)
 
     return x, input_state
