@@ -9,6 +9,7 @@ from typing import Callable
 import torch
 import torch.nn.functional as F
 
+from ..accelerator import Accelerator, KernelBackend
 from ..utils import is_causal_conv1d_available
 
 
@@ -38,6 +39,8 @@ def causal_convolution(
     padding: int,
     stride: int = 1,
     activation_function: str | Callable | None = "silu",
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     S = x.size(1)
     K = weight.size(-1)
@@ -47,7 +50,17 @@ def causal_convolution(
 
     x = _apply_mask_to_padding_states(x, attention_mask)
 
-    if is_causal_conv1d_available() and groups == weight.size(0) and weight.size(1) == 1:
+    if kernel_backend is None:
+        kernel_backend = Accelerator.get_kernel_backend()
+    else:
+        assert kernel_backend.verify_accelerator()
+
+    if (
+        is_causal_conv1d_available()
+        and kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+        and groups == weight.size(0)
+        and weight.size(1) == 1
+    ):
         use_activation_inside_kernel = activation_function in [None, "silu", "swish"]
 
         if input_state is None:
