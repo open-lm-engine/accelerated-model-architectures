@@ -66,8 +66,8 @@ class _CausalConvolution(CustomOp):
 
             x = (h0 * W.squeeze(1)).sum(dim=-1)
             x = x[:, None, :]
-            if bias is not None:
-                x = x + bias
+            if b is not None:
+                x = x + b
 
             if not return_cache_state:
                 h0 = None
