@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 
 from ..accelerator import Accelerator, KernelBackend
+from ..custom_op import CustomOp
 from ..utils import is_causal_conv1d_available
 
 
@@ -26,6 +27,55 @@ def _apply_mask_to_padding_states(x: torch.Tensor, attention_mask: torch.Tensor 
         x = (x * attention_mask[:, :, None]).to(dtype)
 
     return x
+
+
+class _CausalConvolution(CustomOp):
+    @staticmethod
+    def forward_backward_torch(
+        x: torch.Tensor,
+        input_state: torch.Tensor | None,
+        attention_mask: torch.Tensor | None,
+        return_cache_state: bool,
+        weight: torch.Tensor,
+        bias: torch.Tensor | None,
+        groups: int,
+        padding: int,
+        stride: int = 1,
+        activation_function: str | Callable | None = "silu",
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        S = x.size(1)
+        K = weight.size(-1)
+
+        if input_state is None:
+            x = x.transpose(-1, -2)
+
+            if return_cache_state:
+                # F.pad trims the x if sequence_length > kernel_size
+                input_state = F.pad(x, (K - S, 0))
+
+            x = F.conv1d(input=x, weight=weight, bias=bias, stride=stride, padding=padding, groups=groups)
+
+            # removes padding on the right side of the sequence
+            x = x[..., : 1 - K]
+            x = x.transpose(-1, -2)
+        else:
+            assert S == 1
+
+            input_state = input_state.roll(shifts=-1, dims=-1)
+            input_state[..., -1] = x[:, 0]
+
+            x = (input_state * weight.squeeze(1)).sum(dim=-1)
+            x = x[:, None, :]
+            if bias is not None:
+                x = x + bias
+
+            if not return_cache_state:
+                input_state = None
+
+        x = activation_function(x)
+        x = _apply_mask_to_padding_states(x, attention_mask)
+
+        return x, input_state
 
 
 def causal_convolution(
@@ -96,33 +146,17 @@ def causal_convolution(
         if not use_activation_inside_kernel:
             x = activation_function(x)
     else:
-        if input_state is None:
-            x = x.transpose(-1, -2)
-
-            if return_cache_state:
-                # F.pad trims the x if sequence_length > kernel_size
-                input_state = F.pad(x, (K - S, 0))
-
-            x = F.conv1d(input=x, weight=weight, bias=bias, stride=stride, padding=padding, groups=groups)
-
-            # removes padding on the right side of the sequence
-            x = x[..., : 1 - K]
-            x = x.transpose(-1, -2)
-        else:
-            assert S == 1
-
-            input_state = input_state.roll(shifts=-1, dims=-1)
-            input_state[..., -1] = x[:, 0]
-
-            x = (input_state * weight.squeeze(1)).sum(dim=-1)
-            x = x[:, None, :]
-            if bias is not None:
-                x = x + bias
-
-            if not return_cache_state:
-                input_state = None
-
-        x = activation_function(x)
-        x = _apply_mask_to_padding_states(x, attention_mask)
+        x, input_state = _CausalConvolution.run(
+            x=x,
+            input_state=input_state,
+            attention_mask=attention_mask,
+            return_cache_state=return_cache_state,
+            weight=weight,
+            bias=bias,
+            groups=groups,
+            padding=padding,
+            stride=stride,
+            activation_function=activation_function,
+        )
 
     return x, input_state
