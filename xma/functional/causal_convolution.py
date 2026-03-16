@@ -39,7 +39,6 @@ def causal_convolution(
     conv1d_stride: int = 1,
     activation_function: str | Callable | None = "silu",
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    casual_conv1d_compatible = conv1d_num_groups == conv1d_weight.size(0) and conv1d_weight.size(1) == 1
     sequence_length = x.size(1)
     kernel_size = conv1d_weight.size(-1)
 
@@ -48,7 +47,7 @@ def causal_convolution(
 
     x = _apply_mask_to_padding_states(x, attention_mask)
 
-    if is_kernel_allowed(Kernel.causal_conv1d) and casual_conv1d_compatible:
+    if is_causal_conv1d_available() and conv1d_num_groups == conv1d_weight.size(0) and conv1d_weight.size(1) == 1:
         use_activation_inside_kernel = activation_function in [None, "silu", "swish"]
 
         if input_state is None:
