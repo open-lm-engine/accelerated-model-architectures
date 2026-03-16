@@ -34,26 +34,26 @@ class _CausalConvolution(CustomOp):
     @staticmethod
     def forward_backward_torch(
         x: torch.Tensor,
-        input_state: torch.Tensor | None,
+        h0: torch.Tensor | None,
         attention_mask: torch.Tensor | None,
         return_cache_state: bool,
-        weight: torch.Tensor,
-        bias: torch.Tensor | None,
+        W: torch.Tensor,
+        b: torch.Tensor | None,
         groups: int,
         stride: int = 1,
         activation_function: str | Callable | None = "silu",
     ) -> tuple[torch.Tensor, torch.Tensor]:
         S = x.size(1)
-        K = weight.size(-1)
+        K = W.size(-1)
 
-        if input_state is None:
+        if h0 is None:
             x = x.transpose(-1, -2)
 
             if return_cache_state:
                 # F.pad trims the x if sequence_length > kernel_size
-                input_state = F.pad(x, (K - S, 0))
+                h0 = F.pad(x, (K - S, 0))
 
-            x = F.conv1d(input=x, weight=weight, bias=bias, stride=stride, padding=K - 1, groups=groups)
+            x = F.conv1d(input=x, weight=W, bias=b, stride=stride, padding=K - 1, groups=groups)
 
             # removes padding on the right side of the sequence
             x = x[..., : 1 - K]
@@ -61,16 +61,16 @@ class _CausalConvolution(CustomOp):
         else:
             assert S == 1
 
-            input_state = input_state.roll(shifts=-1, dims=-1)
-            input_state[..., -1] = x[:, 0]
+            h0 = h0.roll(shifts=-1, dims=-1)
+            h0[..., -1] = x[:, 0]
 
-            x = (input_state * weight.squeeze(1)).sum(dim=-1)
+            x = (h0 * W.squeeze(1)).sum(dim=-1)
             x = x[:, None, :]
             if bias is not None:
                 x = x + bias
 
             if not return_cache_state:
-                input_state = None
+                h0 = None
 
         if activation_function in ["silu", "swish"]:
             activation_function = F.silu
@@ -80,7 +80,7 @@ class _CausalConvolution(CustomOp):
         x = compute_upcast_activation(x, activation_function=activation_function)
         x = _apply_mask_to_padding_states(x, attention_mask)
 
-        return x, input_state
+        return x, h0
 
 
 def causal_convolution(
@@ -151,11 +151,11 @@ def causal_convolution(
     else:
         x, input_state = _CausalConvolution.run(
             x=x,
-            input_state=input_state,
+            h0=input_state,
             attention_mask=attention_mask,
             return_cache_state=return_cache_state,
-            weight=weight,
-            bias=bias,
+            W=weight,
+            b=bias,
             groups=groups,
             stride=stride,
             activation_function=activation_function,
