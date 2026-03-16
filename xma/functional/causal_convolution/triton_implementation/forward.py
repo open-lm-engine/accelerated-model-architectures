@@ -22,8 +22,8 @@ def causal_convolution_triton(
     W: torch.Tensor,
     b: torch.Tensor,
     y: torch.Tensor,
-    G: int,
-    S: int,
+    groups: int,
+    stride: int,
     activation_function: str,
 ) -> None:
     causal_convolution_triton_kernel[1,](
@@ -36,6 +36,6 @@ def causal_convolution_triton(
         b_ptr=b,
         b_stride=b.stride(),
         G=G,
-        S=S,
+        S=stride,
         ACTIVATION=activation_function,
     )
