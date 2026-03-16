@@ -3,6 +3,7 @@
 # **************************************************
 
 from .bmm import bmm
+from .causal_convolution import causal_convolution
 from .continuous_count import continuous_count
 from .cross_entropy import cross_entropy
 from .fused_linear_cross_entropy import fused_linear_cross_entropy
