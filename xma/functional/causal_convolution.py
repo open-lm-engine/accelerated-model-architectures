@@ -39,11 +39,11 @@ def causal_convolution(
     conv1d_stride: int = 1,
     activation_function: str | Callable | None = "silu",
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    sequence_length = x.size(1)
-    kernel_size = conv1d_weight.size(-1)
+    S = x.size(1)
+    K = conv1d_weight.size(-1)
 
     assert conv1d_stride == 1
-    assert conv1d_padding == kernel_size - 1
+    assert conv1d_padding == K - 1
 
     x = _apply_mask_to_padding_states(x, attention_mask)
 
@@ -55,7 +55,7 @@ def causal_convolution(
 
             if return_cache_state:
                 # F.pad trims the x if sequence_length > kernel_size
-                input_state = F.pad(x, (kernel_size - sequence_length, 0))
+                input_state = F.pad(x, (K - S, 0))
 
             x = causal_conv1d_fn(
                 x=x,
@@ -66,11 +66,7 @@ def causal_convolution(
 
             x = x.transpose(-1, -2)
         else:
-            assert sequence_length == 1
-
-            # we clone to prevent modification in-place
-            # torch compile can remove the clone if its not needed
-            # this is to prevent silent incorrectness down the line in the model
+            assert S == 1
             input_state = input_state.clone()
 
             x = causal_conv1d_update(
@@ -78,7 +74,7 @@ def causal_convolution(
                 conv_state=input_state,
                 weight=conv1d_weight.squeeze(1),
                 bias=conv1d_bias,
-                activation=activation_string if use_activation_inside_kernel else None,
+                activation=activation_function if use_activation_inside_kernel else None,
             )
 
             if not return_cache_state:
@@ -92,7 +88,7 @@ def causal_convolution(
 
             if return_cache_state:
                 # F.pad trims the x if sequence_length > kernel_size
-                input_state = F.pad(x, (kernel_size - sequence_length, 0))
+                input_state = F.pad(x, (K - S, 0))
 
             x = F.conv1d(
                 input=x,
@@ -104,10 +100,10 @@ def causal_convolution(
             )
 
             # removes padding on the right side of the sequence
-            x = x[..., : 1 - kernel_size]
+            x = x[..., : 1 - K]
             x = x.transpose(-1, -2)
         else:
-            assert sequence_length == 1
+            assert S == 1
 
             input_state = input_state.roll(shifts=-1, dims=-1)
             input_state[..., -1] = x[:, 0]
