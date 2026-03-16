@@ -31,23 +31,23 @@ def causal_convolution(
     x: torch.Tensor,
     input_state: torch.Tensor | None,
     attention_mask: torch.Tensor | None,
-    conv1d_weight: torch.Tensor,
-    conv1d_bias: torch.Tensor | None,
-    conv1d_num_groups: int,
     return_cache_state: bool,
-    conv1d_padding: int,
-    conv1d_stride: int = 1,
+    weight: torch.Tensor,
+    bias: torch.Tensor | None,
+    groups: int,
+    padding: int,
+    stride: int = 1,
     activation_function: str | Callable | None = "silu",
 ) -> tuple[torch.Tensor, torch.Tensor]:
     S = x.size(1)
-    K = conv1d_weight.size(-1)
+    K = weight.size(-1)
 
-    assert conv1d_stride == 1
-    assert conv1d_padding == K - 1
+    assert stride == 1
+    assert padding == K - 1
 
     x = _apply_mask_to_padding_states(x, attention_mask)
 
-    if is_causal_conv1d_available() and conv1d_num_groups == conv1d_weight.size(0) and conv1d_weight.size(1) == 1:
+    if is_causal_conv1d_available() and groups == weight.size(0) and weight.size(1) == 1:
         use_activation_inside_kernel = activation_function in [None, "silu", "swish"]
 
         if input_state is None:
@@ -59,8 +59,8 @@ def causal_convolution(
 
             x = causal_conv1d_fn(
                 x=x,
-                weight=conv1d_weight.squeeze(1),
-                bias=conv1d_bias,
+                weight=weight.squeeze(1),
+                bias=bias,
                 activation=activation_function if use_activation_inside_kernel else None,
             )
 
@@ -72,8 +72,8 @@ def causal_convolution(
             x = causal_conv1d_update(
                 x=x,
                 conv_state=input_state,
-                weight=conv1d_weight.squeeze(1),
-                bias=conv1d_bias,
+                weight=weight.squeeze(1),
+                bias=bias,
                 activation=activation_function if use_activation_inside_kernel else None,
             )
 
@@ -90,14 +90,7 @@ def causal_convolution(
                 # F.pad trims the x if sequence_length > kernel_size
                 input_state = F.pad(x, (K - S, 0))
 
-            x = F.conv1d(
-                input=x,
-                weight=conv1d_weight,
-                bias=conv1d_bias,
-                stride=conv1d_stride,
-                padding=conv1d_padding,
-                groups=conv1d_num_groups,
-            )
+            x = F.conv1d(input=x, weight=weight, bias=bias, stride=stride, padding=padding, groups=groups)
 
             # removes padding on the right side of the sequence
             x = x[..., : 1 - K]
@@ -108,10 +101,10 @@ def causal_convolution(
             input_state = input_state.roll(shifts=-1, dims=-1)
             input_state[..., -1] = x[:, 0]
 
-            x = (input_state * conv1d_weight.squeeze(1)).sum(dim=-1)
+            x = (input_state * weight.squeeze(1)).sum(dim=-1)
             x = x[:, None, :]
-            if conv1d_bias is not None:
-                x = x + conv1d_bias
+            if bias is not None:
+                x = x + bias
 
             if not return_cache_state:
                 input_state = None
