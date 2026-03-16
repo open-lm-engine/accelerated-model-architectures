@@ -82,6 +82,21 @@ class _CausalConvolution(CustomOp):
 
         return x, h0
 
+    @staticmethod
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        h0: torch.Tensor | None,
+        attention_mask: torch.Tensor | None,
+        return_cache_state: bool,
+        W: torch.Tensor,
+        b: torch.Tensor | None,
+        groups: int,
+        stride: int = 1,
+        activation_function: str | Callable | None = "silu",
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        return x, h0
+
 
 def causal_convolution(
     x: torch.Tensor,
