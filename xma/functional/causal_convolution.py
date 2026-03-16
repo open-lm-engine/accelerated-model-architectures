@@ -12,10 +12,8 @@ import torch.nn.functional as F
 
 from ....enums import Kernel
 from ....kernels import is_kernel_allowed
-from ....utils import divide_if_divisible, is_causal_conv1d_available
-from ..activations import get_activation_function, is_glu
-from ..convolution import ParameterizedConv1d
-from ..mlp_blocks.mlp import _get_std_for_linear
+from ....utils import is_causal_conv1d_available
+from ..activations import get_activation_function
 
 
 if is_causal_conv1d_available():
