@@ -40,7 +40,6 @@ class _CausalConvolution(CustomOp):
         weight: torch.Tensor,
         bias: torch.Tensor | None,
         groups: int,
-        padding: int,
         stride: int = 1,
         activation_function: str | Callable | None = "silu",
     ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -54,7 +53,7 @@ class _CausalConvolution(CustomOp):
                 # F.pad trims the x if sequence_length > kernel_size
                 input_state = F.pad(x, (K - S, 0))
 
-            x = F.conv1d(input=x, weight=weight, bias=bias, stride=stride, padding=padding, groups=groups)
+            x = F.conv1d(input=x, weight=weight, bias=bias, stride=stride, padding=K - 1, groups=groups)
 
             # removes padding on the right side of the sequence
             x = x[..., : 1 - K]
@@ -92,7 +91,6 @@ def causal_convolution(
     weight: torch.Tensor,
     bias: torch.Tensor | None,
     groups: int,
-    padding: int,
     stride: int = 1,
     activation_function: str | Callable | None = "silu",
     *,
@@ -102,7 +100,6 @@ def causal_convolution(
     K = weight.size(-1)
 
     assert stride == 1
-    assert padding == K - 1
 
     x = _apply_mask_to_padding_states(x, attention_mask)
 
@@ -160,7 +157,6 @@ def causal_convolution(
             weight=weight,
             bias=bias,
             groups=groups,
-            padding=padding,
             stride=stride,
             activation_function=activation_function,
         )
