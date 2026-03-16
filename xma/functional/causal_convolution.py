@@ -4,16 +4,10 @@
 
 from __future__ import annotations
 
-import math
-
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
-from ....enums import Kernel
-from ....kernels import is_kernel_allowed
-from ....utils import is_causal_conv1d_available
-from ..activations import get_activation_function
+from ..utils import is_causal_conv1d_available
 
 
 if is_causal_conv1d_available():

@@ -2,6 +2,17 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+try:
+    import causal_conv1d
+
+    _IS_CAUSAL_CONV1D_AVAILABLE = True
+except ImportError:
+    _IS_CAUSAL_CONV1D_AVAILABLE = False
+
+
+def is_causal_conv1d_available() -> bool:
+    return _IS_CAUSAL_CONV1D_AVAILABLE
+
 
 try:
     import cutlass.cute
