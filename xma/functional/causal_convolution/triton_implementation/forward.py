@@ -11,6 +11,7 @@ from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
+@triton.jit
 def causal_convolution_triton_kernel(
     x_ptr,
     x_stride,
@@ -29,15 +30,19 @@ def causal_convolution_triton_kernel(
     BLOCK_SIZE_H: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
+    NUM_BLOCKS = tl.num_programs(0)
 
     BLOCK_B = tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
     NUM_BLOCKS_B = tl.cdiv(B, BLOCK_SIZE_B)
-    NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
+    NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
 
     BLOCK_ID_H = BLOCK_ID // NUM_BLOCKS_H
+    BLOCK_ID_B = BLOCK_ID - BLOCK_ID_H * NUM_BLOCKS_H
+
+    BLOCK_ID_H
 
     for BLOCK_ID_H in range(NUM_BLOCKS_H):
         for BLOCK_ID_S in range(NUM_BLOCKS_S):
