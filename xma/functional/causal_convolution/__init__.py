@@ -56,7 +56,9 @@ class _CausalConvolution(CustomOp):
             x = F.conv1d(input=x, weight=W, bias=b, stride=stride, padding=K - 1, groups=groups)
 
             # removes padding on the right side of the sequence
-            x = x[..., : 1 - K]
+            if K > 1:
+                x = x[..., : 1 - K]
+
             x = x.transpose(-1, -2)
         else:
             assert S == 1
