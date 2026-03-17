@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....accelerator import Accelerator
 from ....custom_op import xma_op
-from ....math import ceil_divide
+from ....math import ceil_divide, get_next_power_of_2
 
 
 @triton.jit
@@ -97,4 +97,5 @@ def causal_convolution_triton(
         H=H,
         K=K,
         ACTIVATION=activation_function,
+        BLOCK_SIZE_K=get_next_power_of_2(K),
     )
