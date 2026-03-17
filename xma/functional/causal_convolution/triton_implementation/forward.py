@@ -37,6 +37,8 @@ def causal_convolution_triton_kernel(
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
+    BLOCK_ID_H = BLOCK_ID // NUM_BLOCKS_H
+
     for BLOCK_ID_H in range(NUM_BLOCKS_H):
         for BLOCK_ID_S in range(NUM_BLOCKS_S):
             for BLOCK_ID_B in range(NUM_BLOCKS_B):
