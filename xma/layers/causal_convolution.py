@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
+from ..functional import causal_convolution
 from ..math import divide_if_divisible
 
 
@@ -54,10 +54,10 @@ class CausalConvolution(nn.Module):
             x=x,
             input_state=input_state,
             attention_mask=attention_mask,
+            return_cache_state=cache_params is not None,
             conv1d_weight=self.conv1d.weight,
             conv1d_bias=self.conv1d.bias,
             conv1d_num_groups=self.num_groups,
-            return_cache_state=cache_params is not None,
             activation_string=self.activation_string,
             conv1d_padding=self.kernel_size - 1,
             conv1d_stride=1,
