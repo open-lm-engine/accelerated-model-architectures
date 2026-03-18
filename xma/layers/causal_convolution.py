@@ -38,9 +38,7 @@ class CausalConvolution(nn.Conv1d):
             nn.Identity() if input_size is None else nn.Linear(input_size, in_channels, bias=add_bias)
         )
 
-        self.weight = nn.Parameter(
-            torch.empty(self.out_channels, self.in_channels // self.num_groups, self.kernel_size)
-        )
+        self.weight = nn.Parameter(torch.empty(self.out_channels, self.in_channels // self.groups, self.kernel_size))
 
         self.bias = None
         if add_bias:
