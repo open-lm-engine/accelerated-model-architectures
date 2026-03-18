@@ -94,7 +94,6 @@ class _CausalConvolution(CustomOp):
         activation_function: str | Callable | None = "silu",
     ) -> tuple[torch.Tensor, torch.Tensor]:
         K = W.size(-1)
-
         y = empty_like_contiguous(x)
 
         causal_convolution_triton(

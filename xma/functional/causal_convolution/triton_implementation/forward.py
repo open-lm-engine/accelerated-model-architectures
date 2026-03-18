@@ -126,7 +126,7 @@ def causal_convolution_triton_kernel(
     )
 
 
-@xma_op(mutates_args={"y", "h0"})
+@xma_op(mutates_args={"y"})
 def causal_convolution_triton(
     x: torch.Tensor,
     h0: torch.Tensor | None,
