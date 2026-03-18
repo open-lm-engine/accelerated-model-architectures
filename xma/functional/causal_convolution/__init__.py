@@ -37,7 +37,7 @@ class _CausalConvolution(CustomOp):
         x: torch.Tensor,
         h0: torch.Tensor | None,
         attention_mask: torch.Tensor | None,
-        return_cache_state: bool,
+        return_output_state: bool,
         W: torch.Tensor,
         b: torch.Tensor | None,
         activation_function: str | Callable | None = "silu",
@@ -48,7 +48,7 @@ class _CausalConvolution(CustomOp):
         if h0 is None:
             x = x.transpose(-1, -2)
 
-            if return_cache_state:
+            if return_output_state:
                 # F.pad trims the x if sequence_length > kernel_size
                 h0 = F.pad(x, (K - S, 0))
 
@@ -70,7 +70,7 @@ class _CausalConvolution(CustomOp):
             if b is not None:
                 x = x + b
 
-            if not return_cache_state:
+            if not return_output_state:
                 h0 = None
 
         if activation_function in ["silu", "swish"]:
@@ -88,7 +88,7 @@ class _CausalConvolution(CustomOp):
         x: torch.Tensor,
         h0: torch.Tensor | None,
         attention_mask: torch.Tensor | None,
-        return_cache_state: bool,
+        return_output_state: bool,
         W: torch.Tensor,
         b: torch.Tensor | None,
         activation_function: str | Callable | None = "silu",
@@ -110,7 +110,7 @@ def causal_convolution(
     x: torch.Tensor,
     input_state: torch.Tensor | None,
     attention_mask: torch.Tensor | None,
-    return_cache_state: bool,
+    return_output_state: bool,
     weight: torch.Tensor,
     bias: torch.Tensor | None,
     groups: int = 1,
@@ -143,7 +143,7 @@ def causal_convolution(
         if input_state is None:
             x = x.transpose(-1, -2)
 
-            if return_cache_state:
+            if return_output_state:
                 # F.pad trims the x if sequence_length > kernel_size
                 input_state = F.pad(x, (K - S, 0))
 
@@ -167,7 +167,7 @@ def causal_convolution(
                 activation=activation_function if use_activation_inside_kernel else None,
             )
 
-            if not return_cache_state:
+            if not return_output_state:
                 input_state = None
 
         if not use_activation_inside_kernel:
@@ -177,7 +177,7 @@ def causal_convolution(
             x=x,
             h0=input_state,
             attention_mask=attention_mask,
-            return_cache_state=return_cache_state,
+            return_output_state=return_output_state,
             W=weight,
             b=bias,
             activation_function=activation_function,
