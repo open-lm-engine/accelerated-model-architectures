@@ -27,7 +27,6 @@ def causal_convolution_triton_kernel(
     K: tl.constexpr,
     ACTIVATION: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
-    BLOCK_SIZE_S: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
 ):
@@ -35,24 +34,28 @@ def causal_convolution_triton_kernel(
     BLOCK_ID_S = tl.program_id(1)
     BLOCK_ID_B = tl.program_id(2)
 
-    NUM_BLOCKS_B = tl.cdiv(B, BLOCK_SIZE_B)
-    NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
-    NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
-
-    BLOCK_B = tl.arange(0, BLOCK_SIZE_B)
-    BLOCK_S = tl.arange(0, BLOCK_SIZE_S)
-    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
     BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
+    BLOCK_S = BLOCK_K - K + 1
 
+    MASK_B = BLOCK_B < B
     MASK_H = BLOCK_H < H
     MASK_K = BLOCK_K < K
+
+    MASK_BHK = MASK_B[:, None, None] & MASK_H[None, :, None] & MASK_K[None, None, :]
 
     W = tl.load(
         W_ptr + BLOCK_H[:, None] * W_stride[0] + BLOCK_K[None, :] * W_stride[2], mask=MASK_H[:, None] & MASK_K[None, :]
     )
 
-    BLOCK_B = BLOCK_ID_B + BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    BLOCK_H = BLOCK_ID_H + BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    x = tl.load(
+        x_ptr
+        + BLOCK_B[:, None, None] * x_stride[0]
+        + BLOCK_K[None, :, None] * x_stride[1]
+        + BLOCK_H[None, None, :] * x_stride[2],
+        mask=MASK_BHK,
+    )
 
     tl.load(x_ptr + BLOCK_B[:, None] * x_stride[0])
 
