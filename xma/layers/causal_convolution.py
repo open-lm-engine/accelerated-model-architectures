@@ -9,7 +9,6 @@ import torch.nn as nn
 
 from ..accelerator import KernelBackend
 from ..functional import causal_convolution
-from ..math import divide_if_divisible
 
 
 class CausalConvolution(nn.Conv1d):
