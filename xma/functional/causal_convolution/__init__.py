@@ -102,7 +102,7 @@ class _CausalConvolution(CustomOp):
         )
 
         if K > 1:
-            ht = x[..., : 1 - K]
+            ht = x[..., 1 - K :]
 
         return y, ht
 
