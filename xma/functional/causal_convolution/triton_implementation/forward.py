@@ -168,7 +168,5 @@ def causal_convolution_triton(
         H=H,
         K=K,
         ACTIVATION=activation_function,
-        BLOCK_SIZE_B=BLOCK_SIZE_B,
-        BLOCK_SIZE_H=BLOCK_SIZE_H,
         BLOCK_SIZE_K=get_next_power_of_2(K),
     )
