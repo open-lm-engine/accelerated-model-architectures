@@ -21,6 +21,8 @@ def causal_convolution_triton_kernel(
     W_stride,
     b_ptr,
     b_stride,
+    y_ptr,
+    y_stride,
     B,
     S,
     H: tl.constexpr,
@@ -58,7 +60,17 @@ def causal_convolution_triton_kernel(
         mask=MASK_BSH,
     )
 
-    tl.load(x_ptr + BLOCK_B[:, None] * x_stride[0])
+    W = W.T
+    W = W[None, :, :]
+    y = W * x
+
+    tl.load(
+        y_ptr
+        + BLOCK_B[:, None, None] * y_stride[0]
+        + BLOCK_S[None, :, None] * y_stride[1]
+        + BLOCK_H[None, None, :] * y_stride[2],
+        mask=MASK_BSH,
+    )
 
 
 @xma_op(mutates_args={"y"})
@@ -96,6 +108,8 @@ def causal_convolution_triton(
         W_stride=W.stride(),
         b_ptr=b,
         b_stride=b.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
         B=B,
         S=S,
         H=H,
