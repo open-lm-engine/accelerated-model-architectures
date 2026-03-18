@@ -37,7 +37,7 @@ def causal_convolution_triton_kernel(
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
     BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
-    BLOCK_S = BLOCK_K - K + 1
+    BLOCK_S = (BLOCK_ID_S - 1) * K + BLOCK_K + 1
 
     MASK_B = BLOCK_B < B
     MASK_H = BLOCK_H < H
