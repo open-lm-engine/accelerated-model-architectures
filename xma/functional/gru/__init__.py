@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...torch_utils import clip_gradients, compute_upcast_activation
+from ...torch_utils import clip_gradients, sigmoid, tanh
 from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 from ..rnn import _get_backward_tensor
 from .utils import _get_num_heads
@@ -80,15 +80,15 @@ class _GRU(CustomOp):
                 f = h0[unfinished, :, None, :] @ Wf + xf[offset_unfinished, :, None, :]
                 r = h0[unfinished, :, None, :] @ Wr + xr[offset_unfinished, :, None, :]
 
-            f = compute_upcast_activation(f, F.sigmoid)
-            r = compute_upcast_activation(r, F.sigmoid)
+            f = sigmoid(f)
+            r = sigmoid(r)
 
             if cu_seqlens is None:
                 z = (h0[..., None, :] * r) @ W + x[:, s, :, None, :]
             else:
                 z = (h0[unfinished, :, None, :] * r) @ W + x[offset_unfinished, :, None, :]
 
-            z = compute_upcast_activation(z, F.tanh)
+            z = tanh(z)
 
             if cu_seqlens is None:
                 h = f * h0[..., None, :] + (1 - f) * z

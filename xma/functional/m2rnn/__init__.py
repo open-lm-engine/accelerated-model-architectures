@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
-from ...torch_utils import clip_gradients, compute_upcast_activation
+from ...torch_utils import clip_gradients, tanh
 from ...utils import empty_like_contiguous, zeros_like_contiguous
 from .triton_implementation import m2rnn_backward_triton, m2rnn_forward_triton
 from .utils import _get_num_heads
@@ -81,7 +81,7 @@ class _M2RNN(CustomOp):
                 # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
                 h = h0[unfinished] @ W + x[offset_unfinished]
 
-            h = compute_upcast_activation(h, activation_function=F.tanh)
+            h = tanh(h)
 
             if cu_seqlens is None:
                 h = f * h0 + (1 - f) * h

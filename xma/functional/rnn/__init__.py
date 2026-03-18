@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
-from ...torch_utils import clip_gradients, compute_upcast_activation
+from ...torch_utils import clip_gradients, tanh
 from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 
 
@@ -85,7 +85,7 @@ class _RNN(CustomOp):
 
                 h = h0[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
 
-            h = compute_upcast_activation(h, F.tanh)
+            h = tanh(h)
             h = h.squeeze(-2)
             h = clip_gradients(h, gradient_clipping)
 
