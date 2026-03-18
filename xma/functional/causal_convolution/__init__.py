@@ -96,13 +96,18 @@ class _CausalConvolution(CustomOp):
         stride: int = 1,
         activation_function: str | Callable | None = "silu",
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        K = W.size(-1)
+
         y = empty_like_contiguous(x)
 
         causal_convolution_triton(
             x=x, h0=h0, W=W, b=b, y=y, activation_function=activation_function, cu_seqlens=None, max_seqlen=None
         )
 
-        return x, h0
+        if K > 1:
+            ht = x[..., : 1 - K]
+
+        return y, ht
 
 
 def causal_convolution(
