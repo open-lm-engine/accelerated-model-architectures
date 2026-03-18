@@ -146,9 +146,6 @@ def causal_convolution_triton(
 
     K = W.size(-1)
 
-    BLOCK_SIZE_H = max(16, get_next_power_of_2(H))
-    BLOCK_SIZE_B = 1
-
     GRID = lambda kwargs: (
         ceil_divide(kwargs["H"], kwargs["BLOCK_SIZE_H"]),
         S,
