@@ -40,10 +40,11 @@ def causal_convolution_triton_kernel(
     BLOCK_S = (BLOCK_ID_S - 1) * K + BLOCK_K + 1
 
     MASK_B = BLOCK_B < B
+    MASK_S = 0 <= BLOCK_S < S
     MASK_H = BLOCK_H < H
     MASK_K = BLOCK_K < K
 
-    MASK_BHK = MASK_B[:, None, None] & MASK_H[None, :, None] & MASK_K[None, None, :]
+    MASK_BSH = MASK_B[:, None, None] & MASK_S[None, :, None] & MASK_H[None, None, :]
 
     W = tl.load(
         W_ptr + BLOCK_H[:, None] * W_stride[0] + BLOCK_K[None, :] * W_stride[2], mask=MASK_H[:, None] & MASK_K[None, :]
@@ -52,9 +53,9 @@ def causal_convolution_triton_kernel(
     x = tl.load(
         x_ptr
         + BLOCK_B[:, None, None] * x_stride[0]
-        + BLOCK_K[None, :, None] * x_stride[1]
+        + BLOCK_S[None, :, None] * x_stride[1]
         + BLOCK_H[None, None, :] * x_stride[2],
-        mask=MASK_BHK,
+        mask=MASK_BSH,
     )
 
     tl.load(x_ptr + BLOCK_B[:, None] * x_stride[0])
