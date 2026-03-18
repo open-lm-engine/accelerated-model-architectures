@@ -39,10 +39,8 @@ def causal_convolution_triton_kernel(
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
     BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
-    BLOCK_S = (BLOCK_ID_S - 1) * K + BLOCK_K + 1
 
     MASK_B = BLOCK_B < B
-    MASK_S = 0 <= BLOCK_S < S
     MASK_H = BLOCK_H < H
     MASK_K = BLOCK_K < K
 
@@ -64,8 +62,8 @@ def causal_convolution_triton_kernel(
     y = W * x
 
     if b_ptr is not None:
-        b = tl.load(b_ptr + BLOCK_H[:, None] * b_stride[0] + BLOCK_K[None, :] * b_stride[1], mask=MASK_HK)
-        y += b
+        b = tl.load(b_ptr + BLOCK_H * b_stride[0], mask=MASK_H)
+        y = y + b[None, :]
 
     if ACTIVATION == "swiglu" or ACTIVATION == "silu":
         y = silu(y)
@@ -85,7 +83,7 @@ def causal_convolution_triton(
     x: torch.Tensor,
     h0: torch.Tensor | None,
     W: torch.Tensor,
-    b: torch.Tensor,
+    b: torch.Tensor | None,
     y: torch.Tensor,
     activation_function: str,
     cu_seqlens: torch.Tensor | None,
@@ -100,9 +98,18 @@ def causal_convolution_triton(
 
     K = W.size(-1)
 
+    if h0 is not None:
+        # Update conv state in-place: roll and insert current input
+        # h0: [B, H, K], x: [B, 1, H]
+        h0.copy_(h0.roll(shifts=-1, dims=-1))
+        h0[..., -1] = x[:, 0]
+
+    BLOCK_SIZE_H = max(16, get_next_power_of_2(H))
+    BLOCK_SIZE_B = 1
+
     GRID = lambda kwargs: (
         ceil_divide(kwargs["H"], kwargs["BLOCK_SIZE_H"]),
-        ceil_divide(kwargs["S"], kwargs["BLOCK_SIZE_S"]),
+        S,
         ceil_divide(kwargs["B"], kwargs["BLOCK_SIZE_B"]),
     )
 
@@ -110,11 +117,11 @@ def causal_convolution_triton(
         x_ptr=x,
         x_stride=x.stride(),
         h0_ptr=h0,
-        h0_stride=h0.stride(),
+        h0_stride=None if h0 is None else h0.stride(),
         W_ptr=W,
         W_stride=W.stride(),
         b_ptr=b,
-        b_stride=b.stride(),
+        b_stride=None if b is None else b.stride(),
         y_ptr=y,
         y_stride=y.stride(),
         B=B,
@@ -122,5 +129,7 @@ def causal_convolution_triton(
         H=H,
         K=K,
         ACTIVATION=activation_function,
+        BLOCK_SIZE_B=BLOCK_SIZE_B,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
         BLOCK_SIZE_K=get_next_power_of_2(K),
     )
