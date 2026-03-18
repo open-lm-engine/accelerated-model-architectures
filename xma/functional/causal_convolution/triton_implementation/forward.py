@@ -69,6 +69,7 @@ def causal_convolution_triton_kernel(
         + BLOCK_B[:, None, None] * y_stride[0]
         + BLOCK_S[None, :, None] * y_stride[1]
         + BLOCK_H[None, None, :] * y_stride[2],
+        y,
         mask=MASK_BSH,
     )
 
