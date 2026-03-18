@@ -44,22 +44,73 @@ def causal_convolution_triton_kernel(
     MASK_H = BLOCK_H < H
     MASK_K = BLOCK_K < K
 
-    MASK_BSH = MASK_B[:, None, None] & MASK_S[None, :, None] & MASK_H[None, None, :]
-    MASK_HK = MASK_H[:, None] & MASK_K[None, :]
-
-    W = tl.load(W_ptr + BLOCK_H[:, None] * W_stride[0] + BLOCK_K[None, :] * W_stride[2], mask=MASK_HK)
-
-    x = tl.load(
-        x_ptr
-        + BLOCK_B[:, None, None] * x_stride[0]
-        + BLOCK_S[None, :, None] * x_stride[1]
-        + BLOCK_H[None, None, :] * x_stride[2],
-        mask=MASK_BSH,
+    W = tl.load(
+        W_ptr + BLOCK_H[:, None] * W_stride[0] + BLOCK_K[None, :] * W_stride[2], mask=MASK_H[:, None] & MASK_K[None, :]
     )
 
-    W = W.T
-    W = W[None, :, :]
-    y = W * x
+    if h0_ptr is None:
+        BLOCK_S = BLOCK_ID_S - K + 1 + BLOCK_K
+        MASK_SK = (0 <= BLOCK_S) & (BLOCK_S < S) & MASK_K
+
+        x = tl.load(
+            x_ptr
+            + BLOCK_B[:, None, None] * x_stride[0]
+            + BLOCK_S[None, :, None] * x_stride[1]
+            + BLOCK_H[None, None, :] * x_stride[2],
+            mask=MASK_B[:, None, None] & MASK_SK[None, :, None] & MASK_H[None, None, :],
+        )
+
+        y = tl.sum(x * W.T[None, :, :], axis=1)
+    else:
+        MASK_K_H0 = BLOCK_K < K - 1  # h0 has only K-1 positions
+
+        # Load x[b, 0, h] — new input token (S=1 in generation)
+        x_new = tl.load(
+            x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[2],
+            mask=MASK_B[:, None] & MASK_H[None, :],
+            other=0.0,
+        )  # [BLOCK_SIZE_B, BLOCK_SIZE_H]
+
+        # Load h0[b, k, h] for k in [0, K-2] — for dot product
+        h0_orig = tl.load(
+            h0_ptr
+            + BLOCK_B[:, None, None] * h0_stride[0]
+            + BLOCK_K[None, :, None] * h0_stride[1]
+            + BLOCK_H[None, None, :] * h0_stride[2],
+            mask=MASK_B[:, None, None] & MASK_K_H0[None, :, None] & MASK_H[None, None, :],
+            other=0.0,
+        )  # [BLOCK_SIZE_B, BLOCK_SIZE_K, BLOCK_SIZE_H]
+
+        # Construct full K-length input: h0_orig at 0..K-2, x_new at K-1
+        IS_LAST_K = BLOCK_K == K - 1
+        full_input = tl.where(IS_LAST_K[None, :, None], x_new[:, None, :], h0_orig)
+
+        # y[b, h] = sum_k full_input[b, k, h] * W[h, k]
+        y = tl.sum(full_input * W.T[None, :, :], axis=1)  # [BLOCK_SIZE_B, BLOCK_SIZE_H]
+
+        # Load h0[b, k+1, h] for the state update; clamp to K-2 to stay in-bounds
+        BLOCK_K_SHIFTED = tl.where(BLOCK_K < K - 2, BLOCK_K + 1, K - 2)
+        h0_shifted = tl.load(
+            h0_ptr
+            + BLOCK_B[:, None, None] * h0_stride[0]
+            + BLOCK_K_SHIFTED[None, :, None] * h0_stride[1]
+            + BLOCK_H[None, None, :] * h0_stride[2],
+            mask=MASK_B[:, None, None] & MASK_K_H0[None, :, None] & MASK_H[None, None, :],
+            other=0.0,
+        )  # [BLOCK_SIZE_B, BLOCK_SIZE_K, BLOCK_SIZE_H]
+
+        # Replace last slot (K-2) with x_new
+        IS_LAST_H0 = BLOCK_K == K - 2
+        h0_updated = tl.where(IS_LAST_H0[None, :, None], x_new[:, None, :], h0_shifted)
+
+        tl.store(
+            h0_ptr
+            + BLOCK_B[:, None, None] * h0_stride[0]
+            + BLOCK_K[None, :, None] * h0_stride[1]
+            + BLOCK_H[None, None, :] * h0_stride[2],
+            h0_updated,
+            mask=MASK_B[:, None, None] & MASK_K_H0[None, :, None] & MASK_H[None, None, :],
+        )
 
     if b_ptr is not None:
         b = tl.load(b_ptr + BLOCK_H * b_stride[0], mask=MASK_H)
@@ -68,17 +119,14 @@ def causal_convolution_triton_kernel(
     if ACTIVATION == "swiglu" or ACTIVATION == "silu":
         y = silu(y)
 
-    tl.load(
-        y_ptr
-        + BLOCK_B[:, None, None] * y_stride[0]
-        + BLOCK_S[None, :, None] * y_stride[1]
-        + BLOCK_H[None, None, :] * y_stride[2],
+    tl.store(
+        y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_S * y_stride[1] + BLOCK_H[None, :] * y_stride[2],
         y,
-        mask=MASK_BSH,
+        mask=MASK_B[:, None] & MASK_H[None, :],
     )
 
 
-@xma_op(mutates_args={"y"})
+@xma_op(mutates_args={"y", "h0"})
 def causal_convolution_triton(
     x: torch.Tensor,
     h0: torch.Tensor | None,
@@ -97,12 +145,6 @@ def causal_convolution_triton(
         S = max_seqlen
 
     K = W.size(-1)
-
-    if h0 is not None:
-        # Update conv state in-place: roll and insert current input
-        # h0: [B, H, K], x: [B, 1, H]
-        h0.copy_(h0.roll(shifts=-1, dims=-1))
-        h0[..., -1] = x[:, 0]
 
     BLOCK_SIZE_H = max(16, get_next_power_of_2(H))
     BLOCK_SIZE_B = 1
