@@ -61,7 +61,7 @@ class CausalConvolution(nn.Conv1d):
             x=x,
             input_state=input_state,
             attention_mask=attention_mask,
-            return_cache_state=cache_params is not None,
+            return_cache_state=True,
             weight=self.weight,
             bias=self.bias,
             groups=self.groups,

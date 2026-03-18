@@ -12,7 +12,8 @@ import torch.nn.functional as F
 from ...accelerator import Accelerator, KernelBackend
 from ...custom_op import CustomOp
 from ...torch_utils import compute_upcast_activation, silu
-from ...utils import is_causal_conv1d_available
+from ...utils import empty_like_contiguous, is_causal_conv1d_available
+from .triton_implementation import causal_convolution_triton
 
 
 if is_causal_conv1d_available():
@@ -95,6 +96,12 @@ class _CausalConvolution(CustomOp):
         stride: int = 1,
         activation_function: str | Callable | None = "silu",
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        y = empty_like_contiguous(x)
+
+        causal_convolution_triton(
+            x=x, h0=h0, W=W, b=b, y=y, activation_function=activation_function, cu_seqlens=None, max_seqlen=None
+        )
+
         return x, h0
 
 
