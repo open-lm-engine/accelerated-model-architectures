@@ -15,7 +15,8 @@ from ..math import divide_if_divisible
 class CausalConvolution(nn.Conv1d):
     def __init__(
         self,
-        hidden_size: int,
+        input_size: int | None,
+        output_size: int | None,
         in_channels: int,
         out_channels: int,
         kernel_size: int,
@@ -32,9 +33,9 @@ class CausalConvolution(nn.Conv1d):
         self.stride = stride
         self.activation_string = activation_function
 
-        self.input_projection = nn.Linear(hidden_size, in_channels, bias=add_bias)
-
-        self.conv
+        self.input_projection = (
+            nn.Identity() if input_size is None else nn.Linear(input_size, in_channels, bias=add_bias)
+        )
 
         self.weight = nn.Parameter(
             torch.empty(self.out_channels, self.in_channels // self.num_groups, self.kernel_size)
@@ -44,7 +45,9 @@ class CausalConvolution(nn.Conv1d):
         if add_bias:
             self.bias = nn.Parameter(torch.empty(self.out_channels))
 
-        self.output_projection = nn.Linear(self.out_channels, hidden_size, bias=add_bias)
+        self.output_projection = (
+            nn.Identity() if output_size is None else nn.Linear(self.out_channels, output_size, bias=add_bias)
+        )
 
     def forward(
         self,
