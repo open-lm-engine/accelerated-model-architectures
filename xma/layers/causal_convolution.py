@@ -20,16 +20,17 @@ class CausalConvolution(nn.Conv1d):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        num_groups: int,
-        activation_function: str,
-        add_bias: bool,
+        groups: int = 1,
+        stride: int = 1,
+        activation_function: str = "silu",
+        add_bias: bool = True,
     ) -> CausalConvolution:
         super().__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
-        self.num_groups = num_groups
+        self.groups = groups
         self.stride = stride
         self.activation_string = activation_function
 
