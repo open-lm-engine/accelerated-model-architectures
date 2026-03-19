@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.functional.gru - XMA documentation</title>
+        <title>xma.functional.rnn_tt - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -264,7 +264,7 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <h1>Source code for xma.functional.gru</h1><div class="highlight"><pre>
+          <h1>Source code for xma.functional.rnn_tt</h1><div class="highlight"><pre>
 <span></span><span class="c1"># **************************************************</span>
 <span class="c1"># Copyright (c) 2025, Mayank Mishra</span>
 <span class="c1"># **************************************************</span>
@@ -272,32 +272,27 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">KernelBackend</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...custom_op</span><span class="w"> </span><span class="kn">import</span> <span class="n">CustomOp</span><span class="p">,</span> <span class="n">ctx_needs_gradients</span><span class="p">,</span> <span class="n">ctx_save_for_backward</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...torch_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">clip_gradients</span><span class="p">,</span> <span class="n">sigmoid</span><span class="p">,</span> <span class="n">tanh</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...custom_op</span><span class="w"> </span><span class="kn">import</span> <span class="n">CustomOp</span><span class="p">,</span> <span class="n">ctx_save_for_backward</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...torch_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">clip_gradients</span><span class="p">,</span> <span class="n">tanh</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">is_triton_available</span><span class="p">,</span> <span class="n">zeros_like_contiguous</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..rnn</span><span class="w"> </span><span class="kn">import</span> <span class="n">_get_backward_tensor</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">_get_num_heads</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..rnn</span><span class="w"> </span><span class="kn">import</span> <span class="n">_get_backward_tensor</span><span class="p">,</span> <span class="n">_get_num_heads</span>
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">gru_backward_triton</span><span class="p">,</span> <span class="n">gru_forward_triton</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">rnn_backward_triton</span><span class="p">,</span> <span class="n">rnn_forward_triton</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">_GRU</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">_RNN_TT</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">forward_backward_torch</span><span class="p">(</span>
         <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">W</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">xf</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">Wf</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">xr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">Wr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">h0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">gradient_clipping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">cu_seqlens</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">max_seqlen</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="n">Nx</span><span class="p">,</span> <span class="n">Nxf</span><span class="p">,</span> <span class="n">Nxr</span><span class="p">,</span> <span class="n">Nw</span><span class="p">,</span> <span class="n">Nwf</span><span class="p">,</span> <span class="n">Nwr</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">_get_num_heads</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">xf</span><span class="o">=</span><span class="n">xf</span><span class="p">,</span> <span class="n">Wf</span><span class="o">=</span><span class="n">Wf</span><span class="p">,</span> <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span> <span class="n">Wr</span><span class="o">=</span><span class="n">Wr</span><span class="p">,</span> <span class="n">run_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">Nx</span><span class="p">,</span> <span class="n">Nw</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">_get_num_heads</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">run_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="n">y_shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
         <span class="n">y_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">N</span>
@@ -311,20 +306,11 @@
             <span class="n">H</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="n">Gx</span> <span class="o">=</span> <span class="n">N</span> <span class="o">//</span> <span class="n">Nx</span>
-        <span class="n">Gxf</span> <span class="o">=</span> <span class="n">N</span> <span class="o">//</span> <span class="n">Nxf</span>
-        <span class="n">Gxr</span> <span class="o">=</span> <span class="n">N</span> <span class="o">//</span> <span class="n">Nxr</span>
-
         <span class="n">Gw</span> <span class="o">=</span> <span class="n">N</span> <span class="o">//</span> <span class="n">Nw</span>
-        <span class="n">Gwf</span> <span class="o">=</span> <span class="n">N</span> <span class="o">//</span> <span class="n">Nwf</span>
-        <span class="n">Gwr</span> <span class="o">=</span> <span class="n">N</span> <span class="o">//</span> <span class="n">Nwr</span>
 
         <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">Gx</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">xf</span> <span class="o">=</span> <span class="n">xf</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">Gxf</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">xr</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">Gxr</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-
         <span class="n">W</span> <span class="o">=</span> <span class="n">W</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">Gw</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
-        <span class="n">Wf</span> <span class="o">=</span> <span class="n">Wf</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">Gwf</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
-        <span class="n">Wr</span> <span class="o">=</span> <span class="n">Wr</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">Gwr</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+        <span class="n">WT</span> <span class="o">=</span> <span class="n">W</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">h0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">h0</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
@@ -336,31 +322,16 @@
 
         <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">S</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">cu_seqlens</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">f</span> <span class="o">=</span> <span class="n">h0</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">@</span> <span class="n">Wf</span> <span class="o">+</span> <span class="n">xf</span><span class="p">[:,</span> <span class="n">s</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-                <span class="n">r</span> <span class="o">=</span> <span class="n">h0</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">@</span> <span class="n">Wr</span> <span class="o">+</span> <span class="n">xr</span><span class="p">[:,</span> <span class="n">s</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+                <span class="n">h</span> <span class="o">=</span> <span class="n">h0</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">@</span> <span class="n">WT</span> <span class="o">-</span> <span class="n">x</span><span class="p">[:,</span> <span class="n">s</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">offset</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">s</span>
                 <span class="n">unfinished</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">&lt;</span> <span class="n">end</span>
                 <span class="n">offset_unfinished</span> <span class="o">=</span> <span class="n">offset</span><span class="p">[</span><span class="n">unfinished</span><span class="p">]</span>
 
-                <span class="n">f</span> <span class="o">=</span> <span class="n">h0</span><span class="p">[</span><span class="n">unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">@</span> <span class="n">Wf</span> <span class="o">+</span> <span class="n">xf</span><span class="p">[</span><span class="n">offset_unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-                <span class="n">r</span> <span class="o">=</span> <span class="n">h0</span><span class="p">[</span><span class="n">unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">@</span> <span class="n">Wr</span> <span class="o">+</span> <span class="n">xr</span><span class="p">[</span><span class="n">offset_unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+                <span class="n">h</span> <span class="o">=</span> <span class="n">h0</span><span class="p">[</span><span class="n">unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">@</span> <span class="n">WT</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="n">offset_unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
 
-            <span class="n">f</span> <span class="o">=</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-            <span class="n">r</span> <span class="o">=</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-
-            <span class="k">if</span> <span class="n">cu_seqlens</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">h0</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">r</span><span class="p">)</span> <span class="o">@</span> <span class="n">W</span> <span class="o">+</span> <span class="n">x</span><span class="p">[:,</span> <span class="n">s</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">h0</span><span class="p">[</span><span class="n">unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">r</span><span class="p">)</span> <span class="o">@</span> <span class="n">W</span> <span class="o">+</span> <span class="n">x</span><span class="p">[</span><span class="n">offset_unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-
-            <span class="n">z</span> <span class="o">=</span> <span class="n">tanh</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
-
-            <span class="k">if</span> <span class="n">cu_seqlens</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">h</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">h0</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">f</span><span class="p">)</span> <span class="o">*</span> <span class="n">z</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">h</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">h0</span><span class="p">[</span><span class="n">unfinished</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">f</span><span class="p">)</span> <span class="o">*</span> <span class="n">z</span>
-
+            <span class="n">h</span> <span class="o">=</span> <span class="n">tanh</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="o">-</span><span class="n">h</span> <span class="o">@</span> <span class="n">W</span>
             <span class="n">h</span> <span class="o">=</span> <span class="n">h</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">h</span> <span class="o">=</span> <span class="n">clip_gradients</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">gradient_clipping</span><span class="p">)</span>
 
@@ -378,10 +349,6 @@
         <span class="n">ctx</span><span class="p">,</span>
         <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">W</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">xf</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">Wf</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">xr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">Wr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">h0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">gradient_clipping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">cu_seqlens</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
@@ -390,52 +357,26 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
         <span class="k">assert</span> <span class="n">kernel_backend</span> <span class="ow">in</span> <span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">,</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">]</span>
 
-        <span class="n">Nx</span><span class="p">,</span> <span class="n">Nxf</span><span class="p">,</span> <span class="n">Nxr</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">_get_num_heads</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">xf</span><span class="o">=</span><span class="n">xf</span><span class="p">,</span> <span class="n">Wf</span><span class="o">=</span><span class="n">Wf</span><span class="p">,</span> <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span> <span class="n">Wr</span><span class="o">=</span><span class="n">Wr</span><span class="p">,</span> <span class="n">run_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">Nx</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">_get_num_heads</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">run_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">y_shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
         <span class="n">y_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">N</span>
 
-        <span class="n">needs_grad</span> <span class="o">=</span> <span class="n">ctx_needs_gradients</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
-
         <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">y_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">f</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">y_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="k">if</span> <span class="n">needs_grad</span> <span class="ow">and</span> <span class="n">Nxf</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">y_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="k">if</span> <span class="n">needs_grad</span> <span class="ow">and</span> <span class="n">Nxr</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="n">z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">y_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="k">if</span> <span class="n">needs_grad</span> <span class="ow">and</span> <span class="n">Nx</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="kc">None</span>
 
-        <span class="n">gru_forward_triton</span><span class="p">(</span>
+        <span class="n">rnn_forward_triton</span><span class="p">(</span>
             <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span>
             <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span>
-            <span class="n">xf</span><span class="o">=</span><span class="n">xf</span><span class="p">,</span>
-            <span class="n">Wf</span><span class="o">=</span><span class="n">Wf</span><span class="p">,</span>
-            <span class="n">f</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-            <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span>
-            <span class="n">Wr</span><span class="o">=</span><span class="n">Wr</span><span class="p">,</span>
-            <span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span>
-            <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span>
             <span class="n">h0</span><span class="o">=</span><span class="n">h0</span><span class="p">,</span>
             <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
             <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span>
             <span class="n">max_seqlen</span><span class="o">=</span><span class="n">max_seqlen</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="n">ctx_save_for_backward</span><span class="p">(</span>
-            <span class="n">ctx</span><span class="p">,</span>
-            <span class="n">W</span><span class="p">,</span>
-            <span class="n">Wf</span><span class="p">,</span>
-            <span class="n">f</span><span class="p">,</span>
-            <span class="n">Wr</span><span class="p">,</span>
-            <span class="n">r</span><span class="p">,</span>
-            <span class="n">z</span><span class="p">,</span>
-            <span class="n">y</span><span class="p">,</span>
-            <span class="n">h0</span><span class="p">,</span>
-            <span class="n">cu_seqlens</span><span class="p">,</span>
-            <span class="n">x</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="n">xf</span> <span class="k">if</span> <span class="n">f</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="n">xr</span> <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="p">)</span>
 
         <span class="n">ctx</span><span class="o">.</span><span class="n">max_seqlen</span> <span class="o">=</span> <span class="n">max_seqlen</span>
         <span class="n">ctx</span><span class="o">.</span><span class="n">gradient_clipping</span> <span class="o">=</span> <span class="n">gradient_clipping</span>
-        <span class="n">ctx</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="n">Nx</span><span class="p">,</span> <span class="n">Nxf</span><span class="p">,</span> <span class="n">Nxr</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">Nx</span> <span class="o">=</span> <span class="n">Nx</span>
 
         <span class="n">ht</span> <span class="o">=</span> <span class="n">y</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">cu_seqlens</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">y</span><span class="p">[</span><span class="n">cu_seqlens</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
         <span class="n">ht</span> <span class="o">=</span> <span class="n">ht</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
@@ -443,35 +384,18 @@
         <span class="k">return</span> <span class="n">y</span><span class="p">,</span> <span class="n">ht</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dht</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
-        <span class="n">W</span><span class="p">,</span> <span class="n">Wf</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">Wr</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">xf</span><span class="p">,</span> <span class="n">xr</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span>
-        <span class="n">Nx</span><span class="p">,</span> <span class="n">Nxf</span><span class="p">,</span> <span class="n">Nxr</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">num_heads</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dht</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+        <span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span>
+        <span class="n">Nx</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Nx</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
 
-        <span class="n">dx</span> <span class="o">=</span> <span class="n">_get_backward_tensor</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">Nx</span><span class="o">=</span><span class="n">Nx</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">y</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">))</span>
-        <span class="n">dxf</span> <span class="o">=</span> <span class="n">_get_backward_tensor</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">Nx</span><span class="o">=</span><span class="n">Nxf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">y</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">))</span>
-        <span class="n">dxr</span> <span class="o">=</span> <span class="n">_get_backward_tensor</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">Nx</span><span class="o">=</span><span class="n">Nxr</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">y</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">))</span>
-
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">_get_backward_tensor</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">Nx</span><span class="o">=</span><span class="n">Nx</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">)</span>
         <span class="n">dW</span> <span class="o">=</span> <span class="n">zeros_like_contiguous</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="n">dWf</span> <span class="o">=</span> <span class="n">zeros_like_contiguous</span><span class="p">(</span><span class="n">Wf</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="n">dWr</span> <span class="o">=</span> <span class="n">zeros_like_contiguous</span><span class="p">(</span><span class="n">Wr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-
         <span class="n">dh0</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">h0</span><span class="p">)</span> <span class="k">if</span> <span class="n">h0</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">h0</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">else</span> <span class="kc">None</span>
 
-        <span class="n">gru_backward_triton</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span>
+        <span class="n">rnn_backward_triton</span><span class="p">(</span>
             <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span>
             <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
-            <span class="n">xf</span><span class="o">=</span><span class="n">xf</span><span class="p">,</span>
-            <span class="n">Wf</span><span class="o">=</span><span class="n">Wf</span><span class="p">,</span>
-            <span class="n">f</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-            <span class="n">dxf</span><span class="o">=</span><span class="n">dxf</span><span class="p">,</span>
-            <span class="n">dWf</span><span class="o">=</span><span class="n">dWf</span><span class="p">,</span>
-            <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span>
-            <span class="n">Wr</span><span class="o">=</span><span class="n">Wr</span><span class="p">,</span>
-            <span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span>
-            <span class="n">dxr</span><span class="o">=</span><span class="n">dxr</span><span class="p">,</span>
-            <span class="n">dWr</span><span class="o">=</span><span class="n">dWr</span><span class="p">,</span>
-            <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span>
             <span class="n">h0</span><span class="o">=</span><span class="n">h0</span><span class="p">,</span>
             <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span>
             <span class="n">dht</span><span class="o">=</span><span class="n">dht</span><span class="p">,</span>
@@ -484,25 +408,16 @@
         <span class="p">)</span>
 
         <span class="n">dx</span> <span class="o">=</span> <span class="n">dx</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
-        <span class="n">dxf</span> <span class="o">=</span> <span class="n">dxf</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
-        <span class="n">dxr</span> <span class="o">=</span> <span class="n">dxr</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
-
         <span class="n">dW</span> <span class="o">=</span> <span class="n">dW</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">W</span><span class="p">)</span>
-        <span class="n">dWf</span> <span class="o">=</span> <span class="n">dWf</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">Wf</span><span class="p">)</span>
-        <span class="n">dWr</span> <span class="o">=</span> <span class="n">dWr</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">Wr</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dW</span><span class="p">,</span> <span class="n">dxf</span><span class="p">,</span> <span class="n">dWf</span><span class="p">,</span> <span class="n">dxr</span><span class="p">,</span> <span class="n">dWr</span><span class="p">,</span> <span class="n">dh0</span><span class="p">,</span> <span class="o">*</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span>
+        <span class="k">return</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dW</span><span class="p">,</span> <span class="n">dh0</span><span class="p">,</span> <span class="o">*</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span>
 
 
-<div class="viewcode-block" id="gru">
-<a class="viewcode-back" href="../../../xma.functional.gru.html#xma.functional.gru.gru">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">gru</span><span class="p">(</span>
+<div class="viewcode-block" id="rnn">
+<a class="viewcode-back" href="../../../xma.functional.rnn_tt.html#xma.functional.rnn_tt.rnn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rnn</span><span class="p">(</span>
     <span class="nb">input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">weight</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">forget_input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">forget_weight</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">reset_input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">reset_weight</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">input_state</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">gradient_clipping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">cu_seqlens</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -511,23 +426,13 @@
     <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    computes multihead RNN: `tanh(input_state @ weight + input)`</span>
+<span class="sd">    computes multihead RNN recurrent update over the sequence length: `tanh(input_state @ weight + input)`</span>
 
 <span class="sd">    :param input: input tensor of shape (B, S, Nx, H) where Nx is the number of input heads and H is the head</span>
 <span class="sd">        dimension. Should have shape (T, Nx, H) and `cu_seqlens` should be passed.</span>
 <span class="sd">    :type input: torch.Tensor</span>
 <span class="sd">    :param weight: weight tensor of shape (Nw, H, H)</span>
 <span class="sd">    :type weight: torch.Tensor</span>
-<span class="sd">    :param forget_input: forget input tensor of shape (B, S, Nxf, H) where Nxf is the number of input heads and H is the head</span>
-<span class="sd">        dimension. Should have shape (T, Nxf, H) and `cu_seqlens` should be passed.</span>
-<span class="sd">    :type forget_input: torch.Tensor</span>
-<span class="sd">    :param forget_weight: forget weight tensor of shape (NWf, H, H)</span>
-<span class="sd">    :type forget_weight: torch.Tensor</span>
-<span class="sd">    :param reset_input: reset input tensor of shape (B, S, Nxr, H) where Nxr is the number of input heads and H is the head</span>
-<span class="sd">        dimension. Should have shape (T, Nxr, H) and `cu_seqlens` should be passed.</span>
-<span class="sd">    :type reset_input: torch.Tensor</span>
-<span class="sd">    :param reset_weight: reset weight tensor of shape (Nwr, H, H)</span>
-<span class="sd">    :type reset_weight: torch.Tensor</span>
 <span class="sd">    :param input_state: starting state of shape (B, N, H), where N = max{Nx, Nw}. None means starting state is</span>
 <span class="sd">        0 tensor. Defaults to None.</span>
 <span class="sd">    :type input_state: torch.Tensor | None</span>
@@ -545,32 +450,22 @@
 <span class="sd">    :rtype: tuple[Tensor, Tensor]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="k">assert</span> <span class="nb">input</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">3</span> <span class="o">+</span> <span class="p">(</span><span class="n">cu_seqlens</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span>
+
     <span class="k">if</span> <span class="n">cu_seqlens</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">max_seqlen</span> <span class="ow">is</span> <span class="kc">None</span>
-        <span class="n">B</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">H</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+        <span class="n">B</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">H</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">max_seqlen</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="k">assert</span> <span class="n">cu_seqlens</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span>
 
         <span class="n">B</span> <span class="o">=</span> <span class="n">cu_seqlens</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
-        <span class="n">T</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">H</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+        <span class="n">H</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-    <span class="n">Nx</span><span class="p">,</span> <span class="n">Nxf</span><span class="p">,</span> <span class="n">Nxr</span><span class="p">,</span> <span class="n">Nw</span><span class="p">,</span> <span class="n">Nwf</span><span class="p">,</span> <span class="n">Nwr</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">_get_num_heads</span><span class="p">(</span>
-        <span class="n">x</span><span class="o">=</span><span class="nb">input</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span> <span class="n">xf</span><span class="o">=</span><span class="n">forget_input</span><span class="p">,</span> <span class="n">Wf</span><span class="o">=</span><span class="n">forget_weight</span><span class="p">,</span> <span class="n">xr</span><span class="o">=</span><span class="n">reset_input</span><span class="p">,</span> <span class="n">Wr</span><span class="o">=</span><span class="n">reset_weight</span><span class="p">,</span> <span class="n">run_check</span><span class="o">=</span><span class="kc">True</span>
-    <span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">Nw</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">_get_num_heads</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="nb">input</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span> <span class="n">run_check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">cu_seqlens</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="nb">input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">Nx</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
-        <span class="n">forget_input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">Nxf</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
-        <span class="n">reset_input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">Nxr</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="nb">input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">Nx</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
-        <span class="n">forget_input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">Nxf</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
-        <span class="n">reset_input</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">Nxr</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
-
-    <span class="k">assert</span> <span class="n">weight</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">Nw</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="n">forget_weight</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">Nwf</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="n">reset_weight</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">Nwr</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
+    <span class="n">I</span> <span class="o">=</span> <span class="n">weight</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">weight</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">Nw</span><span class="p">,</span> <span class="n">I</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">input_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">input_state</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
@@ -578,13 +473,9 @@
     <span class="k">if</span> <span class="n">gradient_clipping</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">gradient_clipping</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">gradient_clipping</span> <span class="o">=</span> <span class="o">-</span><span class="n">gradient_clipping</span>
 
-    <span class="nb">input</span><span class="p">,</span> <span class="n">input_state</span> <span class="o">=</span> <span class="n">_GRU</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+    <span class="nb">input</span><span class="p">,</span> <span class="n">input_state</span> <span class="o">=</span> <span class="n">_RNN_TT</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
         <span class="n">x</span><span class="o">=</span><span class="nb">input</span><span class="p">,</span>
         <span class="n">W</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span>
-        <span class="n">xf</span><span class="o">=</span><span class="n">forget_input</span><span class="p">,</span>
-        <span class="n">Wf</span><span class="o">=</span><span class="n">forget_weight</span><span class="p">,</span>
-        <span class="n">xr</span><span class="o">=</span><span class="n">reset_input</span><span class="p">,</span>
-        <span class="n">Wr</span><span class="o">=</span><span class="n">reset_weight</span><span class="p">,</span>
         <span class="n">h0</span><span class="o">=</span><span class="n">input_state</span><span class="p">,</span>
         <span class="n">gradient_clipping</span><span class="o">=</span><span class="n">gradient_clipping</span><span class="p">,</span>
         <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span>
