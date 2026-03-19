@@ -13,7 +13,6 @@ xma.functional
    xma.functional.m2rnn
    xma.functional.norm
    xma.functional.rnn
-   xma.functional.rnn_tt
    xma.functional.sequence_packing
    xma.functional.softmax
    xma.functional.swiglu
