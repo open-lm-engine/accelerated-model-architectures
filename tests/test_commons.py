@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 from torch.testing import assert_close
 
-from xma import KernelBackend, init_inductor
+from xma import KernelBackend
 
 
 def skip_if_incompatible_kernel_backend(kernel_backend: KernelBackend) -> None:

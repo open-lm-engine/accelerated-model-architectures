@@ -20,11 +20,6 @@ _ALL_TRACE_FUNCTIONS = [joint_fwd_bwd, fwd_only]
 _ALL_DTYPES = [torch.float32, torch.float16, torch.bfloat16]
 
 
-def init_inductor(cache_size_limit: int) -> None:
-    torch._dynamo.config.cache_size_limit = cache_size_limit
-    torch._dynamo.config.accumulated_cache_size_limit = cache_size_limit
-
-
 def partialize_and_update_signature(func: Callable, **kwargs) -> Callable:
     original_sig = inspect.signature(func)
     parameters = original_sig.parameters
