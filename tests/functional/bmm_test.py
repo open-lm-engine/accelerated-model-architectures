@@ -9,7 +9,7 @@ import torch
 
 from xma import KernelBackend, bmm, set_seed
 
-from ..test_commons import get_2d_tensor_sizes, skip_if_incompatible_kernel_backend
+from ..test_commons import assert_equal_tensors, get_2d_tensor_sizes, skip_if_incompatible_kernel_backend
 
 
 _SEED = 42
@@ -85,7 +85,7 @@ def test_bmm(
         kernel_backend=KernelBackend.torch,
     )
 
-    self.assert_equal_tensors(
+    assert_equal_tensors(
         output_kernel,
         output_expected,
         False,
