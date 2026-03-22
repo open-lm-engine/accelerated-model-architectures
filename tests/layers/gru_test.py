@@ -11,6 +11,7 @@ from xma import GRU, Accelerator, KernelBackend, set_seed
 from ..test_commons import (
     assert_equal_tensors,
     collect_gradients_from_module_and_zero_grads,
+    get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
 )
 
@@ -31,7 +32,6 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
 
 
 def _get_packed_tensor_inputs(
-    self,
     batch_size: int,
     sequence_length: int | None,
     total_tokens: int | None,
@@ -40,7 +40,7 @@ def _get_packed_tensor_inputs(
     dtype: torch.dtype,
     device: torch.device,
 ) -> tuple[torch.Tensor | None]:
-    x_kernel, x_torch = self.get_random_duplicated_tensors(
+    x_kernel, x_torch = get_random_duplicated_tensors(
         ((batch_size, sequence_length, state_size) if total_tokens is None else (total_tokens, state_size)),
         device=device,
         dtype=dtype,
@@ -50,7 +50,7 @@ def _get_packed_tensor_inputs(
     input_state_kernel = None
     input_state_torch = None
     if has_input_state:
-        input_state_kernel, input_state_torch = self.get_random_duplicated_tensors(
+        input_state_kernel, input_state_torch = get_random_duplicated_tensors(
             (batch_size, state_size),
             device=device,
             dtype=dtype,
@@ -100,7 +100,7 @@ def test_gru(
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
         B = cu_seqlens.size(0) - 1
 
-    x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
+    x_kernel, x_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
         batch_size=B,
         sequence_length=S if cu_seqlens is None else None,
         total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
