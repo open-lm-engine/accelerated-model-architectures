@@ -20,6 +20,19 @@ def skip_if_incompatible_kernel_backend(kernel_backend: KernelBackend) -> None:
         pytest.skip(f"device incompatible with kernel_backend ({kernel_backend})")
 
 
+def get_1d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50) -> set[int]:
+    sizes = set()
+    # powers of 2
+    for i in range(log_max_power_of_2):
+        start = 2**i
+        for j in range(max_offset):
+            sizes.add(start + j)
+    # not powers of 2
+    for _ in range(num_not_powers_of_2):
+        sizes.add(3000 + random.randint(-1000, 1000))
+    return sizes
+
+
 def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50) -> set[int]:
     sizes = set()
     # powers of 2
@@ -79,31 +92,17 @@ class TestCommons(TestCase):
     def get_1d_tensor_sizes(
         log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
     ) -> set[int]:
-        sizes = set()
-        # powers of 2
-        for i in range(log_max_power_of_2):
-            start = 2**i
-            for j in range(max_offset):
-                sizes.add(start + j)
-        # not powers of 2
-        for _ in range(num_not_powers_of_2):
-            sizes.add(3000 + random.randint(-1000, 1000))
-        return sizes
+        return get_1d_tensor_sizes(
+            log_max_power_of_2=log_max_power_of_2, max_offset=max_offset, num_not_powers_of_2=num_not_powers_of_2
+        )
 
     @staticmethod
     def get_2d_tensor_sizes(
         log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
     ) -> set[int]:
-        sizes = set()
-        # powers of 2
-        for i in range(log_max_power_of_2):
-            start = 2**i
-            for j in range(max_offset):
-                sizes.add((start + j, start + j))
-        # not powers of 2
-        for _ in range(num_not_powers_of_2):
-            sizes.add((3000 + random.randint(-1000, 1000), 3000 + random.randint(-1000, 1000)))
-        return sizes
+        return get_2d_tensor_sizes(
+            log_max_power_of_2=log_max_power_of_2, max_offset=max_offset, num_not_powers_of_2=num_not_powers_of_2
+        )
 
     def make_args_matrix(*args_lists) -> list[Any]:
         return [p for p in product(*args_lists)]
