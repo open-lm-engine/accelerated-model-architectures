@@ -33,6 +33,33 @@ def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_
     return sizes
 
 
+def assert_equal_tensors(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    exact_match: bool,
+    rtol_float32: float = None,
+    atol_float32: float = None,
+    rtol_float16: float = None,
+    atol_float16: float = None,
+    rtol_bfloat16: float = None,
+    atol_bfloat16: float = None,
+) -> None:
+    if exact_match:
+        assert x.equal(y)
+    else:
+        assert x.dtype == y.dtype
+        dtype = x.dtype
+
+        if dtype == torch.float32:
+            assert_close(x, y, rtol=rtol_float32, atol=atol_float32)
+        elif dtype == torch.float16:
+            assert_close(x, y, rtol=rtol_float16, atol=atol_float16)
+        elif dtype == torch.bfloat16:
+            assert_close(x, y, rtol=rtol_bfloat16, atol=atol_bfloat16)
+        else:
+            raise ValueError(f"unexpected dtype ({dtype})")
+
+
 class TestCommons(TestCase):
     def skip_if_incompatible_kernel_backend(self, kernel_backend: KernelBackend) -> None:
         skip_if_incompatible_kernel_backend(kernel_backend)
@@ -93,20 +120,17 @@ class TestCommons(TestCase):
         rtol_bfloat16: float = None,
         atol_bfloat16: float = None,
     ) -> None:
-        if exact_match:
-            assert x.equal(y)
-        else:
-            assert x.dtype == y.dtype
-            dtype = x.dtype
-
-            if dtype == torch.float32:
-                assert_close(x, y, rtol=rtol_float32, atol=atol_float32)
-            elif dtype == torch.float16:
-                assert_close(x, y, rtol=rtol_float16, atol=atol_float16)
-            elif dtype == torch.bfloat16:
-                assert_close(x, y, rtol=rtol_bfloat16, atol=atol_bfloat16)
-            else:
-                raise ValueError(f"unexpected dtype ({dtype})")
+        assert_equal_tensors(
+            x=x,
+            y=y,
+            exact_match=exact_match,
+            rtol_float32=rtol_float32,
+            atol_float32=atol_float32,
+            rtol_float16=rtol_float16,
+            atol_float16=atol_float16,
+            rtol_bfloat16=rtol_bfloat16,
+            atol_bfloat16=atol_bfloat16,
+        )
 
     def get_activation_function(self, is_glu: bool) -> nn.Module:
         return nn.GLU() if is_glu else nn.GELU(approximate="tanh")
