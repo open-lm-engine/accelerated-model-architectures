@@ -19,6 +19,7 @@ _SEED = 42
 @pytest.mark.parametrize("is_A_transposed", [False, True])
 @pytest.mark.parametrize("is_B_transposed", [False, True])
 @pytest.mark.parametrize("has_C", [False, True])
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("function", [bmm, torch.compile(bmm, fullgraph=True)])
 def test_bmm(
