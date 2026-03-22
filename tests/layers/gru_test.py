@@ -66,6 +66,7 @@ def _get_packed_tensor_inputs(
 @pytest.mark.parametrize("problem_shape", _get_problem_shapes())
 @pytest.mark.parametrize("has_input_state", [False, True])
 @pytest.mark.parametrize("is_compiling", [False, True])
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_gru(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
@@ -211,6 +212,7 @@ def test_gru(
 @pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
 @pytest.mark.parametrize("problem_shape", _get_problem_shapes())
 @pytest.mark.parametrize("has_input_state", [False, True])
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_gru_varlen_torch(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
