@@ -155,3 +155,7 @@ def collect_gradients_from_module_and_zero_grads(model: nn.Module) -> dict[str, 
     model.zero_grad()
 
     return grads
+
+
+def get_activation_function(is_glu: bool) -> nn.Module:
+    return nn.GLU() if is_glu else nn.GELU(approximate="tanh")
