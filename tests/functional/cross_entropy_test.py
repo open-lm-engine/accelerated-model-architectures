@@ -6,7 +6,6 @@ from typing import Callable
 
 import pytest
 import torch
-from parameterized import parameterized
 
 from xma import KernelBackend, cross_entropy, set_seed
 
