@@ -206,17 +206,12 @@ def test_gru(
         )
 
 
-@parameterized.expand(
-    TestCommons.make_args_matrix(
-        [KernelBackend.torch],  # KernelBackend
-        TestCommons.get_dtypes(),  # dtype
-        [[0, 7, 19, 27, 93]],  # cu_seqlens
-        _get_problem_shapes(),  # problem_shape
-        [False, True],  # has_input_state
-    )
-)
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
+@pytest.mark.parametrize("problem_shape", _get_problem_shapes())
+@pytest.mark.parametrize("has_input_state", [False, True])
 def test_gru_varlen_torch(
-    self,
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
     cu_seqlens: list[int],
@@ -224,9 +219,9 @@ def test_gru_varlen_torch(
     has_input_state: bool,
 ) -> None:
     if Accelerator.get_accelerator() != Accelerator.cuda:
-        self.skipTest("Sufficient to run on CUDA device")
+        pytest.skip("Sufficient to run on CUDA device")
 
-    self.skip_if_incompatible_kernel_backend(kernel_backend)
+    skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
 
     set_seed(_SEED)
@@ -248,7 +243,7 @@ def test_gru_varlen_torch(
     num_heads = max(*problem_shape[1:])
     state_size = num_heads * state_head_dim
 
-    x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
+    x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
         batch_size=batch_size,
         sequence_length=None,
         total_tokens=cu_seqlens[-1],
@@ -293,16 +288,16 @@ def test_gru_varlen_torch(
         y_torch.append(y.squeeze(0))
     y_torch = torch.cat(y_torch)
 
-    self.assert_equal_tensors(y_kernel, y_torch, False, atol_bfloat16=3.1e-5, rtol_bfloat16=0)
+    assert_equal_tensors(y_kernel, y_torch, False, atol_bfloat16=3.1e-5, rtol_bfloat16=0)
 
     y_kernel.sum().backward()
-    weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(gru)
 
     y_torch.sum().backward()
-    weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+    weight_torch_grads = collect_gradients_from_module_and_zero_grads(gru)
 
     for weight_name in weight_kernel_grads:
-        self.assert_equal_tensors(
+        assert_equal_tensors(
             weight_kernel_grads[weight_name],
             weight_torch_grads[weight_name],
             False,
