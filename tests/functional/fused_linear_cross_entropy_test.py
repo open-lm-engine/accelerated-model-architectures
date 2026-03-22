@@ -32,7 +32,7 @@ _SEED = 42
         torch.compile(fused_linear_cross_entropy, fullgraph=True),
     ],
 )
-@torch._dynamo.config.patch(recompile_limit=1024)
+@torch._dynamo.config.patch(recompile_limit=2048)
 def test_fused_linear_cross_entropy(
     size: tuple[int],
     kernel_backend: KernelBackend,
