@@ -20,7 +20,7 @@ from ..test_commons import (
 _SEED = 42
 
 
-def _generate_args():
+def _generate_args() -> list:
     args = list(
         product(
             [torch.float32, torch.float16, torch.bfloat16],  # dtype

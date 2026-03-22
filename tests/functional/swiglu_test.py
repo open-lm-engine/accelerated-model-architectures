@@ -18,7 +18,7 @@ from ..test_commons import (
 )
 
 
-def _generate_args():
+def _generate_args() -> list:
     args = list(
         product(
             get_2d_tensor_sizes(),
