@@ -18,6 +18,7 @@ from ..test_commons import assert_equal_tensors, get_random_duplicated_tensors, 
 @pytest.mark.parametrize("padding_side", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.triton])
 @pytest.mark.parametrize("function", [pack_sequence, torch.compile(pack_sequence, fullgraph=True)])
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_pack_sequence(
     size: tuple[int],
     cu_seqlens: list[int],
@@ -62,6 +63,7 @@ def test_pack_sequence(
 @pytest.mark.parametrize("padding_side", ["left", "right"])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.triton])
 @pytest.mark.parametrize("function", [unpack_sequence, torch.compile(unpack_sequence, fullgraph=True)])
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_unpack_sequence(
     size: tuple[int],
     cu_seqlens: list[int],

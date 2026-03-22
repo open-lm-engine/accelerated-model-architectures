@@ -28,6 +28,7 @@ _SEED = 42
 @pytest.mark.parametrize("memory_efficient", [False, True])
 @pytest.mark.parametrize("has_weight", [False, True])
 @pytest.mark.parametrize("function", [rmsnorm, torch.compile(rmsnorm, fullgraph=True)])
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_rmsnorm(
     size: tuple[int],
     kernel_backend: KernelBackend,
