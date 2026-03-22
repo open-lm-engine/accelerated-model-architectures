@@ -46,6 +46,16 @@ def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_
     return sizes
 
 
+def get_random_duplicated_tensors(
+    size: tuple[int], device: torch.device, dtype: torch.dtype, std: float = 1
+) -> tuple[torch.Tensor]:
+    x = torch.randn(size, device=device, dtype=dtype, requires_grad=False) * std
+    x.requires_grad_()
+    x_clone = x.clone().detach().requires_grad_()
+
+    return x, x_clone
+
+
 def assert_equal_tensors(
     x: torch.Tensor,
     y: torch.Tensor,
