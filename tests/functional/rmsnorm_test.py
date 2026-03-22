@@ -10,17 +10,11 @@ import pytest
 import torch
 import torch._inductor.config as config
 import torch.nn as nn
-from parameterized import parameterized
 
 from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
 from xma.inductor import _CallablePatternMatcherPass
 
-from ..test_commons import (
-    TestCommons,
-    assert_equal_tensors,
-    get_random_duplicated_tensors,
-    skip_if_incompatible_kernel_backend,
-)
+from ..test_commons import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
 from .fused_residual_add_rmsnorm_test import _get_sizes
 
 
