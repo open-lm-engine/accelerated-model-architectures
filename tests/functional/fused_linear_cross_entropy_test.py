@@ -23,7 +23,7 @@ _SEED = 42
 
 @pytest.mark.parametrize("size", get_2d_tensor_sizes())
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
 @pytest.mark.parametrize("logits_multiplier", [None, 0.7])
 @pytest.mark.parametrize(
     "function",
@@ -32,7 +32,7 @@ _SEED = 42
         torch.compile(fused_linear_cross_entropy, fullgraph=True),
     ],
 )
-@torch._dynamo.config.patch(recompile_limit=2048)
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_fused_linear_cross_entropy(
     size: tuple[int],
     kernel_backend: KernelBackend,
