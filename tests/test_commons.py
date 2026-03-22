@@ -7,6 +7,7 @@ from itertools import product
 from typing import Any
 from unittest import TestCase
 
+import pytest
 import torch
 import torch.nn as nn
 from torch.testing import assert_close
@@ -14,10 +15,27 @@ from torch.testing import assert_close
 from xma import KernelBackend, init_inductor
 
 
+def skip_if_incompatible_kernel_backend(kernel_backend: KernelBackend) -> None:
+    if not kernel_backend.verify_accelerator():
+        pytest.skip(f"device incompatible with kernel_backend ({kernel_backend})")
+
+
+def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50) -> set[int]:
+    sizes = set()
+    # powers of 2
+    for i in range(log_max_power_of_2):
+        start = 2**i
+        for j in range(max_offset):
+            sizes.add((start + j, start + j))
+    # not powers of 2
+    for _ in range(num_not_powers_of_2):
+        sizes.add((3000 + random.randint(-1000, 1000), 3000 + random.randint(-1000, 1000)))
+    return sizes
+
+
 class TestCommons(TestCase):
     def skip_if_incompatible_kernel_backend(self, kernel_backend: KernelBackend) -> None:
-        if not kernel_backend.verify_accelerator():
-            self.skipTest(f"device incompatible with kernel_backend ({kernel_backend})")
+        skip_if_incompatible_kernel_backend(kernel_backend)
 
     def setUp(self) -> None:
         return init_inductor(cache_size_limit=1024)
