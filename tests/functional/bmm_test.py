@@ -22,7 +22,7 @@ _SEED = 42
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("function", [bmm, torch.compile(bmm, fullgraph=True)])
-@torch._dynamo.config.patch(recompile_limit=32)
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_bmm(
     size: tuple[int],
     is_A_transposed: bool,
