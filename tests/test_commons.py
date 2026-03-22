@@ -146,11 +146,12 @@ class TestCommons(TestCase):
 
         return x, x_clone
 
-    def collect_gradients_from_module_and_zero_grads(self, model: nn.Module) -> dict[str, torch.Tensor]:
-        grads = {}
-        for weight_name, weight in model.named_parameters():
-            grads[weight_name] = weight.grad
 
-        model.zero_grad()
+def collect_gradients_from_module_and_zero_grads(model: nn.Module) -> dict[str, torch.Tensor]:
+    grads = {}
+    for weight_name, weight in model.named_parameters():
+        grads[weight_name] = weight.grad
 
-        return grads
+    model.zero_grad()
+
+    return grads
