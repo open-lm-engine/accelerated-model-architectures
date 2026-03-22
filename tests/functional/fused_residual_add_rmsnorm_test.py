@@ -44,6 +44,7 @@ def _get_sizes() -> list[tuple]:
         torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
     ],
 )
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_fused_residual_add_rmsnorm(
     size: tuple[int],
     kernel_backend: KernelBackend,
