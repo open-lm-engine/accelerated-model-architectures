@@ -6,11 +6,9 @@ from typing import Callable
 
 import pytest
 import torch
-from parameterized import parameterized
 
 from xma import KernelBackend, ceil_divide, swiglu_packed
 
-from ..test_commons import TestCommons
 from .swiglu_test import _generate_args
 
 
