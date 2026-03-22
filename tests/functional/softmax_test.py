@@ -21,6 +21,7 @@ _SEED = 42
 @pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
 @pytest.mark.parametrize("logits_multiplier", [None, 0.7])
 @pytest.mark.parametrize("function", [softmax, torch.compile(softmax, fullgraph=True)])
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_softmax(
     size: tuple[int],
     kernel_backend: KernelBackend,

@@ -50,6 +50,7 @@ def _generate_args():
 
 
 @pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args())
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend, function: Callable) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
