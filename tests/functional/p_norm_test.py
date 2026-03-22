@@ -9,7 +9,7 @@ from typing import Callable
 import pytest
 import torch
 
-from xma import KernelBackend, norm, set_seed
+from xma import KernelBackend, p_norm, set_seed
 
 from ..test_commons import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -23,7 +23,7 @@ _SEED = 42
 @pytest.mark.parametrize("dtype", [torch.float32])
 @pytest.mark.parametrize("p", [1, 2, 3, "inf"])
 @pytest.mark.parametrize("multiplier", [None, 0.9])
-@pytest.mark.parametrize("function", [norm, torch.compile(norm, fullgraph=True)])
+@pytest.mark.parametrize("function", [p_norm, torch.compile(p_norm, fullgraph=True)])
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_p_norm(
     size: tuple[int],
@@ -41,7 +41,7 @@ def test_p_norm(
     x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
     z_kernel = function(x=x_kernel, multiplier=multiplier, p=p)
-    z_expected = norm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
+    z_expected = p_norm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
 
     assert_equal_tensors(
         z_kernel, z_expected, False, atol_float32=3.1e-3 if p == 3 else None, rtol_float32=0 if p == 3 else None

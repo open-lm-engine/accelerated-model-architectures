@@ -12,7 +12,7 @@ from .functional import (
     fused_residual_add_rmsnorm,
     gru,
     m2rnn,
-    norm,
+    p_norm,
     pack_sequence,
     rmsnorm,
     rnn,
