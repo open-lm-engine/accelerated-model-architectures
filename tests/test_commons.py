@@ -87,13 +87,6 @@ class TestCommons(TestCase):
     def skip_if_incompatible_kernel_backend(self, kernel_backend: KernelBackend) -> None:
         skip_if_incompatible_kernel_backend(kernel_backend)
 
-    def setUp(self) -> None:
-        return init_inductor(cache_size_limit=1024)
-
-    @staticmethod
-    def get_all_devices() -> list[torch.device]:
-        return [torch.device("cpu"), torch.device("cuda")]
-
     @staticmethod
     def get_dtypes() -> list[torch.dtype]:
         return [torch.float32, torch.float16, torch.bfloat16]
