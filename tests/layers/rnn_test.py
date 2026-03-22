@@ -17,7 +17,7 @@ _SEED = 42
 class RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [KernelBackend.triton],  # KernelBackend
+            [KernelBackend.triton],  # kernel_backend
             [torch.float32, torch.float16],  # dtype
             [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
@@ -139,7 +139,7 @@ class RNNTest(TestCommons):
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [KernelBackend.torch],  # KernelBackend
+            [KernelBackend.torch],  # kernel_backend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads

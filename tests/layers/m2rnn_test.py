@@ -29,7 +29,7 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int]]:
 class M2RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [KernelBackend.triton],  # KernelBackend
+            [KernelBackend.triton],  # kernel_backend
             [torch.float32, torch.bfloat16],
             [(4, 977, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             [(9, 9, 7, 7, 7, 7, 7)],
@@ -37,7 +37,7 @@ class M2RNNTest(TestCommons):
             [False, True],  # is_compiling
         )
         + TestCommons.make_args_matrix(
-            [KernelBackend.triton],  # KernelBackend
+            [KernelBackend.triton],  # kernel_backend
             [torch.float32, torch.bfloat16],
             [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             _get_problem_shapes(),
@@ -189,7 +189,7 @@ class M2RNNTest(TestCommons):
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [KernelBackend.torch],  # KernelBackend
+            [KernelBackend.torch],  # kernel_backend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             _get_problem_shapes(),

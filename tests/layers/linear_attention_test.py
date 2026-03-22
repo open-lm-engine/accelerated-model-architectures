@@ -28,7 +28,7 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
 class LinearAttentionTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [KernelBackend.triton],  # KernelBackend
+            [KernelBackend.triton],  # kernel_backend
             [torch.float32, torch.bfloat16],
             [4],  # batch_size
             [977],  # sequence_length
@@ -37,7 +37,7 @@ class LinearAttentionTest(TestCommons):
             [False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
-            [KernelBackend.triton],  # KernelBackend
+            [KernelBackend.triton],  # kernel_backend
             [torch.float32, torch.bfloat16],
             [4],  # batch_size
             [1024],  # sequence_length
@@ -152,7 +152,7 @@ class LinearAttentionTest(TestCommons):
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [KernelBackend.torch],  # KernelBackend
+            [KernelBackend.torch],  # kernel_backend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [(8, 4, 3, 3, 3)],  # problem_shape
