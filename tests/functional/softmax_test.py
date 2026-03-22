@@ -4,60 +4,54 @@
 
 from typing import Callable
 
+import pytest
 import torch
-from parameterized import parameterized
 
 from xma import KernelBackend, set_seed, softmax
 
-from ..test_commons import TestCommons
+from ..test_commons import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
 from .rmsnorm_test import _get_sizes
 
 
 _SEED = 42
 
 
-class SoftmaxTest(TestCommons):
-    @parameterized.expand(
-        TestCommons.make_args_matrix(
-            _get_sizes(),  # size
-            [KernelBackend.triton],  # KernelBackend
-            [torch.float32, torch.bfloat16],  # dtype
-            [None, 0.7],  # logits_multiplier
-            [softmax, torch.compile(softmax, fullgraph=True)],  # function
-        )
+@pytest.mark.parametrize("size", _get_sizes())
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
+@pytest.mark.parametrize("logits_multiplier", [None, 0.7])
+@pytest.mark.parametrize("function", [softmax, torch.compile(softmax, fullgraph=True)])
+def test_softmax(
+    size: tuple[int],
+    kernel_backend: KernelBackend,
+    dtype: torch.dtype,
+    logits_multiplier: float | None,
+    function: Callable,
+) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
+
+    set_seed(_SEED)
+
+    if isinstance(size, int):
+        size = (size,)
+
+    x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
+
+    z_kernel = function(x_kernel, logits_multiplier, kernel_backend=KernelBackend.triton)
+    z_expected = softmax(x_expected, logits_multiplier, kernel_backend=KernelBackend.torch)
+
+    assert_equal_tensors(z_kernel, z_expected, False)
+
+    z_kernel.sum().backward()
+    z_expected.sum().backward()
+
+    assert_equal_tensors(
+        x_kernel.grad,
+        x_expected.grad,
+        False,
+        atol_float32=4e-5,
+        rtol_float32=0,
+        atol_bfloat16=1.1e-3,
+        rtol_bfloat16=0,
     )
-    def test_softmax(
-        self,
-        size: tuple[int],
-        kernel_backend: KernelBackend,
-        dtype: torch.dtype,
-        logits_multiplier: float | None,
-        function: Callable,
-    ) -> None:
-        self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_compatible_accelerator().get_current_device()
-
-        set_seed(_SEED)
-
-        if isinstance(size, int):
-            size = (size,)
-
-        x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
-
-        z_kernel = function(x_kernel, logits_multiplier, kernel_backend=KernelBackend.triton)
-        z_expected = softmax(x_expected, logits_multiplier, kernel_backend=KernelBackend.torch)
-
-        self.assert_equal_tensors(z_kernel, z_expected, False)
-
-        z_kernel.sum().backward()
-        z_expected.sum().backward()
-
-        self.assert_equal_tensors(
-            x_kernel.grad,
-            x_expected.grad,
-            False,
-            atol_float32=4e-5,
-            rtol_float32=0,
-            atol_bfloat16=1.1e-3,
-            rtol_bfloat16=0,
-        )
