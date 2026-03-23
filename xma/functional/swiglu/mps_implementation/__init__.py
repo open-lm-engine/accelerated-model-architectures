@@ -7,6 +7,8 @@ import os
 import torch
 from torch.utils.cpp_extension import load as load_cpp_extension
 
+from ....custom_op import xma_op
+
 
 _module = None
 
@@ -28,10 +30,12 @@ def _get_module():
     return _module
 
 
+@xma_op(mutates_args={"y"})
 def swiglu_forward_mps(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     _get_module().swiglu_forward_mps(g, u, y)
 
 
+@xma_op(mutates_args={"dg", "du"})
 def swiglu_backward_mps(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
