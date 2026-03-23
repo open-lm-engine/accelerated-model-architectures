@@ -11,7 +11,6 @@ from xma import GRU, Accelerator, KernelBackend, set_seed
 from ..utils import (
     assert_equal_tensors,
     collect_gradients_from_module_and_zero_grads,
-    get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
 )
 from .gru_test import _get_packed_tensor_inputs
