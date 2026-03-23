@@ -8,11 +8,8 @@ import torch
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
-from ...utils import is_cute_dsl_available, is_triton_available
-
-
-if is_cute_dsl_available():
-    from .cuda_implementation import pack_unpack_sequence_cuda
+from ...utils import is_triton_available
+from .cuda_implementation import pack_unpack_sequence_cuda
 
 
 if is_triton_available():

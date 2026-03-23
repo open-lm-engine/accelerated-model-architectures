@@ -19,12 +19,27 @@ _WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 _ALL_COMPILED_MODULES = {}
 
 
-def _get_cpp_function(function_name: str, module_name: str, source_files: list[str], build_directory: str) -> Callable:
+def _get_cpp_function(
+    function_name: str, module_name: str, source_files: list[str], build_directory: str, is_cuda: bool, is_mps: bool
+) -> Callable:
     module_name = f"{_CPP_MODULE_PREFIX}_{module_name}"
 
-    extra_cflags = ["-O3", "-Wall", "-std=c++17"]
-    extra_ldflags = ["-framework", "Metal", "-framework", "Foundation"]
-    extra_include_paths = [os.path.dirname(__file__)]
+    if is_cuda:
+        extra_cflags = ["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"]
+        extra_cuda_cflags = ["-O3", "-lineinfo"]
+        extra_ldflags = None
+        extra_include_paths = [
+            os.path.dirname(__file__),  # xma/include
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",  # cutlass
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
+        ]
+    elif is_mps:
+        extra_cflags = ["-O3", "-Wall", "-std=c++17"]
+        extra_cuda_cflags = None
+        extra_ldflags = ["-framework", "Metal", "-framework", "Foundation"]
+        extra_include_paths = [os.path.dirname(__file__)]
+    else:
+        raise ValueError
 
     module = _ALL_COMPILED_MODULES.get(module_name, None)
 
@@ -36,7 +51,9 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
                 module = load_cpp_extension(
                     module_name,
                     sources=source_files,
+                    with_cuda=is_cuda,
                     extra_cflags=extra_cflags,
+                    extra_cuda_cflags=extra_cuda_cflags,
                     extra_ldflags=extra_ldflags,
                     extra_include_paths=extra_include_paths,
                     build_directory=build_directory,
@@ -49,7 +66,9 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
                 module = load_cpp_extension(
                     module_name,
                     sources=source_files,
+                    with_cuda=is_cuda,
                     extra_cflags=extra_cflags,
+                    extra_cuda_cflags=extra_cuda_cflags,
                     extra_ldflags=extra_ldflags,
                     extra_include_paths=extra_include_paths,
                     build_directory=build_directory,
@@ -64,7 +83,9 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
             module = load_cpp_extension(
                 module_name,
                 sources=source_files,
+                with_cuda=is_cuda,
                 extra_cflags=extra_cflags,
+                extra_cuda_cflags=extra_cuda_cflags,
                 extra_ldflags=extra_ldflags,
                 extra_include_paths=extra_include_paths,
                 build_directory=build_directory,
@@ -79,12 +100,13 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
     return getattr(module, function_name)
 
 
-def _cpp_jit(
+def cpp_jit(
     function_name: str | None = None,
     extra_source_files: list[str] = [],
     build_directory: str | None = None,
     depth: int = 1,
-    extensions: list[str] = [".cu", ".cpp"],
+    is_cuda: bool = False,
+    is_mps: bool = False,
 ) -> Callable:
     """wrapper to compile C++/CUDA source code at runtime.
 
@@ -108,6 +130,13 @@ def _cpp_jit(
     calling_filename = inspect.stack()[1].filename
     calling_directory = os.path.dirname(calling_filename)
 
+    if is_cuda:
+        extensions = [".cu", ".cpp"]
+    elif is_mps:
+        extensions = [".mm"]
+    else:
+        raise ValueError
+
     for dirname, _, filenames in os.walk(calling_directory):
         filenames = [os.path.join(dirname, f) for f in filenames]
         filenames = filter(lambda f: os.path.splitext(f)[1] in extensions, filenames)
@@ -130,6 +159,8 @@ def _cpp_jit(
                 module_name=module_name,
                 source_files=source_files,
                 build_directory=build_directory,
+                is_cuda=is_cuda,
+                is_mps=is_mps,
             )
 
         full_args = []
@@ -150,33 +181,3 @@ def _cpp_jit(
         return _run
 
     return _wrapper
-
-
-def cuda_jit(
-    function_name: str | None = None,
-    extra_source_files: list[str] = [],
-    build_directory: str | None = None,
-    depth: int = 1,
-) -> Callable:
-    _cpp_jit(
-        function_name=function_name,
-        extra_source_files=extra_source_files,
-        build_directory=build_directory,
-        depth=depth,
-        extensions=[".cu", ".cpp"],
-    )
-
-
-def mps_jit(
-    function_name: str | None = None,
-    extra_source_files: list[str] = [],
-    build_directory: str | None = None,
-    depth: int = 1,
-) -> Callable:
-    _cpp_jit(
-        function_name=function_name,
-        extra_source_files=extra_source_files,
-        build_directory=build_directory,
-        depth=depth,
-        extensions=[".mm"],
-    )
