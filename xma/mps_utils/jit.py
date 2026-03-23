@@ -22,13 +22,9 @@ _ALL_COMPILED_MODULES = {}
 def _get_cpp_function(function_name: str, module_name: str, source_files: list[str], build_directory: str) -> Callable:
     module_name = f"{_CPP_MODULE_PREFIX}_{module_name}"
 
-    extra_cflags = ["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"]
-    extra_cuda_cflags = ["-O3", "-lineinfo"]
-    extra_include_paths = [
-        os.path.dirname(__file__),  # xma/include
-        os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",  # cutlass
-        os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
-    ]
+    extra_cflags = ["-O3", "-Wall", "-std=c++17"]
+    extra_ldflags = ["-framework", "Metal", "-framework", "Foundation"]
+    extra_include_paths = [os.path.dirname(__file__)]
 
     module = _ALL_COMPILED_MODULES.get(module_name, None)
 
@@ -40,9 +36,8 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
                 module = load_cpp_extension(
                     module_name,
                     sources=source_files,
-                    with_cuda=True,
                     extra_cflags=extra_cflags,
-                    extra_cuda_cflags=extra_cuda_cflags,
+                    extra_ldflags=extra_ldflags,
                     extra_include_paths=extra_include_paths,
                     build_directory=build_directory,
                     verbose=True,
@@ -54,12 +49,11 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
                 module = load_cpp_extension(
                     module_name,
                     sources=source_files,
-                    with_cuda=True,
                     extra_cflags=extra_cflags,
-                    extra_cuda_cflags=extra_cuda_cflags,
+                    extra_ldflags=extra_ldflags,
                     extra_include_paths=extra_include_paths,
                     build_directory=build_directory,
-                    verbose=False,
+                    verbose=True,
                 )
         else:
             if _WORLD_SIZE > 1:
@@ -70,9 +64,8 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
             module = load_cpp_extension(
                 module_name,
                 sources=source_files,
-                with_cuda=True,
                 extra_cflags=extra_cflags,
-                extra_cuda_cflags=extra_cuda_cflags,
+                extra_ldflags=extra_ldflags,
                 extra_include_paths=extra_include_paths,
                 build_directory=build_directory,
                 verbose=True,
