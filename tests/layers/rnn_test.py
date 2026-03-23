@@ -47,128 +47,122 @@ def _get_packed_tensor_inputs(
     return x_kernel, x_torch, input_state_kernel, input_state_torch
 
 
-class RNNTest(TestCommons):
-    @parameterized.expand(
-        TestCommons.make_args_matrix(
-            [KernelBackend.triton],  # kernel_backend
-            [torch.float32, torch.float16],  # dtype
-            [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
-            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
-            [False, True],  # has_input_state
-            [False, True],  # is_compiling
-        )
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+@pytest.mark.parametrize("cu_seqlens", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])
+@pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
+@pytest.mark.parametrize("has_input_state", [False, True])
+@pytest.mark.parametrize("is_compiling", [False, True])
+def test_rnn(
+    kernel_backend: KernelBackend,
+    dtype: torch.dtype,
+    input_shape: tuple[int, int, list[int]],
+    snn: tuple[int, int, int],
+    has_input_state: bool,
+    is_compiling: bool,
+) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
+
+    set_seed(_SEED)
+
+    state_head_dim, num_input_heads, num_weight_heads = snn
+    num_heads = max(num_input_heads, num_weight_heads)
+    state_size = state_head_dim * num_heads
+
+    B, S, cu_seqlens = input_shape
+    max_seqlen = None
+
+    if B is None:
+        cu_seqlens = torch.tensor(cu_seqlens, device=device)
+        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
+        B = cu_seqlens.size(0) - 1
+
+    x_kernel, x_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
+        batch_size=B,
+        sequence_length=S if cu_seqlens is None else None,
+        total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
+        state_size=state_size,
+        has_input_state=has_input_state,
+        dtype=dtype,
+        device=device,
     )
-    def test_rnn(
-        self,
-        kernel_backend: KernelBackend,
-        dtype: torch.dtype,
-        input_shape: tuple[int, int, list[int]],
-        snn: tuple[int, int, int],
-        has_input_state: bool,
-        is_compiling: bool,
-    ) -> None:
-        self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-        set_seed(_SEED)
+    with torch.device(device):
+        rnn = RNN(
+            input_size=state_size,
+            state_head_dim=state_head_dim,
+            output_size=state_size,
+            num_input_heads=num_input_heads,
+            num_weight_heads=num_weight_heads,
+            add_bias=False,
+            gradient_clipping=None,
+        ).to(dtype)
 
-        state_head_dim, num_input_heads, num_weight_heads = snn
-        num_heads = max(num_input_heads, num_weight_heads)
-        state_size = state_head_dim * num_heads
+        nn.init.normal_(rnn.state_weight, std=0.1)
 
-        B, S, cu_seqlens = input_shape
-        max_seqlen = None
+    rnn_torch = rnn
+    rnn_kernel = rnn
 
-        if B is None:
-            cu_seqlens = torch.tensor(cu_seqlens, device=device)
-            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
-            B = cu_seqlens.size(0) - 1
+    if is_compiling:
+        rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
-        x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
-            batch_size=B,
-            sequence_length=S if cu_seqlens is None else None,
-            total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
-            state_size=state_size,
-            has_input_state=has_input_state,
-            dtype=dtype,
-            device=device,
-        )
+    y_kernel, output_state_kernel = rnn_kernel(
+        input=x_kernel,
+        input_state=input_state_kernel,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
+        kernel_backend=KernelBackend.triton,
+    )
 
-        with torch.device(device):
-            rnn = RNN(
-                input_size=state_size,
-                state_head_dim=state_head_dim,
-                output_size=state_size,
-                num_input_heads=num_input_heads,
-                num_weight_heads=num_weight_heads,
-                add_bias=False,
-                gradient_clipping=None,
-            ).to(dtype)
+    y_torch, output_state_torch = rnn_torch(
+        input=x_torch,
+        input_state=input_state_torch,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
+        kernel_backend=KernelBackend.torch,
+    )
 
-            nn.init.normal_(rnn.state_weight, std=0.1)
+    assert_equal_tensors(y_kernel, y_torch, False)
+    assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
-        rnn_torch = rnn
-        rnn_kernel = rnn
+    y_kernel.sum().backward()
+    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(rnn)
 
-        if is_compiling:
-            rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
+    y_torch.sum().backward()
+    weight_torch_grads = collect_gradients_from_module_and_zero_grads(rnn)
 
-        y_kernel, output_state_kernel = rnn_kernel(
-            input=x_kernel,
-            input_state=input_state_kernel,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.triton,
-        )
+    assert_equal_tensors(
+        x_kernel.grad,
+        x_torch.grad,
+        False,
+        atol_float32=None if cu_seqlens is None else 3.8e-4,
+        rtol_float32=None if cu_seqlens is None else 0,
+        atol_float16=1e-3,
+        rtol_float16=0,
+    )
 
-        y_torch, output_state_torch = rnn_torch(
-            input=x_torch,
-            input_state=input_state_torch,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.torch,
-        )
-
-        self.assert_equal_tensors(y_kernel, y_torch, False)
-        self.assert_equal_tensors(output_state_kernel, output_state_torch, False)
-
-        y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
-
-        y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
-
-        self.assert_equal_tensors(
-            x_kernel.grad,
-            x_torch.grad,
+    if has_input_state:
+        assert_equal_tensors(
+            input_state_kernel.grad,
+            input_state_torch.grad,
             False,
-            atol_float32=None if cu_seqlens is None else 3.8e-4,
+            atol_float32=None if cu_seqlens is None else 8.2e-4,
             rtol_float32=None if cu_seqlens is None else 0,
-            atol_float16=1e-3,
+            atol_float16=3.7e-4 if cu_seqlens is None else 4.9e-4,
             rtol_float16=0,
         )
 
-        if has_input_state:
-            self.assert_equal_tensors(
-                input_state_kernel.grad,
-                input_state_torch.grad,
-                False,
-                atol_float32=None if cu_seqlens is None else 8.2e-4,
-                rtol_float32=None if cu_seqlens is None else 0,
-                atol_float16=3.7e-4 if cu_seqlens is None else 4.9e-4,
-                rtol_float16=0,
-            )
-
-        for weight_name in weight_kernel_grads:
-            self.assert_equal_tensors(
-                weight_kernel_grads[weight_name],
-                weight_torch_grads[weight_name],
-                False,
-                atol_float32=None if cu_seqlens is None else 4.9e-4,
-                rtol_float32=None if cu_seqlens is None else 0,
-                atol_float16=1.3e-2,
-                rtol_float16=0,
-            )
+    for weight_name in weight_kernel_grads:
+        assert_equal_tensors(
+            weight_kernel_grads[weight_name],
+            weight_torch_grads[weight_name],
+            False,
+            atol_float32=None if cu_seqlens is None else 4.9e-4,
+            rtol_float32=None if cu_seqlens is None else 0,
+            atol_float16=1.3e-2,
+            rtol_float16=0,
+        )
 
 
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
