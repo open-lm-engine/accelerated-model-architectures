@@ -5,12 +5,10 @@
 import pytest
 import torch
 import torch.nn as nn
-from parameterized import parameterized
 
 from xma import RNN, Accelerator, KernelBackend, set_seed
 
 from ..test_commons import (
-    TestCommons,
     assert_equal_tensors,
     collect_gradients_from_module_and_zero_grads,
     get_random_duplicated_tensors,
