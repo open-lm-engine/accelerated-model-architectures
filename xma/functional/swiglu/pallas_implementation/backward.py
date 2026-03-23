@@ -37,10 +37,10 @@ def swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
 
 
 @jax.jit
-def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tuple[jax.Array, jax.Array]:
+def swiglu_backward_pallas_jit(
+    g: jax.Array, u: jax.Array, dy: jax.Array, BLOCK_SIZE_B: int = 128, BLOCK_SIZE_H: int = 512
+) -> tuple[jax.Array, jax.Array]:
     B, H = g.shape
-    BLOCK_SIZE_H = min(ceil_divide(H, 128) * 128, 1024)
-    BLOCK_SIZE_B = min(1, 32 * 1024 * 1024 // (5 * BLOCK_SIZE_H * g.dtype.itemsize * 8)) << 3
 
     kernel = pl.pallas_call(
         swiglu_backward_pallas_kernel,
