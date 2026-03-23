@@ -62,6 +62,7 @@ def _generate_args() -> list:
 @pytest.mark.parametrize(
     "kernel_backend,dtype,input_shape,problem_shape,has_input_state,is_compiling", _generate_args()
 )
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_m2rnn(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,

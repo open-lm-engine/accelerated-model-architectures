@@ -51,6 +51,7 @@ def _get_packed_tensor_inputs(
 @pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
 @pytest.mark.parametrize("has_input_state", [False, True])
 @pytest.mark.parametrize("is_compiling", [False, True])
+@torch._dynamo.config.patch(recompile_limit=1024)
 def test_rnn(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
