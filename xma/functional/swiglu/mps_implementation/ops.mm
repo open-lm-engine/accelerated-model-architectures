@@ -56,11 +56,11 @@ void swiglu_forward_mps(const torch::Tensor& g, const torch::Tensor& u, torch::T
     // `kernel void swiglu_forward_half(...)` functions in forward.metal.
     std::string kernel_name;
     if (g.scalar_type() == torch::kFloat) {
-        kernel_name = "swiglu_forward_float";
+        kernel_name = "swiglu_forward_fp32";
     } else if (g.scalar_type() == torch::kHalf) {
-        kernel_name = "swiglu_forward_half";
+        kernel_name = "swiglu_forward_fp16";
     } else if (g.scalar_type() == torch::kBFloat16) {
-        kernel_name = "swiglu_forward_bfloat";
+        kernel_name = "swiglu_forward_bf16";
     } else {
         TORCH_CHECK(false, "unsupported dtype for MPS swiglu");
     }

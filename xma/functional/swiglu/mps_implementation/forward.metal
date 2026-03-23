@@ -6,7 +6,7 @@
 
 using namespace metal;
 
-kernel void swiglu_forward_float(device const float *g [[buffer(0)]],
+kernel void swiglu_forward_fp32(device const float *g [[buffer(0)]],
                                  device const float *u [[buffer(1)]],
                                  device float *y [[buffer(2)]],
                                  uint id [[thread_position_in_grid]]) {
@@ -14,7 +14,7 @@ kernel void swiglu_forward_float(device const float *g [[buffer(0)]],
     y[id] = u[id] * _g / (1.0f + exp(-_g));
 }
 
-kernel void swiglu_forward_half(device const half *g [[buffer(0)]],
+kernel void swiglu_forward_fp16(device const half *g [[buffer(0)]],
                                 device const half *u [[buffer(1)]],
                                 device half *y [[buffer(2)]],
                                 uint id [[thread_position_in_grid]]) {
@@ -22,7 +22,7 @@ kernel void swiglu_forward_half(device const half *g [[buffer(0)]],
     y[id] = half(float(u[id]) * _g / (1.0f + exp(-_g)));
 }
 
-kernel void swiglu_forward_bfloat(device const bfloat *g [[buffer(0)]],
+kernel void swiglu_forward_bf16(device const bfloat *g [[buffer(0)]],
                                   device const bfloat *u [[buffer(1)]],
                                   device bfloat *y [[buffer(2)]],
                                   uint id [[thread_position_in_grid]]) {
