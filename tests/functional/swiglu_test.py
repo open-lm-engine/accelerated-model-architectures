@@ -51,7 +51,7 @@ def _generate_args(function: Callable) -> list:
             [(4100, 3700)],
             [torch.float32, torch.float16, torch.bfloat16],
             [KernelBackend.mps],
-            [function],
+            [function, torch.compile(function, fullgraph=True)],
         )
     )
 
