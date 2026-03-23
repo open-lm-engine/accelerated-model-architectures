@@ -32,7 +32,7 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
     return result
 
 
-def _generate_args_for_linear_attention() -> list:
+def _generate_args() -> list:
     args = list(
         product(
             [KernelBackend.triton],  # kernel_backend
@@ -193,11 +193,11 @@ def test_linear_attention(
     #         )
 
 
-@pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
-@pytest.mark.parametrize("problem_shape", [(8, 4, 3, 3, 3)])
-@pytest.mark.parametrize("has_input_state", [False, True])
+@pytest.mark.parameterize("kernel_backend", [KernelBackend.torch])
+@pytest.mark.parameterize("dtype", [torch.float32, torch.float16, torch.bfloat16])
+@pytest.mark.parameterize("cu_seqlens", [[0, 7, 19, 27, 93]])
+@pytest.mark.parameterize("problem_shape", [(8, 4, 3, 3, 3)])
+@pytest.mark.parameterize("has_input_state", [False, True])
 def test_linear_attention_varlen_torch(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
