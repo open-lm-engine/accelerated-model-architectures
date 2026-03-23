@@ -15,6 +15,7 @@ from ..utils import (
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
 )
+from .rnn_test import _get_packed_tensor_inputs
 
 
 _SEED = 42
@@ -58,32 +59,6 @@ def _generate_args() -> list:
     )
 
     return args
-
-
-def _get_packed_tensor_inputs(
-    batch_size: int,
-    sequence_length: int | None,
-    total_tokens: int | None,
-    state_size: int,
-    has_input_state: bool,
-    dtype: torch.dtype,
-    device: torch.device,
-) -> tuple[torch.Tensor | None]:
-    x_kernel, x_torch = get_random_duplicated_tensors(
-        ((batch_size, sequence_length, state_size) if total_tokens is None else (total_tokens, state_size)),
-        device=device,
-        dtype=dtype,
-        std=0.01,
-    )
-
-    input_state_kernel = None
-    input_state_torch = None
-    if has_input_state:
-        input_state_kernel, input_state_torch = get_random_duplicated_tensors(
-            (batch_size, state_size), device=device, dtype=dtype, std=0.01
-        )
-
-    return x_kernel, x_torch, input_state_kernel, input_state_torch
 
 
 @pytest.mark.parametrize(
