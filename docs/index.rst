@@ -125,6 +125,12 @@ Functional
      - ❌
      - ❌
      - ✅
+   * - pack_sequence
+     - ✅
+     - ❌
+     - ❌
+     - ❌
+     - ✅
    * - rmsnorm
      - ❌
      - ❌
@@ -133,12 +139,6 @@ Functional
      - ✅
    * - rnn
      - ❌
-     - ❌
-     - ❌
-     - ❌
-     - ✅
-   * - pack_sequence
-     - ✅
      - ❌
      - ❌
      - ❌

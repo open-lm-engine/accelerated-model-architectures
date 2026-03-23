@@ -14,6 +14,10 @@ TOOLS_DIR = Path(__file__).parent
 ROOT_DIR = TOOLS_DIR.parent
 
 kernels = yaml.full_load(open(TOOLS_DIR / "kernels.yml"))
+
+# sort kernels within each section
+for key in kernels:
+    kernels[key] = dict(sorted(kernels[key].items()))
 backends = [("CUDA", "cuda"), ("Pallas", "pallas"), ("NKI", "nki"), ("ROCm", "rocm"), ("Triton", "triton")]
 
 

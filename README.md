@@ -32,9 +32,9 @@ Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
 | linear_attention | ❌ | ❌ | ❌ | ❌ | ✅ |
 | m2rnn | ❌ | ❌ | ❌ | ❌ | ✅ |
 | p_norm | ❌ | ❌ | ❌ | ❌ | ✅ |
+| pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 | rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
 | rnn | ❌ | ❌ | ❌ | ❌ | ✅ |
-| pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 | softmax | ❌ | ❌ | ❌ | ❌ | ✅ |
 | swiglu | ✅ | ✅ | ✅ | ❌ | ✅ |
 | swiglu_packed | ✅ | ✅ | ✅ | ❌ | ✅ |
