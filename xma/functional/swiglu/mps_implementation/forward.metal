@@ -1,0 +1,23 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
+#include <metal_stdlib>
+
+using namespace metal;
+
+kernel void swiglu_forward_float(device const float *g [[buffer(0)]],
+                                 device const float *u [[buffer(1)]],
+                                 device float *y [[buffer(2)]],
+                                 uint id [[thread_position_in_grid]]) {
+    float _g = g[id];
+    y[id] = u[id] * _g / (1.0f + exp(-_g));
+}
+
+kernel void swiglu_forward_half(device const half *g [[buffer(0)]],
+                                device const half *u [[buffer(1)]],
+                                device half *y [[buffer(2)]],
+                                uint id [[thread_position_in_grid]]) {
+    float _g = float(g[id]);
+    y[id] = half(float(u[id]) * _g / (1.0f + exp(-_g)));
+}
