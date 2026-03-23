@@ -5,11 +5,11 @@
 import torch
 
 from ....custom_op import xma_op
-from ....jit import cpp_jit
+from ....cute_dsl_utils import cuda_jit
 
 
 @xma_op(mutates_args={"output"})
-@cpp_jit()
+@cuda_jit()
 def pack_unpack_sequence_cuda(
     x: torch.Tensor,
     output: torch.Tensor,

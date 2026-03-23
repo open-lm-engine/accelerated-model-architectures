@@ -87,7 +87,7 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
     return getattr(module, function_name)
 
 
-def cpp_jit(
+def cuda_jit(
     function_name: str | None = None,
     extra_source_files: list[str] = [],
     build_directory: str | None = None,
