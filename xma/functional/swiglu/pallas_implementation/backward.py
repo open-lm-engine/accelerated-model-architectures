@@ -44,10 +44,6 @@ def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tup
 
     kernel = pl.pallas_call(
         swiglu_backward_pallas_kernel,
-        out_shape=[
-            jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
-            jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
-        ],
         grid=(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)),
         in_specs=[
             pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y)),
@@ -57,6 +53,10 @@ def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tup
         out_specs=[
             pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y)),
             pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y)),
+        ],
+        out_shape=[
+            jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
+            jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
         ],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel")),
     )
