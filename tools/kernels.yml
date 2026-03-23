@@ -5,6 +5,10 @@
 layers:
   GRU:
     - triton
+  LinearAttention:
+    - triton
+  M2RNN:
+    - triton
   MoE:
     - cuda
     - triton
@@ -21,6 +25,16 @@ functional:
   fused_linear_cross_entropy:
     - triton
   fused_residual_add_rmsnorm:
+    - triton
+  gru:
+    - triton
+  linear_attention:
+    - triton
+  m2rnn:
+    - triton
+  p_norm:
+    - triton
+  rnn:
     - triton
   rmsnorm:
     - triton
