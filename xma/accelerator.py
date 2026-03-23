@@ -18,6 +18,8 @@ if is_torch_xla_available():
 
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
+_IS_CUDA_AVAILABLE = torch.cuda.is_available()
+_IS_MPS_AVAILABLE = torch.mps.is_available()
 
 
 class KernelBackend(Enum):
@@ -68,9 +70,9 @@ class Accelerator(Enum):
             accelerator = Accelerator.tpu
         elif is_torch_neuronx_available():
             accelerator = Accelerator.trainium
-        elif torch.cuda.is_available():
+        elif _IS_CUDA_AVAILABLE:
             accelerator = Accelerator.rocm if _IS_ROCM_AVAILABLE else Accelerator.cuda
-        elif torch.mps.is_available():
+        elif _IS_MPS_AVAILABLE:
             accelerator = Accelerator.mps
         else:
             accelerator = Accelerator.cpu
