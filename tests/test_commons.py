@@ -3,9 +3,6 @@
 # **************************************************
 
 import random
-from itertools import product
-from typing import Any
-from unittest import TestCase
 
 import pytest
 import torch
@@ -81,70 +78,6 @@ def assert_equal_tensors(
             assert_close(x, y, rtol=rtol_bfloat16, atol=atol_bfloat16)
         else:
             raise ValueError(f"unexpected dtype ({dtype})")
-
-
-class TestCommons(TestCase):
-    def skip_if_incompatible_kernel_backend(self, kernel_backend: KernelBackend) -> None:
-        skip_if_incompatible_kernel_backend(kernel_backend)
-
-    @staticmethod
-    def get_dtypes() -> list[torch.dtype]:
-        return [torch.float32, torch.float16, torch.bfloat16]
-
-    @staticmethod
-    def get_1d_tensor_sizes(
-        log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
-    ) -> set[int]:
-        return get_1d_tensor_sizes(
-            log_max_power_of_2=log_max_power_of_2, max_offset=max_offset, num_not_powers_of_2=num_not_powers_of_2
-        )
-
-    @staticmethod
-    def get_2d_tensor_sizes(
-        log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
-    ) -> set[int]:
-        return get_2d_tensor_sizes(
-            log_max_power_of_2=log_max_power_of_2, max_offset=max_offset, num_not_powers_of_2=num_not_powers_of_2
-        )
-
-    def make_args_matrix(*args_lists) -> list[Any]:
-        return [p for p in product(*args_lists)]
-
-    def assert_equal_tensors(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        exact_match: bool,
-        rtol_float32: float = None,
-        atol_float32: float = None,
-        rtol_float16: float = None,
-        atol_float16: float = None,
-        rtol_bfloat16: float = None,
-        atol_bfloat16: float = None,
-    ) -> None:
-        assert_equal_tensors(
-            x=x,
-            y=y,
-            exact_match=exact_match,
-            rtol_float32=rtol_float32,
-            atol_float32=atol_float32,
-            rtol_float16=rtol_float16,
-            atol_float16=atol_float16,
-            rtol_bfloat16=rtol_bfloat16,
-            atol_bfloat16=atol_bfloat16,
-        )
-
-    def get_activation_function(self, is_glu: bool) -> nn.Module:
-        return nn.GLU() if is_glu else nn.GELU(approximate="tanh")
-
-    def get_random_duplicated_tensors(
-        self, size: tuple[int], device: torch.device, dtype: torch.dtype, std: float = 1
-    ) -> tuple[torch.Tensor]:
-        x = torch.randn(size, device=device, dtype=dtype, requires_grad=False) * std
-        x.requires_grad_()
-        x_clone = x.clone().detach().requires_grad_()
-
-        return x, x_clone
 
 
 def collect_gradients_from_module_and_zero_grads(model: nn.Module) -> dict[str, torch.Tensor]:

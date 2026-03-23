@@ -2,13 +2,19 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import pytest
 import torch
 import torch.nn as nn
 from parameterized import parameterized
 
 from xma import M2RNN, Accelerator, KernelBackend, set_seed
 
-from ..test_commons import TestCommons
+from ..test_commons import (
+    assert_equal_tensors,
+    collect_gradients_from_module_and_zero_grads,
+    get_random_duplicated_tensors,
+    skip_if_incompatible_kernel_backend,
+)
 
 
 _SEED = 42
@@ -24,6 +30,32 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int]]:
         result.append(tuple(t))
 
     return result
+
+
+def _get_packed_tensor_inputs(
+    batch_size: int,
+    sequence_length: int | None,
+    total_tokens: int | None,
+    state_size: int,
+    has_input_state: bool,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> tuple[torch.Tensor | None]:
+    x_kernel, x_torch = get_random_duplicated_tensors(
+        ((batch_size, sequence_length, state_size) if total_tokens is None else (total_tokens, state_size)),
+        device=device,
+        dtype=dtype,
+        std=0.01,
+    )
+
+    input_state_kernel = None
+    input_state_torch = None
+    if has_input_state:
+        input_state_kernel, input_state_torch = get_random_duplicated_tensors(
+            (batch_size, state_size), device=device, dtype=dtype, std=0.01
+        )
+
+    return x_kernel, x_torch, input_state_kernel, input_state_torch
 
 
 class M2RNNTest(TestCommons):
@@ -187,148 +219,118 @@ class M2RNNTest(TestCommons):
                 rtol_bfloat16=0,
             )
 
-    @parameterized.expand(
-        TestCommons.make_args_matrix(
-            [KernelBackend.torch],  # kernel_backend
-            TestCommons.get_dtypes(),  # dtype
-            [[0, 7, 19, 27, 93]],  # cu_seqlens
-            _get_problem_shapes(),
-            [False, True],  # has_input_state
-        )
+
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
+@pytest.mark.parametrize("problem_shape", _get_problem_shapes())
+@pytest.mark.parametrize("has_input_state", [False, True])
+def test_rnn_varlen_torch(
+    kernel_backend: KernelBackend,
+    dtype: torch.dtype,
+    cu_seqlens: list[int],
+    problem_shape: tuple[int, int, int, int, int, int, int],
+    has_input_state: bool,
+) -> None:
+    if Accelerator.get_accelerator() != Accelerator.cuda:
+        pytest.skip("Sufficient to run on CUDA device")
+
+    skip_if_incompatible_kernel_backend(kernel_backend)
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
+
+    set_seed(_SEED)
+
+    batch_size = len(cu_seqlens) - 1
+    cu_seqlens = torch.tensor(cu_seqlens, device=device)
+    max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
+
+    (
+        key_head_dim,
+        value_head_dim,
+        num_query_heads,
+        num_key_heads,
+        num_value_heads,
+        num_forget_input_heads,
+        num_weight_heads,
+    ) = problem_shape
+
+    num_heads = max(num_query_heads, num_key_heads, num_value_heads, num_forget_input_heads, num_weight_heads)
+    state_size = num_heads * key_head_dim * value_head_dim
+
+    x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
+        batch_size=batch_size,
+        sequence_length=None,
+        total_tokens=cu_seqlens[-1],
+        state_size=state_size,
+        has_input_state=has_input_state,
+        dtype=dtype,
+        device=device,
     )
-    def test_rnn_varlen_torch(
-        self,
-        kernel_backend: KernelBackend,
-        dtype: torch.dtype,
-        cu_seqlens: list[int],
-        problem_shape: tuple[int, int, int, int, int, int, int],
-        has_input_state: bool,
-    ) -> None:
-        if Accelerator.get_accelerator() != Accelerator.cuda:
-            self.skipTest("Sufficient to run on CUDA device")
 
-        self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_compatible_accelerator().get_current_device()
+    with torch.device(device):
+        m2rnn = M2RNN(
+            input_size=state_size,
+            key_head_dim=key_head_dim,
+            value_head_dim=value_head_dim,
+            output_size=state_size,
+            num_query_heads=num_query_heads,
+            num_key_heads=num_key_heads,
+            num_value_heads=num_value_heads,
+            num_forget_input_heads=num_forget_input_heads,
+            num_weight_heads=num_weight_heads,
+            add_bias=False,
+            gradient_clipping=None,
+        ).to(dtype)
 
-        set_seed(_SEED)
+        nn.init.normal_(m2rnn.state_weight, std=0.1)
 
-        batch_size = len(cu_seqlens) - 1
-        cu_seqlens = torch.tensor(cu_seqlens, device=device)
-        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
+    y_kernel, _ = m2rnn(
+        input=x_packed_kernel,
+        input_state=input_state_kernel,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
+        kernel_backend=KernelBackend.torch,
+    )
 
-        (
-            key_head_dim,
-            value_head_dim,
-            num_query_heads,
-            num_key_heads,
-            num_value_heads,
-            num_forget_input_heads,
-            num_weight_heads,
-        ) = problem_shape
-
-        num_heads = max(num_query_heads, num_key_heads, num_value_heads, num_forget_input_heads, num_weight_heads)
-        state_size = num_heads * key_head_dim * value_head_dim
-
-        x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
-            batch_size=batch_size,
-            sequence_length=None,
-            total_tokens=cu_seqlens[-1],
-            state_size=state_size,
-            has_input_state=has_input_state,
-            dtype=dtype,
-            device=device,
-        )
-
-        with torch.device(device):
-            m2rnn = M2RNN(
-                input_size=state_size,
-                key_head_dim=key_head_dim,
-                value_head_dim=value_head_dim,
-                output_size=state_size,
-                num_query_heads=num_query_heads,
-                num_key_heads=num_key_heads,
-                num_value_heads=num_value_heads,
-                num_forget_input_heads=num_forget_input_heads,
-                num_weight_heads=num_weight_heads,
-                add_bias=False,
-                gradient_clipping=None,
-            ).to(dtype)
-
-            nn.init.normal_(m2rnn.state_weight, std=0.1)
-
-        y_kernel, _ = m2rnn(
-            input=x_packed_kernel,
-            input_state=input_state_kernel,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
+    y_torch = []
+    for i in range(batch_size):
+        y, _ = m2rnn(
+            input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+            input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
             kernel_backend=KernelBackend.torch,
         )
+        y_torch.append(y.squeeze(0))
+    y_torch = torch.cat(y_torch)
 
-        y_torch = []
-        for i in range(batch_size):
-            y, _ = m2rnn(
-                input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-                input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
-                kernel_backend=KernelBackend.torch,
-            )
-            y_torch.append(y.squeeze(0))
-        y_torch = torch.cat(y_torch)
+    assert_equal_tensors(y_kernel, y_torch, False)
 
-        self.assert_equal_tensors(y_kernel, y_torch, False)
+    y_kernel.sum().backward()
+    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(m2rnn)
 
-        y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(m2rnn)
+    y_torch.sum().backward()
+    weight_torch_grads = collect_gradients_from_module_and_zero_grads(m2rnn)
 
-        y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(m2rnn)
+    assert_equal_tensors(
+        x_packed_kernel.grad,
+        x_packed_torch.grad,
+        False,
+        atol_float32=2e-5,
+        rtol_float32=0,
+        atol_float16=6.2e-5,
+        rtol_float16=0,
+        atol_bfloat16=5e-4,
+        rtol_bfloat16=0,
+    )
 
-        self.assert_equal_tensors(
-            x_packed_kernel.grad,
-            x_packed_torch.grad,
+    for weight_name in weight_kernel_grads:
+        assert_equal_tensors(
+            weight_kernel_grads[weight_name],
+            weight_torch_grads[weight_name],
             False,
-            atol_float32=2e-5,
+            atol_float32=3e-7,
             rtol_float32=0,
-            atol_float16=6.2e-5,
+            atol_float16=5e-4,
             rtol_float16=0,
-            atol_bfloat16=5e-4,
+            atol_bfloat16=5e-3,
             rtol_bfloat16=0,
         )
-
-        for weight_name in weight_kernel_grads:
-            self.assert_equal_tensors(
-                weight_kernel_grads[weight_name],
-                weight_torch_grads[weight_name],
-                False,
-                atol_float32=3e-7,
-                rtol_float32=0,
-                atol_float16=5e-4,
-                rtol_float16=0,
-                atol_bfloat16=5e-3,
-                rtol_bfloat16=0,
-            )
-
-    def _get_packed_tensor_inputs(
-        self,
-        batch_size: int,
-        sequence_length: int | None,
-        total_tokens: int | None,
-        state_size: int,
-        has_input_state: bool,
-        dtype: torch.dtype,
-        device: torch.device,
-    ) -> tuple[torch.Tensor | None]:
-        x_kernel, x_torch = self.get_random_duplicated_tensors(
-            ((batch_size, sequence_length, state_size) if total_tokens is None else (total_tokens, state_size)),
-            device=device,
-            dtype=dtype,
-            std=0.01,
-        )
-
-        input_state_kernel = None
-        input_state_torch = None
-        if has_input_state:
-            input_state_kernel, input_state_torch = self.get_random_duplicated_tensors(
-                (batch_size, state_size), device=device, dtype=dtype, std=0.01
-            )
-
-        return x_kernel, x_torch, input_state_kernel, input_state_torch
