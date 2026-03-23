@@ -8,9 +8,6 @@ from ....custom_op import xma_op
 from ....mps_utils import cpp_jit
 
 
-_module = None
-
-
 @xma_op(mutates_args={"y"})
 @cpp_jit(extensions=[".mm"])
 def swiglu_forward_mps(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None: ...
