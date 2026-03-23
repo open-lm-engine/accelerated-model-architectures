@@ -132,8 +132,10 @@ def cpp_jit(
 
     if is_cuda:
         extensions = [".cu", ".cpp"]
+        assert not is_mps
     elif is_mps:
         extensions = [".mm"]
+        assert not is_cuda
     else:
         raise ValueError
 
