@@ -9,7 +9,7 @@ import torch
 
 from xma import KernelBackend, pack_sequence, unpack_sequence
 
-from ..test_commons import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
+from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
 
 
 @pytest.mark.parametrize("size", [(7, 1000, 12, 14)])

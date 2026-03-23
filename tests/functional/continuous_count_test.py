@@ -9,7 +9,7 @@ import torch
 
 from xma import KernelBackend, continuous_count, set_seed
 
-from ..test_commons import assert_equal_tensors, get_1d_tensor_sizes, skip_if_incompatible_kernel_backend
+from ..utils import assert_equal_tensors, get_1d_tensor_sizes, skip_if_incompatible_kernel_backend
 
 
 _MAX_EXPERTS = 72

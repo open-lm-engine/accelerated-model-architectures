@@ -9,7 +9,7 @@ import torch
 
 from xma import KernelBackend, MoE, set_seed
 
-from ..test_commons import (
+from ..utils import (
     assert_equal_tensors,
     collect_gradients_from_module_and_zero_grads,
     get_activation_function,

@@ -11,7 +11,7 @@ import torch
 
 from xma import KernelBackend, fused_residual_add_rmsnorm, set_seed
 
-from ..test_commons import (
+from ..utils import (
     assert_equal_tensors,
     get_1d_tensor_sizes,
     get_random_duplicated_tensors,

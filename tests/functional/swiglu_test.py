@@ -10,7 +10,7 @@ import torch
 
 from xma import KernelBackend, ceil_divide, swiglu
 
-from ..test_commons import (
+from ..utils import (
     assert_equal_tensors,
     get_2d_tensor_sizes,
     get_random_duplicated_tensors,
