@@ -14,6 +14,8 @@ Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
 | functional | CUDA | Pallas | NKI | ROCm | Triton |
 |-| - | - | - | - | - |
 | GRU | ❌ | ❌ | ❌ | ❌ | ✅ |
+| LinearAttention | ❌ | ❌ | ❌ | ❌ | ✅ |
+| M2RNN | ❌ | ❌ | ❌ | ❌ | ✅ |
 | MoE | ✅ | ❌ | ❌ | ❌ | ✅ |
 | RNN | ❌ | ❌ | ❌ | ❌ | ✅ |
 
@@ -26,8 +28,13 @@ Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
 | cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
 | fused_linear_cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
 | fused_residual_add_rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
-| rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
+| gru | ❌ | ❌ | ❌ | ❌ | ✅ |
+| linear_attention | ❌ | ❌ | ❌ | ❌ | ✅ |
+| m2rnn | ❌ | ❌ | ❌ | ❌ | ✅ |
+| p_norm | ❌ | ❌ | ❌ | ❌ | ✅ |
 | pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
+| rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
+| rnn | ❌ | ❌ | ❌ | ❌ | ✅ |
 | softmax | ❌ | ❌ | ❌ | ❌ | ✅ |
 | swiglu | ✅ | ✅ | ✅ | ❌ | ✅ |
 | swiglu_packed | ✅ | ✅ | ✅ | ❌ | ✅ |

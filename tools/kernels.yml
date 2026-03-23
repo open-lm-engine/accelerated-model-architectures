@@ -5,6 +5,10 @@
 layers:
   GRU:
     - triton
+  LinearAttention:
+    - triton
+  M2RNN:
+    - triton
   MoE:
     - cuda
     - triton
@@ -22,7 +26,17 @@ functional:
     - triton
   fused_residual_add_rmsnorm:
     - triton
+  gru:
+    - triton
+  linear_attention:
+    - triton
+  m2rnn:
+    - triton
+  p_norm:
+    - triton
   rmsnorm:
+    - triton
+  rnn:
     - triton
   pack_sequence:
     - cuda
