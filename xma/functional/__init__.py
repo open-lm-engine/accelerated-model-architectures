@@ -10,7 +10,7 @@ from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
 from .gru import gru
 from .linear_attention import linear_attention
 from .m2rnn import m2rnn
-from .norm import norm
+from .p_norm import p_norm
 from .rmsnorm import rmsnorm
 from .rnn import rnn
 from .sequence_packing import pack_sequence, unpack_sequence

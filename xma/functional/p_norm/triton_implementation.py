@@ -14,7 +14,7 @@ from ..fused_residual_add_rmsnorm.triton_implementation.forward import _get_auto
 
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def norm_triton_kernel(
+def p_norm_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -66,7 +66,7 @@ def norm_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | None, is_p_inf: bool) -> None:
+def p_norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | None, is_p_inf: bool) -> None:
     B, H = x.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
@@ -74,7 +74,7 @@ def norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: i
 
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
 
-    norm_triton_kernel[GRID](
+    p_norm_triton_kernel[GRID](
         x_ptr=x,
         x_stride=x.stride(),
         y_ptr=y,
