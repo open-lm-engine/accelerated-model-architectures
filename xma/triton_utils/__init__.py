@@ -2,8 +2,7 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .cu_seqlens import get_start_end
-from .math import (
+from .activations import (
     clamp,
     leaky_relu,
     leaky_relu_backward,
@@ -14,4 +13,5 @@ from .math import (
     tanh,
     tanh_backward,
 )
+from .cu_seqlens import get_start_end
 from .matmul import matmul
