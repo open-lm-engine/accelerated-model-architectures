@@ -12,6 +12,7 @@ xma.functional
    xma.functional.linear_attention
    xma.functional.m2rnn
    xma.functional.norm
+   xma.functional.p_norm
    xma.functional.rnn
    xma.functional.sequence_packing
    xma.functional.softmax
