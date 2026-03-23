@@ -13,7 +13,7 @@ from ..utils import (
     collect_gradients_from_module_and_zero_grads,
     skip_if_incompatible_kernel_backend,
 )
-from .gru_test import _get_packed_tensor_inputs
+from .rnn_test import _get_packed_tensor_inputs
 
 
 _SEED = 42
