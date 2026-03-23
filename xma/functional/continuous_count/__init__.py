@@ -5,7 +5,11 @@
 import torch
 
 from ...accelerator import Accelerator, KernelBackend
-from .cuda_implementation import continuous_count_cuda
+from ...utils import is_cute_dsl_available
+
+
+if is_cute_dsl_available():
+    from .cuda_implementation import continuous_count_cuda
 
 
 @torch.no_grad()
