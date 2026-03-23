@@ -87,7 +87,7 @@ def _get_packed_tensor_inputs(
 
 
 @pytest.mark.parametrize(
-    "kernel_backend,dtype,batch_size,sequence_length,problem_shape,has_input_shape,is_compiling", _generate_args()
+    "kernel_backend,dtype,batch_size,sequence_length,problem_shape,has_input_state,is_compiling", _generate_args()
 )
 def test_linear_attention(
     kernel_backend: KernelBackend,
