@@ -59,6 +59,8 @@ void swiglu_forward_mps(const torch::Tensor& g, const torch::Tensor& u, torch::T
         kernel_name = "swiglu_forward_float";
     } else if (g.scalar_type() == torch::kHalf) {
         kernel_name = "swiglu_forward_half";
+    } else if (g.scalar_type() == torch::kBFloat16) {
+        kernel_name = "swiglu_forward_bfloat";
     } else {
         TORCH_CHECK(false, "unsupported dtype for MPS swiglu");
     }

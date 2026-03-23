@@ -21,3 +21,11 @@ kernel void swiglu_forward_half(device const half *g [[buffer(0)]],
     float _g = float(g[id]);
     y[id] = half(float(u[id]) * _g / (1.0f + exp(-_g)));
 }
+
+kernel void swiglu_forward_bfloat(device const bfloat *g [[buffer(0)]],
+                                  device const bfloat *u [[buffer(1)]],
+                                  device bfloat *y [[buffer(2)]],
+                                  uint id [[thread_position_in_grid]]) {
+    float _g = float(g[id]);
+    y[id] = bfloat(float(u[id]) * _g / (1.0f + exp(-_g)));
+}
