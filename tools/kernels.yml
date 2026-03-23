@@ -34,9 +34,9 @@ functional:
     - triton
   p_norm:
     - triton
-  rnn:
-    - triton
   rmsnorm:
+    - triton
+  rnn:
     - triton
   pack_sequence:
     - cuda
