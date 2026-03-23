@@ -30,3 +30,9 @@ def _get_module():
 
 def swiglu_forward_mps(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     _get_module().swiglu_forward_mps(g, u, y)
+
+
+def swiglu_backward_mps(
+    g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
+) -> None:
+    _get_module().swiglu_backward_mps(g, u, dy, dg, du)

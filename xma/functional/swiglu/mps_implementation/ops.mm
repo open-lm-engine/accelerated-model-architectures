@@ -14,21 +14,25 @@
 #include <fstream>
 #include <sstream>
 
-// read_shader_source: reads the Metal shader file from disk.
-// We keep the shader in a separate .metal file (rather than embedding it as a string
-// literal) so it can be edited and syntax-highlighted independently.
-static std::string read_shader_source() {
-    // __FILE__ expands to the absolute path of this .mm file at compile time.
-    // We strip the filename to get the directory, then append "forward.metal".
-    std::string dir(__FILE__);
-    dir = dir.substr(0, dir.rfind('/'));
-
-    std::ifstream f(dir + "/forward.metal");
-    TORCH_CHECK(f.is_open(), "failed to open forward.metal");
-
+// read_file: reads a file from disk into a string.
+static std::string read_file(const std::string& path) {
+    std::ifstream f(path);
+    TORCH_CHECK(f.is_open(), "failed to open ", path);
     std::stringstream buf;
     buf << f.rdbuf();
     return buf.str();
+}
+
+// read_shader_sources: reads and concatenates all .metal shader files.
+// We keep shaders in separate .metal files (rather than embedding as string
+// literals) so they can be edited and syntax-highlighted independently.
+static std::string read_shader_sources() {
+    // __FILE__ expands to the absolute path of this .mm file at compile time.
+    // We strip the filename to get the directory, then read forward.metal and backward.metal.
+    std::string dir(__FILE__);
+    dir = dir.substr(0, dir.rfind('/'));
+
+    return read_file(dir + "/forward.metal") + "\n" + read_file(dir + "/backward.metal");
 }
 
 // get_library: returns a singleton MetalShaderLibrary that lazily compiles the shader.
@@ -39,7 +43,7 @@ static std::string read_shader_source() {
 // DynamicMetalShaderLibrary compiles immediately on construction (vs. lazily).
 static at::native::mps::MetalShaderLibrary& get_library() {
     // Using a function-local static ensures thread-safe one-time initialization (C++11 guarantee).
-    static at::native::mps::DynamicMetalShaderLibrary lib(read_shader_source());
+    static at::native::mps::DynamicMetalShaderLibrary lib(read_shader_sources());
     return lib;
 }
 
@@ -90,7 +94,45 @@ void swiglu_forward_mps(const torch::Tensor& g, const torch::Tensor& u, torch::T
     });
 }
 
+// swiglu_backward_mps: backward pass entry point called from Python.
+// Computes gradients: dg = dy * u * (sigmoid(g) + silu(g) * (1 - sigmoid(g)))
+//                     du = dy * silu(g)
+void swiglu_backward_mps(
+    const torch::Tensor& g, const torch::Tensor& u, const torch::Tensor& dy, torch::Tensor& dg, torch::Tensor& du) {
+    TORCH_CHECK(g.is_mps() && u.is_mps() && dy.is_mps() && dg.is_mps() && du.is_mps(),
+                "all tensors must be on MPS device");
+    TORCH_CHECK(
+        g.is_contiguous() && u.is_contiguous() && dy.is_contiguous() && dg.is_contiguous() && du.is_contiguous(),
+        "all tensors must be contiguous");
+
+    std::string kernel_name;
+    if (g.scalar_type() == torch::kFloat) {
+        kernel_name = "swiglu_backward_fp32";
+    } else if (g.scalar_type() == torch::kHalf) {
+        kernel_name = "swiglu_backward_fp16";
+    } else if (g.scalar_type() == torch::kBFloat16) {
+        kernel_name = "swiglu_backward_bf16";
+    } else {
+        TORCH_CHECK(false, "unsupported dtype for MPS swiglu backward");
+    }
+
+    auto kernel = get_library().getKernelFunction(kernel_name);
+
+    kernel->runCommandBlock([&]() {
+        kernel->startEncoding();
+        kernel->setArg(0, g);
+        kernel->setArg(1, u);
+        kernel->setArg(2, dy);
+        kernel->setArg(3, dg);
+        kernel->setArg(4, du);
+        kernel->dispatch(static_cast<uint64_t>(g.numel()));
+    });
+}
+
 // pybind11 module definition — this is what torch.utils.cpp_extension.load() looks for.
-// It creates a Python module and exposes our C++ function as a callable Python function.
+// It creates a Python module and exposes our C++ functions as callable Python functions.
 // TORCH_EXTENSION_NAME is a macro set by the build system to the module name we specified.
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("swiglu_forward_mps", &swiglu_forward_mps, "SwiGLU forward (MPS)"); }
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    m.def("swiglu_forward_mps", &swiglu_forward_mps, "SwiGLU forward (MPS)");
+    m.def("swiglu_backward_mps", &swiglu_backward_mps, "SwiGLU backward (MPS)");
+}
