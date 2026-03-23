@@ -79,11 +79,12 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
     return getattr(module, function_name)
 
 
-def cuda_jit(
+def cpp_jit(
     function_name: str | None = None,
     extra_source_files: list[str] = [],
     build_directory: str | None = None,
     depth: int = 1,
+    extensions: list[str] = [".cu", ".cpp"],
 ) -> Callable:
     """wrapper to compile C++/CUDA source code at runtime.
 
@@ -109,7 +110,7 @@ def cuda_jit(
 
     for dirname, _, filenames in os.walk(calling_directory):
         filenames = [os.path.join(dirname, f) for f in filenames]
-        filenames = filter(lambda f: os.path.splitext(f)[1] in [".cu", ".cpp"], filenames)
+        filenames = filter(lambda f: os.path.splitext(f)[1] in extensions, filenames)
         source_files.extend(filenames)
 
     if build_directory is None:
