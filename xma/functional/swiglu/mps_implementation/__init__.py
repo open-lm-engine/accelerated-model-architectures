@@ -5,7 +5,7 @@
 import torch
 
 from ....custom_op import xma_op
-from ....mps_utils import cpp_jit
+from ....jit import mps_jit
 
 
 @xma_op(mutates_args={"y"})
