@@ -273,9 +273,12 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">KernelBackend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...custom_op</span><span class="w"> </span><span class="kn">import</span> <span class="n">CustomOp</span><span class="p">,</span> <span class="n">ctx_save_for_backward</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...torch_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">clip_gradients</span><span class="p">,</span> <span class="n">tanh</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">zeros_like_contiguous</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">m2rnn_backward_triton</span><span class="p">,</span> <span class="n">m2rnn_forward_triton</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">is_triton_available</span><span class="p">,</span> <span class="n">zeros_like_contiguous</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">_get_num_heads</span>
+
+
+<span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">m2rnn_backward_triton</span><span class="p">,</span> <span class="n">m2rnn_forward_triton</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_M2RNN</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>

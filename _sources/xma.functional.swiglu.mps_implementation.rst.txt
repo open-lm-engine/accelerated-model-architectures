@@ -1,0 +1,7 @@
+xma.functional.swiglu.mps\_implementation
+=========================================
+
+.. automodule:: xma.functional.swiglu.mps_implementation
+   :members:
+   :show-inheritance:
+   :undoc-members:

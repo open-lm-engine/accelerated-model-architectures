@@ -283,17 +283,27 @@
 <span class="n">_ALL_COMPILED_MODULES</span> <span class="o">=</span> <span class="p">{}</span>
 
 
-<span class="nd">@torch</span><span class="o">.</span><span class="n">compiler</span><span class="o">.</span><span class="n">disable</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">_get_cpp_function</span><span class="p">(</span><span class="n">function_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">module_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">source_files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">build_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_cpp_function</span><span class="p">(</span>
+    <span class="n">function_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">module_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">source_files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">build_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">is_cuda</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">is_mps</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
     <span class="n">module_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">_CPP_MODULE_PREFIX</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">module_name</span><span class="si">}</span><span class="s2">&quot;</span>
 
-    <span class="n">extra_cflags</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-O3&quot;</span><span class="p">,</span> <span class="s2">&quot;-Wall&quot;</span><span class="p">,</span> <span class="s2">&quot;-shared&quot;</span><span class="p">,</span> <span class="s2">&quot;-fPIC&quot;</span><span class="p">,</span> <span class="s2">&quot;-fdiagnostics-color&quot;</span><span class="p">]</span>
-    <span class="n">extra_cuda_cflags</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-O3&quot;</span><span class="p">,</span> <span class="s2">&quot;-lineinfo&quot;</span><span class="p">]</span>
-    <span class="n">extra_include_paths</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span>  <span class="c1"># xma/include</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/cutlass/include&quot;</span><span class="p">,</span>  <span class="c1"># cutlass</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/cutlass/tools/util/include&quot;</span><span class="p">,</span>  <span class="c1"># cutlass</span>
-    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">is_cuda</span><span class="p">:</span>
+        <span class="n">extra_cflags</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-O3&quot;</span><span class="p">,</span> <span class="s2">&quot;-Wall&quot;</span><span class="p">,</span> <span class="s2">&quot;-shared&quot;</span><span class="p">,</span> <span class="s2">&quot;-fPIC&quot;</span><span class="p">,</span> <span class="s2">&quot;-fdiagnostics-color&quot;</span><span class="p">]</span>
+        <span class="n">extra_cuda_cflags</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-O3&quot;</span><span class="p">,</span> <span class="s2">&quot;-lineinfo&quot;</span><span class="p">]</span>
+        <span class="n">extra_ldflags</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">extra_include_paths</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span>  <span class="c1"># xma/include</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/cutlass/include&quot;</span><span class="p">,</span>  <span class="c1"># cutlass</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/cutlass/tools/util/include&quot;</span><span class="p">,</span>  <span class="c1"># cutlass</span>
+        <span class="p">]</span>
+    <span class="k">elif</span> <span class="n">is_mps</span><span class="p">:</span>
+        <span class="n">extra_cflags</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-O3&quot;</span><span class="p">,</span> <span class="s2">&quot;-Wall&quot;</span><span class="p">,</span> <span class="s2">&quot;-std=c++17&quot;</span><span class="p">]</span>
+        <span class="n">extra_cuda_cflags</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">extra_ldflags</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-framework&quot;</span><span class="p">,</span> <span class="s2">&quot;Metal&quot;</span><span class="p">,</span> <span class="s2">&quot;-framework&quot;</span><span class="p">,</span> <span class="s2">&quot;Foundation&quot;</span><span class="p">]</span>
+        <span class="n">extra_include_paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span>
 
     <span class="n">module</span> <span class="o">=</span> <span class="n">_ALL_COMPILED_MODULES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">module_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
@@ -305,9 +315,10 @@
                 <span class="n">module</span> <span class="o">=</span> <span class="n">load_cpp_extension</span><span class="p">(</span>
                     <span class="n">module_name</span><span class="p">,</span>
                     <span class="n">sources</span><span class="o">=</span><span class="n">source_files</span><span class="p">,</span>
-                    <span class="n">with_cuda</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">with_cuda</span><span class="o">=</span><span class="n">is_cuda</span><span class="p">,</span>
                     <span class="n">extra_cflags</span><span class="o">=</span><span class="n">extra_cflags</span><span class="p">,</span>
                     <span class="n">extra_cuda_cflags</span><span class="o">=</span><span class="n">extra_cuda_cflags</span><span class="p">,</span>
+                    <span class="n">extra_ldflags</span><span class="o">=</span><span class="n">extra_ldflags</span><span class="p">,</span>
                     <span class="n">extra_include_paths</span><span class="o">=</span><span class="n">extra_include_paths</span><span class="p">,</span>
                     <span class="n">build_directory</span><span class="o">=</span><span class="n">build_directory</span><span class="p">,</span>
                     <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -319,12 +330,13 @@
                 <span class="n">module</span> <span class="o">=</span> <span class="n">load_cpp_extension</span><span class="p">(</span>
                     <span class="n">module_name</span><span class="p">,</span>
                     <span class="n">sources</span><span class="o">=</span><span class="n">source_files</span><span class="p">,</span>
-                    <span class="n">with_cuda</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">with_cuda</span><span class="o">=</span><span class="n">is_cuda</span><span class="p">,</span>
                     <span class="n">extra_cflags</span><span class="o">=</span><span class="n">extra_cflags</span><span class="p">,</span>
                     <span class="n">extra_cuda_cflags</span><span class="o">=</span><span class="n">extra_cuda_cflags</span><span class="p">,</span>
+                    <span class="n">extra_ldflags</span><span class="o">=</span><span class="n">extra_ldflags</span><span class="p">,</span>
                     <span class="n">extra_include_paths</span><span class="o">=</span><span class="n">extra_include_paths</span><span class="p">,</span>
                     <span class="n">build_directory</span><span class="o">=</span><span class="n">build_directory</span><span class="p">,</span>
-                    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">_WORLD_SIZE</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
@@ -335,9 +347,10 @@
             <span class="n">module</span> <span class="o">=</span> <span class="n">load_cpp_extension</span><span class="p">(</span>
                 <span class="n">module_name</span><span class="p">,</span>
                 <span class="n">sources</span><span class="o">=</span><span class="n">source_files</span><span class="p">,</span>
-                <span class="n">with_cuda</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">with_cuda</span><span class="o">=</span><span class="n">is_cuda</span><span class="p">,</span>
                 <span class="n">extra_cflags</span><span class="o">=</span><span class="n">extra_cflags</span><span class="p">,</span>
                 <span class="n">extra_cuda_cflags</span><span class="o">=</span><span class="n">extra_cuda_cflags</span><span class="p">,</span>
+                <span class="n">extra_ldflags</span><span class="o">=</span><span class="n">extra_ldflags</span><span class="p">,</span>
                 <span class="n">extra_include_paths</span><span class="o">=</span><span class="n">extra_include_paths</span><span class="p">,</span>
                 <span class="n">build_directory</span><span class="o">=</span><span class="n">build_directory</span><span class="p">,</span>
                 <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -358,6 +371,8 @@
     <span class="n">extra_source_files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
     <span class="n">build_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">is_cuda</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">is_mps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;wrapper to compile C++/CUDA source code at runtime.</span>
 
@@ -381,9 +396,18 @@
     <span class="n">calling_filename</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">filename</span>
     <span class="n">calling_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">calling_filename</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">is_cuda</span><span class="p">:</span>
+        <span class="n">extensions</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;.cu&quot;</span><span class="p">,</span> <span class="s2">&quot;.cpp&quot;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">is_mps</span>
+    <span class="k">elif</span> <span class="n">is_mps</span><span class="p">:</span>
+        <span class="n">extensions</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;.mm&quot;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">is_cuda</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span>
+
     <span class="k">for</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">filenames</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">calling_directory</span><span class="p">):</span>
         <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">]</span>
-        <span class="n">filenames</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;.cu&quot;</span><span class="p">,</span> <span class="s2">&quot;.cpp&quot;</span><span class="p">],</span> <span class="n">filenames</span><span class="p">)</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="n">extensions</span><span class="p">,</span> <span class="n">filenames</span><span class="p">)</span>
         <span class="n">source_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">build_directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -403,6 +427,8 @@
                 <span class="n">module_name</span><span class="o">=</span><span class="n">module_name</span><span class="p">,</span>
                 <span class="n">source_files</span><span class="o">=</span><span class="n">source_files</span><span class="p">,</span>
                 <span class="n">build_directory</span><span class="o">=</span><span class="n">build_directory</span><span class="p">,</span>
+                <span class="n">is_cuda</span><span class="o">=</span><span class="n">is_cuda</span><span class="p">,</span>
+                <span class="n">is_mps</span><span class="o">=</span><span class="n">is_mps</span><span class="p">,</span>
             <span class="p">)</span>
 
         <span class="n">full_args</span> <span class="o">=</span> <span class="p">[]</span>
