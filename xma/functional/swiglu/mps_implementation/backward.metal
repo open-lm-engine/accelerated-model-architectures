@@ -3,7 +3,7 @@
 // **************************************************
 
 template <typename T>
-static inline void swiglu_backward(device const T *g, device const T *u, device const T *dy,
+static inline void _swiglu_backward(device const T *g, device const T *u, device const T *dy,
                                    device T *dg, device T *du, uint id) {
     float _g = float(g[id]);
     float _u = float(g[id]);
@@ -24,7 +24,7 @@ kernel void swiglu_backward_fp32(device const float *g [[buffer(0)]],
                                  device float *dg [[buffer(3)]],
                                  device float *du [[buffer(4)]],
                                  uint id [[thread_position_in_grid]]) {
-    swiglu_backward(g, u, dy, dg, du, id);
+    _swiglu_backward(g, u, dy, dg, du, id);
 }
 
 kernel void swiglu_backward_fp16(device const half *g [[buffer(0)]],
@@ -33,7 +33,7 @@ kernel void swiglu_backward_fp16(device const half *g [[buffer(0)]],
                                  device half *dg [[buffer(3)]],
                                  device half *du [[buffer(4)]],
                                  uint id [[thread_position_in_grid]]) {
-    swiglu_backward(g, u, dy, dg, du, id);
+    _swiglu_backward(g, u, dy, dg, du, id);
 }
 
 kernel void swiglu_backward_bf16(device const bfloat *g [[buffer(0)]],
@@ -42,5 +42,5 @@ kernel void swiglu_backward_bf16(device const bfloat *g [[buffer(0)]],
                                  device bfloat *dg [[buffer(3)]],
                                  device bfloat *du [[buffer(4)]],
                                  uint id [[thread_position_in_grid]]) {
-    swiglu_backward(g, u, dy, dg, du, id);
+    _swiglu_backward(g, u, dy, dg, du, id);
 }
