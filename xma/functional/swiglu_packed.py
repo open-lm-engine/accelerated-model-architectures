@@ -48,18 +48,20 @@ class _SwigluPacked(CustomOp):
         u, g = x.chunk(2, dim=-1)
 
         if kernel_backend == KernelBackend.pallas:
-            return swiglu_forward_pallas(g=g, u=u)
-
-        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-
-        if kernel_backend == KernelBackend.cuda:
-            swiglu_forward_cuda(g=g, u=u, y=y)
-        elif kernel_backend == KernelBackend.nki:
-            swiglu_forward_nki(g=g, u=u, y=y)
-        elif kernel_backend == KernelBackend.triton:
-            swiglu_forward_triton(g=g, u=u, y=y)
+            y = swiglu_forward_pallas(g=g, u=u)
         else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+            y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+
+            if kernel_backend == KernelBackend.cuda:
+                swiglu_forward_cuda(g=g, u=u, y=y)
+            elif kernel_backend == KernelBackend.mps:
+                swiglu_forward_mps(g=g.contiguous(), u=u.contiguous(), y=y)
+            elif kernel_backend == KernelBackend.nki:
+                swiglu_forward_nki(g=g, u=u, y=y)
+            elif kernel_backend == KernelBackend.triton:
+                swiglu_forward_triton(g=g, u=u, y=y)
+            else:
+                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return y
 
@@ -76,11 +78,14 @@ class _SwigluPacked(CustomOp):
         if kernel_backend == KernelBackend.pallas:
             dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
             dx = torch.cat([du, dg], dim=-1)
-        elif kernel_backend == KernelBackend.nki:
+        elif kernel_backend in [KernelBackend.mps, KernelBackend.nki]:
             du = empty_like_contiguous(u)
             dg = empty_like_contiguous(g)
 
-            swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
+            if kernel_backend == KernelBackend.mps:
+                swiglu_backward_mps(g=g.contiguous(), u=u.contiguous(), dy=dy, dg=dg, du=du)
+            else:
+                swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
 
             dx = torch.cat([du, dg], dim=-1)
         else:
