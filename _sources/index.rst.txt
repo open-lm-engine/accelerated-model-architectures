@@ -19,15 +19,17 @@ Layers
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 16 16 16 16 16
+   :widths: 20 13 13 13 13 13 13
 
    * - Layer
      - CUDA
+     - MPS
      - Pallas
      - NKI
      - ROCm
      - Triton
    * - GRU
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -38,8 +40,10 @@ Layers
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - M2RNN
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -50,8 +54,10 @@ Layers
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - RNN
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -63,15 +69,17 @@ Functional
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 14 14 14 14 14
+   :widths: 24 13 13 13 13 13 13
 
    * - Function
      - CUDA
+     - MPS
      - Pallas
      - NKI
      - ROCm
      - Triton
    * - bmm
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -83,7 +91,9 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
    * - cross_entropy
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -94,8 +104,10 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - fused_residual_add_rmsnorm
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -106,8 +118,10 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - linear_attention
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -118,8 +132,10 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - p_norm
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -130,8 +146,10 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - rmsnorm
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -142,8 +160,10 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - softmax
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -153,16 +173,19 @@ Functional
      - ✅
      - ✅
      - ✅
+     - ✅
      - ❌
      - ✅
    * - swiglu_packed
      - ✅
+     - ❌
      - ✅
      - ✅
      - ❌
      - ✅
    * - unpack_sequence
      - ✅
+     - ❌
      - ❌
      - ❌
      - ❌

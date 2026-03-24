@@ -286,16 +286,18 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <div class="table-wrapper colwidths-given docutils container">
 <table class="docutils align-default">
 <colgroup>
-<col style="width: 20.0%" />
-<col style="width: 16.0%" />
-<col style="width: 16.0%" />
-<col style="width: 16.0%" />
-<col style="width: 16.0%" />
-<col style="width: 16.0%" />
+<col style="width: 20.4%" />
+<col style="width: 13.3%" />
+<col style="width: 13.3%" />
+<col style="width: 13.3%" />
+<col style="width: 13.3%" />
+<col style="width: 13.3%" />
+<col style="width: 13.3%" />
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Layer</p></th>
 <th class="head"><p>CUDA</p></th>
+<th class="head"><p>MPS</p></th>
 <th class="head"><p>Pallas</p></th>
 <th class="head"><p>NKI</p></th>
 <th class="head"><p>ROCm</p></th>
@@ -308,9 +310,11 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-odd"><td><p>LinearAttention</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
@@ -322,6 +326,7 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-odd"><td><p>MoE</p></td>
@@ -329,9 +334,11 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-even"><td><p>RNN</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
@@ -347,16 +354,18 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <div class="table-wrapper colwidths-given docutils container">
 <table class="docutils align-default">
 <colgroup>
-<col style="width: 30.0%" />
-<col style="width: 14.0%" />
-<col style="width: 14.0%" />
-<col style="width: 14.0%" />
-<col style="width: 14.0%" />
-<col style="width: 14.0%" />
+<col style="width: 23.5%" />
+<col style="width: 12.7%" />
+<col style="width: 12.7%" />
+<col style="width: 12.7%" />
+<col style="width: 12.7%" />
+<col style="width: 12.7%" />
+<col style="width: 12.7%" />
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Function</p></th>
 <th class="head"><p>CUDA</p></th>
+<th class="head"><p>MPS</p></th>
 <th class="head"><p>Pallas</p></th>
 <th class="head"><p>NKI</p></th>
 <th class="head"><p>ROCm</p></th>
@@ -369,6 +378,7 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-odd"><td><p>continuous_count</p></td>
@@ -377,8 +387,10 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 </tr>
 <tr class="row-even"><td><p>cross_entropy</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
@@ -390,9 +402,11 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-even"><td><p>fused_residual_add_rmsnorm</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
@@ -404,9 +418,11 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-even"><td><p>linear_attention</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
@@ -418,9 +434,11 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-even"><td><p>p_norm</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
@@ -432,9 +450,11 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-even"><td><p>rmsnorm</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
@@ -446,9 +466,11 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-even"><td><p>softmax</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
@@ -459,11 +481,13 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 <td><p>✅</p></td>
 <td><p>✅</p></td>
 <td><p>✅</p></td>
+<td><p>✅</p></td>
 <td><p>❌</p></td>
 <td><p>✅</p></td>
 </tr>
 <tr class="row-even"><td><p>swiglu_packed</p></td>
 <td><p>✅</p></td>
+<td><p>❌</p></td>
 <td><p>✅</p></td>
 <td><p>✅</p></td>
 <td><p>❌</p></td>
@@ -471,6 +495,7 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 </tr>
 <tr class="row-odd"><td><p>unpack_sequence</p></td>
 <td><p>✅</p></td>
+<td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
 <td><p>❌</p></td>
