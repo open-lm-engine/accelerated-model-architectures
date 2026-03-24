@@ -46,6 +46,7 @@ functional:
   swiglu:
     - cuda
     - pallas
+    - mps
     - nki
     - triton
   swiglu_packed:

@@ -18,7 +18,14 @@ kernels = yaml.full_load(open(TOOLS_DIR / "kernels.yml"))
 # sort kernels within each section
 for key in kernels:
     kernels[key] = dict(sorted(kernels[key].items()))
-backends = [("CUDA", "cuda"), ("Pallas", "pallas"), ("NKI", "nki"), ("ROCm", "rocm"), ("Triton", "triton")]
+backends = [
+    ("CUDA", "cuda"),
+    ("MPS", "mps"),
+    ("Pallas", "pallas"),
+    ("NKI", "nki"),
+    ("ROCm", "rocm"),
+    ("Triton", "triton"),
+]
 
 
 def get_md_table(key: str) -> str:
@@ -104,12 +111,12 @@ Installation
 Layers
 ------
 
-{get_rst_table('layers', 'Layer', '20 16 16 16 16 16')}
+{get_rst_table('layers', 'Layer', ' '.join(['20'] + ['13'] * len(backends)))}
 
 Functional
 ----------
 
-{get_rst_table('functional', 'Function', '30 14 14 14 14 14')}
+{get_rst_table('functional', 'Function', ' '.join(['24'] + ['13'] * len(backends)))}
 
 Community
 ---------
