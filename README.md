@@ -11,34 +11,34 @@ Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
 
 ## layers
 
-| functional | CUDA | Pallas | NKI | ROCm | Triton |
-|-| - | - | - | - | - |
-| GRU | ❌ | ❌ | ❌ | ❌ | ✅ |
-| LinearAttention | ❌ | ❌ | ❌ | ❌ | ✅ |
-| M2RNN | ❌ | ❌ | ❌ | ❌ | ✅ |
-| MoE | ✅ | ❌ | ❌ | ❌ | ✅ |
-| RNN | ❌ | ❌ | ❌ | ❌ | ✅ |
+| functional | CUDA | MPS | Pallas | NKI | ROCm | Triton |
+|-| - | - | - | - | - | - |
+| GRU | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| LinearAttention | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| M2RNN | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| MoE | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| RNN | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ## functional
 
-| functional | CUDA | Pallas | NKI | ROCm | Triton |
-|-| - | - | - | - | - |
-| bmm | ❌ | ❌ | ❌ | ❌ | ✅ |
-| continuous_count | ✅ | ❌ | ❌ | ❌ | ❌ |
-| cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
-| fused_linear_cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
-| fused_residual_add_rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
-| gru | ❌ | ❌ | ❌ | ❌ | ✅ |
-| linear_attention | ❌ | ❌ | ❌ | ❌ | ✅ |
-| m2rnn | ❌ | ❌ | ❌ | ❌ | ✅ |
-| p_norm | ❌ | ❌ | ❌ | ❌ | ✅ |
-| pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
-| rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
-| rnn | ❌ | ❌ | ❌ | ❌ | ✅ |
-| softmax | ❌ | ❌ | ❌ | ❌ | ✅ |
-| swiglu | ✅ | ✅ | ✅ | ❌ | ✅ |
-| swiglu_packed | ✅ | ✅ | ✅ | ❌ | ✅ |
-| unpack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
+| functional | CUDA | MPS | Pallas | NKI | ROCm | Triton |
+|-| - | - | - | - | - | - |
+| bmm | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| continuous_count | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| cross_entropy | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| fused_linear_cross_entropy | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| fused_residual_add_rmsnorm | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| gru | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| linear_attention | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| m2rnn | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| p_norm | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| pack_sequence | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| rmsnorm | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| rnn | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| softmax | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| swiglu | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| swiglu_packed | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| unpack_sequence | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 # Discord Server
 Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested in LLM architecture or distributed training/inference research.

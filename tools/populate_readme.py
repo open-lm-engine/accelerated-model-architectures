@@ -18,7 +18,14 @@ kernels = yaml.full_load(open(TOOLS_DIR / "kernels.yml"))
 # sort kernels within each section
 for key in kernels:
     kernels[key] = dict(sorted(kernels[key].items()))
-backends = [("CUDA", "cuda"), ("Pallas", "pallas"), ("NKI", "nki"), ("ROCm", "rocm"), ("Triton", "triton")]
+backends = [
+    ("CUDA", "cuda"),
+    ("MPS", "mps"),
+    ("Pallas", "pallas"),
+    ("NKI", "nki"),
+    ("ROCm", "rocm"),
+    ("Triton", "triton"),
+]
 
 
 def get_md_table(key: str) -> str:
