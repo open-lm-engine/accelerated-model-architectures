@@ -14,7 +14,7 @@ from ..utils import (
     is_torch_xla_available,
     is_triton_available,
 )
-from .swiglu import swiglu
+from .swiglu import swiglu, swiglu_backward_mps, swiglu_forward_mps
 
 
 if is_cute_dsl_available():
