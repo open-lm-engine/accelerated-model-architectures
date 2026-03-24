@@ -58,9 +58,7 @@ def get_rmsnorm_replacer(
             rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.torch
         )
 
-        replacement_function = partialize_and_update_signature(
-            rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.triton
-        )
+        replacement_function = partialize_and_update_signature(rmsnorm, eps=None, memory_efficient=False)
 
         yield search_function, replacement_function, example_inputs
 
@@ -89,7 +87,6 @@ def get_fused_residual_add_rmsnorm_replacer(
                 eps=None,
                 multiplier=None,
                 memory_efficient=False,
-                kernel_backend=KernelBackend.triton,
             )
 
             yield search_function, replacement_function, example_inputs
