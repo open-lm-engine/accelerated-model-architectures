@@ -111,12 +111,12 @@ Installation
 Layers
 ------
 
-{get_rst_table('layers', 'Layer', '20 16 16 16 16 16')}
+{get_rst_table('layers', 'Layer', ' '.join(['20'] + ['13'] * len(backends)))}
 
 Functional
 ----------
 
-{get_rst_table('functional', 'Function', '30 14 14 14 14 14')}
+{get_rst_table('functional', 'Function', ' '.join(['24'] + ['13'] * len(backends)))}
 
 Community
 ---------

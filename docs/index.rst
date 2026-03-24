@@ -19,7 +19,7 @@ Layers
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 16 16 16 16 16
+   :widths: 20 13 13 13 13 13 13
 
    * - Layer
      - CUDA
@@ -69,7 +69,7 @@ Functional
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 14 14 14 14 14
+   :widths: 24 13 13 13 13 13 13
 
    * - Function
      - CUDA
