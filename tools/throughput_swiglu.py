@@ -20,6 +20,7 @@ kernels = [
     (swiglu, KernelBackend.torch, "torch"),
     (torch.compile(swiglu, dynamic=True), KernelBackend.torch, "torch compile"),
     (swiglu, KernelBackend.triton, "triton"),
+    (swiglu, KernelBackend.mps, "mps"),
 ]
 dtypes = [torch.float32, torch.bfloat16, torch.float16]
 headers = ["kernel"] + dtypes
@@ -55,8 +56,8 @@ for kernel, kernel_backend, row_header in kernels:
             else:
                 torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
 
-        s = torch.cuda.Event(enable_timing=True)
-        e = torch.cuda.Event(enable_timing=True)
+        s = torch.mps.Event(enable_timing=True)
+        e = torch.mps.Event(enable_timing=True)
 
         s.record()
         for i in range(n):
