@@ -2,15 +2,20 @@
 // Copyright (c) 2025, Mayank Mishra
 // **************************************************
 
-struct GradPair {
-    float dg;
-    float du;
-};
+template <typename T>
+static inline void swiglu_backward(device const T *g, device const T *u, device const T *dy,
+                                   device T *dg, device T *du, uint id) {
+    float _g = float(g[id]);
+    float _u = float(g[id]);
+    float _dy = float(dy[id]);
 
-static inline GradPair swiglu_backward(float g, float u, float dy) {
-    float g_sigmoid = sigmoid(g);
-    float g_silu = g * g_sigmoid;
-    return {dy * u * (g_sigmoid + g_silu * (1.0f - g_sigmoid)), dy * g_silu};
+    float g_sigmoid = sigmoid(_g);
+    float g_silu = _g * g_sigmoid;
+    float _dg = _dy * _u * (g_sigmoid + g_silu * (1.0f - g_sigmoid));
+    float _du = _dy * g_silu;
+
+    dg[id] = T(_dg);
+    du[id] = T(_du);
 }
 
 kernel void swiglu_backward_fp32(device const float *g [[buffer(0)]],
@@ -19,9 +24,7 @@ kernel void swiglu_backward_fp32(device const float *g [[buffer(0)]],
                                  device float *dg [[buffer(3)]],
                                  device float *du [[buffer(4)]],
                                  uint id [[thread_position_in_grid]]) {
-    auto grads = swiglu_backward(g[id], u[id], dy[id]);
-    dg[id] = grads.dg;
-    du[id] = grads.du;
+    swiglu_backward(g, u, dy, dg, du, id);
 }
 
 kernel void swiglu_backward_fp16(device const half *g [[buffer(0)]],
@@ -30,9 +33,7 @@ kernel void swiglu_backward_fp16(device const half *g [[buffer(0)]],
                                  device half *dg [[buffer(3)]],
                                  device half *du [[buffer(4)]],
                                  uint id [[thread_position_in_grid]]) {
-    auto grads = swiglu_backward(float(g[id]), float(u[id]), float(dy[id]));
-    dg[id] = half(grads.dg);
-    du[id] = half(grads.du);
+    swiglu_backward(g, u, dy, dg, du, id);
 }
 
 kernel void swiglu_backward_bf16(device const bfloat *g [[buffer(0)]],
@@ -41,7 +42,5 @@ kernel void swiglu_backward_bf16(device const bfloat *g [[buffer(0)]],
                                  device bfloat *dg [[buffer(3)]],
                                  device bfloat *du [[buffer(4)]],
                                  uint id [[thread_position_in_grid]]) {
-    auto grads = swiglu_backward(float(g[id]), float(u[id]), float(dy[id]));
-    dg[id] = bfloat(grads.dg);
-    du[id] = bfloat(grads.du);
+    swiglu_backward(g, u, dy, dg, du, id);
 }

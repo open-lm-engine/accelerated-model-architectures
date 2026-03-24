@@ -10,26 +10,29 @@ static inline float sigmoid(float g) {
     return 1.0f / (1.0f + exp(-g));
 }
 
+template <typename T>
+static inline void swiglu_forward(device const T *g, device const T *u, device T *y, uint id) {
+    float _g = float(g[id]);
+    y[id] = T(float(u[id]) * _g * sigmoid(_g));
+}
+
 kernel void swiglu_forward_fp32(device const float *g [[buffer(0)]],
                                 device const float *u [[buffer(1)]],
                                 device float *y [[buffer(2)]],
                                 uint id [[thread_position_in_grid]]) {
-    float _g = g[id];
-    y[id] = u[id] * _g * sigmoid(_g);
+    swiglu_forward(g, u, y, id);
 }
 
 kernel void swiglu_forward_fp16(device const half *g [[buffer(0)]],
                                 device const half *u [[buffer(1)]],
                                 device half *y [[buffer(2)]],
                                 uint id [[thread_position_in_grid]]) {
-    float _g = float(g[id]);
-    y[id] = half(float(u[id]) * _g * sigmoid(_g));
+    swiglu_forward(g, u, y, id);
 }
 
 kernel void swiglu_forward_bf16(device const bfloat *g [[buffer(0)]],
                                 device const bfloat *u [[buffer(1)]],
                                 device bfloat *y [[buffer(2)]],
                                 uint id [[thread_position_in_grid]]) {
-    float _g = float(g[id]);
-    y[id] = bfloat(float(u[id]) * _g * sigmoid(_g));
+    swiglu_forward(g, u, y, id);
 }
