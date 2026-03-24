@@ -56,8 +56,8 @@ for kernel, kernel_backend, row_header in kernels:
             else:
                 torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
 
-        s = torch.mps.Event(enable_timing=True)
-        e = torch.mps.Event(enable_timing=True)
+        s = torch.cuda.Event(enable_timing=True)
+        e = torch.cuda.Event(enable_timing=True)
 
         s.record()
         for i in range(n):
