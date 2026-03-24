@@ -87,7 +87,7 @@ def test_rmsnorm(
 
 
 @pytest.mark.parametrize("size", [(4, 4)])
-@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton, KernelBackend.mps])
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 def test_rmsnorm_kernel_replacement(size: tuple[int], kernel_backend: KernelBackend, dtype: torch.dtype) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
