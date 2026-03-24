@@ -9,7 +9,7 @@ static inline void _swiglu_backward(device const T *g, device const T *u, device
     float _u = float(g[id]);
     float _dy = float(dy[id]);
 
-    float g_sigmoid = sigmoid(_g);
+    float g_sigmoid = _sigmoid(_g);
     float g_silu = _g * g_sigmoid;
     float _dg = _dy * _u * (g_sigmoid + g_silu * (1.0f - g_sigmoid));
     float _du = _dy * g_silu;
