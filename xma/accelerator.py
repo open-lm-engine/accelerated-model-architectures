@@ -18,10 +18,13 @@ if is_torch_xla_available():
 
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
+_IS_CUDA_AVAILABLE = torch.cuda.is_available()
+_IS_MPS_AVAILABLE = torch.mps.is_available()
 
 
 class KernelBackend(Enum):
     cuda = "cuda"
+    mps = "mps"
     nki = "nki"
     pallas = "pallas"
     rocm = "rocm"
@@ -38,6 +41,7 @@ class KernelBackend(Enum):
 
         mapping = {
             KernelBackend.cuda: Accelerator.cuda,
+            KernelBackend.mps: Accelerator.mps,
             KernelBackend.nki: Accelerator.trainium,
             KernelBackend.pallas: Accelerator.tpu,
             KernelBackend.rocm: Accelerator.rocm,
@@ -54,6 +58,7 @@ class KernelBackend(Enum):
 class Accelerator(Enum):
     cpu = "cpu"
     cuda = "cuda"
+    mps = "mps"
     rocm = "rocm"
     tpu = "tpu"
     trainium = "trainium"
@@ -65,8 +70,10 @@ class Accelerator(Enum):
             accelerator = Accelerator.tpu
         elif is_torch_neuronx_available():
             accelerator = Accelerator.trainium
-        elif torch.cuda.is_available():
+        elif _IS_CUDA_AVAILABLE:
             accelerator = Accelerator.rocm if _IS_ROCM_AVAILABLE else Accelerator.cuda
+        elif _IS_MPS_AVAILABLE:
+            accelerator = Accelerator.mps
         else:
             accelerator = Accelerator.cpu
 
@@ -78,6 +85,8 @@ class Accelerator(Enum):
 
         if accelerator in [Accelerator.cuda, Accelerator.rocm]:
             device = torch.cuda.current_device()
+        elif accelerator == Accelerator.mps:
+            device = "mps"
         elif accelerator == Accelerator.tpu:
             device = xla_device()
         elif accelerator == Accelerator.trainium:
@@ -94,6 +103,8 @@ class Accelerator(Enum):
 
         if accelerator == Accelerator.cuda:
             kernel_backend = KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
+        elif accelerator == Accelerator.mps:
+            kernel_backend = KernelBackend.mps
         elif accelerator == Accelerator.tpu:
             kernel_backend = KernelBackend.pallas
         elif accelerator == Accelerator.trainium:
@@ -109,6 +120,8 @@ class Accelerator(Enum):
 
         if accelerator == Accelerator.cuda:
             torch.cuda.synchronize()
+        elif accelerator == Accelerator.mps:
+            torch.mps.synchronize()
         elif accelerator == Accelerator.tpu:
             xla_wait_device_ops()
 

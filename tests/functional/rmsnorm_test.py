@@ -90,6 +90,8 @@ def test_rmsnorm(
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 def test_rmsnorm_kernel_replacement(size: tuple[int], kernel_backend: KernelBackend, dtype: torch.dtype) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
+
     class Model(nn.Module):
         def __init__(self) -> Model:
             super().__init__()
@@ -99,7 +101,7 @@ def test_rmsnorm_kernel_replacement(size: tuple[int], kernel_backend: KernelBack
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             return self.h(x)
 
-    device = torch.cuda.current_device()
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
     x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
     with torch.device(device):
@@ -110,7 +112,7 @@ def test_rmsnorm_kernel_replacement(size: tuple[int], kernel_backend: KernelBack
         post_grad_custom_pre_pass=None,
         post_grad_custom_post_pass=_CallablePatternMatcherPass(),
     ):
-        enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass)
+        enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass, device=device)
 
         reset_counters()
         model = torch.compile(model, fullgraph=True)
