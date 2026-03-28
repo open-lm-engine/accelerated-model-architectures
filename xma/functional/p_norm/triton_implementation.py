@@ -9,6 +9,7 @@ import triton.language as tl
 from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...custom_op import xma_op
 from ...math import ceil_divide, get_next_power_of_2
+from ...triton_utils import compute_p_norm
 from ..fused_residual_add_rmsnorm.triton_implementation.forward import _get_autotune_configs
 
 
@@ -44,25 +45,8 @@ def p_norm_triton_kernel(
     if multiplier is not None:
         x *= multiplier
 
-    if is_P_inf:
-        x = tl.max(tl.abs(x), axis=1)
-    elif P == 1:
-        x = tl.sum(tl.abs(x), axis=1)
-    elif P == 2:
-        x = x.to(tl.float32)
-        x = tl.sqrt(tl.sum(x * x, axis=1))
-    else:
-        x = x.to(tl.float32)
-        x = tl.abs(x) + eps
-        x = tl.log2(x)
-        x *= P
-        x = tl.exp2(x)
-        x = tl.sum(x, axis=1) + eps
-        x = tl.log2(x)
-        x *= P_inv
-        x = tl.exp2(x)
-
-    tl.store(y_ptr + BLOCK_B * y_stride[0], x, mask=MASK_B)
+    y = compute_p_norm(x=x, P=P, P_inv=P_inv, is_P_inf=is_P_inf, eps=eps)
+    tl.store(y_ptr + BLOCK_B * y_stride[0], y, mask=MASK_B)
 
 
 @xma_op(mutates_args={"y"})
