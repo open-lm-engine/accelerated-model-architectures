@@ -24,3 +24,5 @@ def compute_p_norm(x, P, P_inv, eps):
     x *= P_inv
     x = tl.exp2(x)
     x *= m
+
+    return x
