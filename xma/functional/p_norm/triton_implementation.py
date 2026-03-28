@@ -45,7 +45,7 @@ def p_norm_triton_kernel(
     if multiplier is not None:
         x *= multiplier
 
-    y = compute_p_norm(x=x, P=P, P_inv=P_inv, eps=eps)
+    y = compute_p_norm(x=x, P=P, P_inv=P_inv, is_P_inf=is_P_inf, eps=eps)
     tl.store(y_ptr + BLOCK_B * y_stride[0], y, mask=MASK_B)
 
 
