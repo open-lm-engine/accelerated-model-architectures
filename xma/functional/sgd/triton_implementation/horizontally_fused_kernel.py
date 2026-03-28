@@ -20,9 +20,8 @@ _TORCH_TO_TRITON_DTYPE = {
 def _get_autotune_configs() -> list[triton.Config]:
     configs = []
     for num_warps in get_powers_of_2(4, 32):
-        for num_stages in range(1, 5):
-            for BLOCK_SIZE in get_powers_of_2(64, 16384):
-                configs.append(triton.Config({"BLOCK_SIZE": BLOCK_SIZE}, num_stages=num_stages, num_warps=num_warps))
+        for BLOCK_SIZE in get_powers_of_2(64, 16384):
+            configs.append(triton.Config({"BLOCK_SIZE": BLOCK_SIZE}, num_warps=num_warps))
 
     return configs
 
