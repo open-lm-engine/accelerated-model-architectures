@@ -14,6 +14,7 @@ from .p_norm import p_norm
 from .rmsnorm import rmsnorm
 from .rnn import rnn
 from .sequence_packing import pack_sequence, unpack_sequence
+from .sgd import sgd
 from .softmax import softmax
 from .swiglu import swiglu
 from .swiglu_packed import swiglu_packed
