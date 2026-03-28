@@ -6,6 +6,8 @@ import torch
 import triton
 import triton.language as tl
 
+from ....math import get_powers_of_2
+
 
 _TORCH_TO_TRITON_DTYPE = {
     torch.float32: tl.float32,
@@ -14,45 +16,53 @@ _TORCH_TO_TRITON_DTYPE = {
 }
 
 
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for num_warps in get_powers_of_2(4, 32):
+        for num_stages in range(1, 5):
+            for BLOCK_SIZE in get_powers_of_2(64, 16384):
+                configs.append(triton.Config({"BLOCK_SIZE": BLOCK_SIZE}, num_stages=num_stages, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def sgd_horizontally_fused_kernel(
-    W_ptr_list, dW_ptr_list, N_list, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr, DTYPE: tl.constexpr
+    W_ptr_ptr, dW_ptr_ptr, N_ptr, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr, DTYPE: tl.constexpr
 ):
     i = tl.program_id(0)
 
-    W_base = tl.load(W_ptr_list + i).to(tl.pointer_type(DTYPE))
-    dW_base = tl.load(dW_ptr_list + i).to(tl.pointer_type(DTYPE))
-    N = tl.load(N_list + i)
+    W_ptr = tl.load(W_ptr_ptr + i).to(tl.pointer_type(DTYPE))
+    dW_ptr = tl.load(dW_ptr_ptr + i).to(tl.pointer_type(DTYPE))
+    N = tl.load(N_ptr + i)
 
-    for block_start in range(0, N, BLOCK_SIZE):
-        BLOCK = block_start + tl.arange(0, BLOCK_SIZE)
+    for START in range(0, N, BLOCK_SIZE):
+        BLOCK = START + tl.arange(0, BLOCK_SIZE)
         MASK = BLOCK < N
 
-        W = tl.load(W_base + BLOCK, mask=MASK)
-        dW = tl.load(dW_base + BLOCK, mask=MASK)
+        W = tl.load(W_ptr + BLOCK, mask=MASK)
+        dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
         if MAXIMIZE:
             dW = -dW
 
         W -= lr * dW
-        tl.store(W_base + BLOCK, W, mask=MASK)
+        tl.store(W_ptr + BLOCK, W, mask=MASK)
 
 
 def sgd_horizontally_fused_triton(Ws: list[torch.Tensor], dWs: list[torch.Tensor], lr: float, maximize: bool) -> None:
-    num_tensors = len(Ws)
     device = Ws[0].device
-    dtype = Ws[0].dtype
 
-    W_ptrs = torch.tensor([W.data_ptr() for W in Ws], dtype=torch.int64, device=device)
-    dW_ptrs = torch.tensor([dW.data_ptr() for dW in dWs], dtype=torch.int64, device=device)
-    Ns = torch.tensor([W.numel() for W in Ws], dtype=torch.int64, device=device)
+    W_ptr_ptr = torch.tensor([W.data_ptr() for W in Ws], dtype=torch.int64, device=device)
+    dW_ptr_ptr = torch.tensor([dW.data_ptr() for dW in dWs], dtype=torch.int64, device=device)
+    N_ptr = torch.tensor([W.numel() for W in Ws], dtype=torch.int64, device=device)
 
-    sgd_horizontally_fused_kernel[(num_tensors,)](
-        W_ptr_list=W_ptrs,
-        dW_ptr_list=dW_ptrs,
-        N_list=Ns,
+    sgd_horizontally_fused_kernel[(len(Ws),)](
+        W_ptr_ptr=W_ptr_ptr,
+        dW_ptr_ptr=dW_ptr_ptr,
+        N_ptr=N_ptr,
         lr=lr,
-        BLOCK_SIZE=block_size,
         MAXIMIZE=maximize,
-        DTYPE=_TORCH_TO_TRITON_DTYPE[dtype],
+        DTYPE=_TORCH_TO_TRITON_DTYPE[Ws[0].dtype],
     )
