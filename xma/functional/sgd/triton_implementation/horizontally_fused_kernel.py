@@ -7,6 +7,7 @@ import triton
 import triton.language as tl
 
 from ....math import get_powers_of_2
+from .kernel import _sgd_step
 
 
 _TORCH_TO_TRITON_DTYPE = {
@@ -44,10 +45,7 @@ def sgd_horizontally_fused_kernel(
         W = tl.load(W_ptr + BLOCK, mask=MASK)
         dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
-        if MAXIMIZE:
-            dW = -dW
-
-        W -= lr * dW
+        W = _sgd_step(W=W, dW=dW, lr=lr, MAXIMIZE=MAXIMIZE)
         tl.store(W_ptr + BLOCK, W, mask=MASK)
 
 

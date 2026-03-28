@@ -11,6 +11,16 @@ from ....math import ceil_divide
 
 
 @triton.jit
+def _sgd_step(W, dW, lr, MAXIMIZE):
+    if MAXIMIZE:
+        dW = -dW
+
+    W -= lr * dW
+
+    return W
+
+
+@triton.jit
 def sgd_triton_kernel(W_ptr, dW_ptr, N, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(0)
 
@@ -20,10 +30,7 @@ def sgd_triton_kernel(W_ptr, dW_ptr, N, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: 
     W = tl.load(W_ptr + BLOCK, mask=MASK)
     dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
-    if MAXIMIZE:
-        dW = -dW
-
-    W -= lr * dW
+    W = _sgd_step(W=W, dW=dW, lr=lr, MAXIMIZE=MAXIMIZE)
     tl.store(W_ptr + BLOCK, W, mask=MASK)
 
 
