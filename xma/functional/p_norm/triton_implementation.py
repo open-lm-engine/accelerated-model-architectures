@@ -45,17 +45,8 @@ def p_norm_triton_kernel(
     if multiplier is not None:
         x *= multiplier
 
-    if is_P_inf:
-        x = tl.max(tl.abs(x), axis=1)
-    elif P == 1:
-        x = tl.sum(tl.abs(x), axis=1)
-    elif P == 2:
-        x = x.to(tl.float32)
-        x = tl.sqrt(tl.sum(x * x, axis=1))
-    else:
-        x = compute_p_norm(x=x, P=P, P_inv=P_inv, eps=eps)
-
-    tl.store(y_ptr + BLOCK_B * y_stride[0], x, mask=MASK_B)
+    y = compute_p_norm(x=x, P=P, P_inv=P_inv, eps=eps)
+    tl.store(y_ptr + BLOCK_B * y_stride[0], y, mask=MASK_B)
 
 
 @xma_op(mutates_args={"y"})
