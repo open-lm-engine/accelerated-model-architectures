@@ -12,7 +12,6 @@ from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
 
 from ...accelerator import Accelerator, KernelBackend
 from ...constants import LOG_WARP_SIZE
-from ...functional import sgd
 from ...utils import is_triton_available
 
 
