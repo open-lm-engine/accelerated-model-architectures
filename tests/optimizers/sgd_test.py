@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-from itertools import product
-
 import pytest
 import torch
 
