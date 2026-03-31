@@ -8,10 +8,19 @@ import triton.language as tl
 
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
-from ....math import ceil_divide, get_next_power_of_2
-from ....utils import get_num_elements_and_hidden_size
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 
 
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for num_warps in get_powers_of_2(4, 8):
+        for BLOCK_SIZE_B in get_powers_of_2(1, 16):
+            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def fused_residual_add_rmsnorm_forward_triton_kernel(
     x_ptr,
@@ -33,7 +42,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID_B = tl.program_id(axis=0)
+    BLOCK_ID_B = tl.program_id(0)
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
@@ -81,32 +90,29 @@ def fused_residual_add_rmsnorm_forward_triton(
     xr: torch.Tensor | None,
     s: torch.Tensor | None,
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(x)
+    B, H = x.size()
 
-    BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-    NUM_WARPS = 8
 
-    with torch.device(x.device):
-        fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
-            x_ptr=x,
-            x_stride=x.stride(),
-            r_ptr=r,
-            r_stride=None if r is None else r.stride(),
-            W_ptr=W,
-            W_stride=None if W is None else W.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            xr_ptr=xr,
-            xr_stride=None if xr is None else xr.stride(),
-            s_ptr=s,
-            s_stride=None if s is None else s.stride(),
-            eps=eps,
-            multiplier=multiplier,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
-        )
+    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
+
+    fused_residual_add_rmsnorm_forward_triton_kernel[GRID](
+        x_ptr=x,
+        x_stride=x.stride(),
+        r_ptr=r,
+        r_stride=None if r is None else r.stride(),
+        W_ptr=W,
+        W_stride=None if W is None else W.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
+        xr_ptr=xr,
+        xr_stride=None if xr is None else xr.stride(),
+        s_ptr=s,
+        s_stride=None if s is None else s.stride(),
+        eps=eps,
+        multiplier=multiplier,
+        B=B,
+        H=H,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+    )

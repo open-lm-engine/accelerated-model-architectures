@@ -13,22 +13,25 @@ def rmsnorm(
     weight: torch.Tensor | None,
     eps: float | None = None,
     memory_efficient: bool = False,
-    deterministic: bool = False,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
-    """RMSNorm computation
+    """
+    RMSNorm computation
 
-    Args:
-        x (torch.Tensor): input activation
-        weight (torch.Tensor | None): RMSNorm weight
-        eps (float | None): epsilon. Defaults to None.
-        memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
-            Defaults to False.
-        deterministic (bool, optional): whether to use deterministic backward. Defaults to False.
-
-    Returns:
-        torch.Tensor: output tensor
+    :param x: input activation
+    :type x: torch.Tensor
+    :param weight: RMSNorm weight
+    :type weight: torch.Tensor | None
+    :param eps: epsilon. Defaults to None.
+    :type eps: float | None
+    :param memory_efficient: memory efficient = False caches RMSNorm's denominator in the forward.
+        Defaults to False.
+    :type memory_efficient: bool
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
     x, _ = fused_residual_add_rmsnorm(
@@ -38,7 +41,6 @@ def rmsnorm(
         eps=eps,
         multiplier=None,
         memory_efficient=memory_efficient,
-        deterministic=deterministic,
         kernel_backend=kernel_backend,
     )
 

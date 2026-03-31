@@ -2,21 +2,28 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from itertools import product
+
+import pytest
 import torch
-from parameterized import parameterized
 
 from xma import KernelBackend, MoE, set_seed
 
-from ..test_commons import TestCommons
+from ..utils import (
+    assert_equal_tensors,
+    collect_gradients_from_module_and_zero_grads,
+    get_activation_function,
+    skip_if_incompatible_kernel_backend,
+)
 
 
 _SEED = 42
 
 
-class MoETest(TestCommons):
-    @parameterized.expand(
-        TestCommons.make_args_matrix(
-            TestCommons.get_dtypes(),
+def _generate_args() -> list:
+    args = list(
+        product(
+            [torch.float32, torch.float16, torch.bfloat16],  # dtype
             [2, 4, 6, 8],  # num_experts
             [2, 4],  # num_experts_per_tok
             [2048],  # hidden_size
@@ -25,8 +32,11 @@ class MoETest(TestCommons):
             [KernelBackend.triton],  # kernel_backend
             [True, False],  # is_compiling
         )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_dtypes(),
+    )
+
+    args += list(
+        product(
+            [torch.float32, torch.float16, torch.bfloat16],  # dtype
             [128],  # num_experts
             [8],  # num_experts_per_tok
             [576],  # hidden_size
@@ -35,7 +45,10 @@ class MoETest(TestCommons):
             [KernelBackend.triton],  # kernel_backend
             [True, False],  # is_compiling
         )
-        + TestCommons.make_args_matrix(
+    )
+
+    args += list(
+        product(
             [torch.bfloat16],
             [2, 4, 6, 8],  # num_experts
             [2, 4],  # num_experts_per_tok
@@ -45,7 +58,10 @@ class MoETest(TestCommons):
             [KernelBackend.cuda],  # kernel_backend
             [False],  # is_compiling
         )
-        + TestCommons.make_args_matrix(
+    )
+
+    args += list(
+        product(
             [torch.bfloat16],
             [128],  # num_experts
             [8],  # num_experts_per_tok
@@ -56,101 +72,109 @@ class MoETest(TestCommons):
             [False],  # is_compiling
         )
     )
-    def test_moe(
-        self,
-        dtype: torch.dtype,
-        num_experts: int,
-        num_experts_per_tok: int,
-        hidden_size: int,
-        intermediate_size: int,
-        is_glu: bool,
-        kernel_backend: KernelBackend,
-        is_compiling: bool,
-    ) -> None:
-        self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-        if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(
-            kernel_backend.get_compatible_accelerator().get_current_device()
-        ) < (
-            10,
-            0,
-        ):
-            self.skipTest("skipping Blackwell Grouped Gemm since Blackwell GPU is not found")
+    return args
 
-        set_seed(_SEED)
 
-        if num_experts_per_tok > num_experts:
-            self.skipTest(
-                f"skipping test since number of experts per token ({num_experts_per_tok}) is more than number of experts ({num_experts})"
-            )
+@pytest.mark.parametrize(
+    "dtype,num_experts,num_experts_per_tok,hidden_size,intermediate_size,is_glu,kernel_backend,is_compiling",
+    _generate_args(),
+)
+@torch._dynamo.config.patch(recompile_limit=1024)
+def test_moe(
+    dtype: torch.dtype,
+    num_experts: int,
+    num_experts_per_tok: int,
+    hidden_size: int,
+    intermediate_size: int,
+    is_glu: bool,
+    kernel_backend: KernelBackend,
+    is_compiling: bool,
+) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-        with torch.device(device):
-            moe = MoE(
-                num_experts=num_experts,
-                num_experts_per_tok=num_experts_per_tok,
-                hidden_size=hidden_size,
-                intermediate_size=intermediate_size,
-                activation_function=self.get_activation_function(is_glu=is_glu),
-                is_glu=is_glu,
-                add_bias=False,
-                std=0.02,
-            ).to(dtype=dtype)
+    if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(
+        kernel_backend.get_compatible_accelerator().get_current_device()
+    ) < (
+        10,
+        0,
+    ):
+        pytest.skip("skipping Blackwell Grouped Gemm since Blackwell GPU is not found")
 
-        moe_kernel = moe
-        moe_torch = moe
+    set_seed(_SEED)
 
-        if is_compiling:
-            moe_kernel = torch.compile(moe_kernel, fullgraph=True)
-
-        x_torch = torch.randn(7, hidden_size, device=device, dtype=dtype, requires_grad=True)
-        x_kernel = x_torch.clone().detach().requires_grad_()
-
-        y_torch = moe_torch(x_torch, kernel_backend=KernelBackend.torch)[0]
-        y_kernel = moe_kernel(x_kernel, kernel_backend=kernel_backend)[0]
-
-        self.assert_equal_tensors(
-            y_kernel,
-            y_torch,
-            False,
-            atol_float32=6e-3,
-            rtol_float32=0,
-            atol_float16=4e-3,
-            rtol_float16=0,
-            atol_bfloat16=2.35e-2,
-            rtol_bfloat16=0,
+    if num_experts_per_tok > num_experts:
+        pytest.skip(
+            f"skipping test since number of experts per token ({num_experts_per_tok}) is more than number of experts ({num_experts})"
         )
 
-        y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(moe)
+    with torch.device(device):
+        moe = MoE(
+            num_experts=num_experts,
+            num_experts_per_tok=num_experts_per_tok,
+            hidden_size=hidden_size,
+            intermediate_size=intermediate_size,
+            activation_function=get_activation_function(is_glu=is_glu),
+            is_glu=is_glu,
+            add_bias=False,
+            std=0.02,
+        ).to(dtype=dtype)
 
-        y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(moe)
+    moe_kernel = moe
+    moe_torch = moe
 
-        self.assert_equal_tensors(
-            x_kernel.grad,
-            x_torch.grad,
+    if is_compiling:
+        moe_kernel = torch.compile(moe_kernel, fullgraph=True)
+
+    x_torch = torch.randn(7, hidden_size, device=device, dtype=dtype, requires_grad=True)
+    x_kernel = x_torch.clone().detach().requires_grad_()
+
+    y_torch = moe_torch(x_torch, kernel_backend=KernelBackend.torch)[0]
+    y_kernel = moe_kernel(x_kernel, kernel_backend=kernel_backend)[0]
+
+    assert_equal_tensors(
+        y_kernel,
+        y_torch,
+        False,
+        atol_float32=6e-3,
+        rtol_float32=0,
+        atol_float16=4e-3,
+        rtol_float16=0,
+        atol_bfloat16=2.35e-2,
+        rtol_bfloat16=0,
+    )
+
+    y_torch.sum().backward()
+    weight_torch_grads = collect_gradients_from_module_and_zero_grads(moe)
+
+    y_kernel.sum().backward()
+    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(moe)
+
+    assert_equal_tensors(
+        x_kernel.grad,
+        x_torch.grad,
+        False,
+        atol_float32=6.5e-3,
+        rtol_float32=0,
+        atol_float16=4e-3,
+        rtol_float16=0,
+        atol_bfloat16=4e-2,
+        rtol_bfloat16=0,
+    )
+
+    for weight_name in weight_torch_grads:
+        if "gate" in weight_name:
+            continue
+
+        assert_equal_tensors(
+            weight_kernel_grads[weight_name],
+            weight_torch_grads[weight_name],
             False,
-            atol_float32=6.5e-3,
+            atol_float32=3e-2,
             rtol_float32=0,
             atol_float16=4e-3,
             rtol_float16=0,
             atol_bfloat16=4e-2,
             rtol_bfloat16=0,
         )
-
-        for weight_name in weight_torch_grads:
-            if "gate" in weight_name:
-                continue
-
-            self.assert_equal_tensors(
-                weight_kernel_grads[weight_name],
-                weight_torch_grads[weight_name],
-                False,
-                atol_float32=3e-2,
-                rtol_float32=0,
-                atol_float16=4e-3,
-                rtol_float16=0,
-                atol_bfloat16=4e-2,
-                rtol_bfloat16=0,
-            )

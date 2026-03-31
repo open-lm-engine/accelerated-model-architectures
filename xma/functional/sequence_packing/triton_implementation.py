@@ -23,8 +23,8 @@ def pack_unpack_sequence_triton_kernel(
     PACK: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
-    BLOCK_ID_S = tl.program_id(axis=0)
-    BLOCK_ID_B = tl.program_id(axis=1)
+    BLOCK_ID_S = tl.program_id(0)
+    BLOCK_ID_B = tl.program_id(1)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
     start = tl.load(cu_seqlens_ptrs)
@@ -48,11 +48,12 @@ def pack_unpack_sequence_triton_kernel(
             MASK = BLOCK < N
 
             x = tl.load(x_ptrs, mask=MASK)
+            x_ptrs += BLOCK_SIZE * x_stride[-1]
+
             tl.store(y_ptrs, x, mask=MASK)
+            y_ptrs += BLOCK_SIZE * y_stride[-1]
 
             BLOCK += BLOCK_SIZE
-            x_ptrs += BLOCK_SIZE * x_stride[-1]
-            y_ptrs += BLOCK_SIZE * y_stride[-1]
 
 
 @xma_op(mutates_args={"output"})
@@ -69,18 +70,17 @@ def pack_unpack_sequence_triton(
     BLOCK_SIZE = 4096
     NUM_WARPS = 32
 
-    with torch.device(x.device):
-        pack_unpack_sequence_triton_kernel[S, B](
-            x_ptr=x,
-            x_stride=x.stride(),
-            y_ptr=output,
-            y_stride=output.stride(),
-            cu_seqlens_ptr=cu_seqlens,
-            cu_seqlens_stride=cu_seqlens.stride(),
-            S=S,
-            N=N,
-            PADDING_SIDE=padding_side,
-            PACK=pack,
-            BLOCK_SIZE=BLOCK_SIZE,
-            num_warps=NUM_WARPS,
-        )
+    pack_unpack_sequence_triton_kernel[S, B](
+        x_ptr=x,
+        x_stride=x.stride(),
+        y_ptr=output,
+        y_stride=output.stride(),
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=cu_seqlens.stride(),
+        S=S,
+        N=N,
+        PADDING_SIDE=padding_side,
+        PACK=pack,
+        BLOCK_SIZE=BLOCK_SIZE,
+        num_warps=NUM_WARPS,
+    )

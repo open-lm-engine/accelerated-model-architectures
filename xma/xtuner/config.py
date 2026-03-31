@@ -6,7 +6,7 @@ from itertools import product
 from typing import Callable
 
 
-class CutoTuneConfig:
+class XTuneConfig:
     def __init__(self, config: dict, condition: Callable = None) -> None:
         self.config = config
         self.condition = condition
@@ -23,15 +23,13 @@ class CutoTuneConfig:
         return str(self.config)
 
 
-def get_cartesian_product_cutotune_configs(
-    condition: Callable = None, **kwargs: dict[str, list]
-) -> list[CutoTuneConfig]:
+def get_cartesian_product_xtune_configs(condition: Callable = None, **kwargs: dict[str, list]) -> list[XTuneConfig]:
     configs = []
     all_values = product(*list(kwargs.values()))
 
     for values in all_values:
         config = {key: value for key, value in zip(kwargs.keys(), values)}
-        config = CutoTuneConfig(config, condition=condition)
+        config = XTuneConfig(config, condition=condition)
         configs.append(config)
 
     return configs

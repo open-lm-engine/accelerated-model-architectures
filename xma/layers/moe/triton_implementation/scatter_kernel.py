@@ -80,7 +80,7 @@ def scatter2scatter_triton_kernel(
     x_grouped,
     y_grouped,
 ):
-    pid = tl.program_id(axis=0)
+    pid = tl.program_id(0)
 
     N_BLOCK_COUNT = tl.cdiv(N, BLOCK_N)
     M_block_id = pid // N_BLOCK_COUNT
@@ -150,35 +150,34 @@ def scatter2scatter(
     assert out.size(0) == sorted_expert_idxs.size(0)
     assert out.size(1) == W.size(-1)
 
-    grid = lambda meta: (
-        ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
+    grid = lambda kwargs: (
+        ceil_divide(sorted_expert_idxs.size(0), kwargs["BLOCK_M"]) * ceil_divide(kwargs["N"], kwargs["BLOCK_N"]),
     )
 
     BLOCK_M = 128
 
-    with torch.device(X.device):
-        scatter2scatter_triton_kernel[grid](
-            # X_ptr, stride_xm, stride_xk,
-            X,
-            X.stride(0),
-            X.stride(1),
-            # W_ptr, stride_we, stride_wk, stride_wn,
-            W,
-            W.stride(0),
-            W.stride(1),
-            W.stride(2),
-            # Y_ptr, stride_ym, stride_yn,
-            out,
-            out.stride(0),
-            out.stride(1),
-            grouped_idx_ptr=sorted_scattered_idxs,
-            expert_idxs_ptr=sorted_expert_idxs,
-            FAN_OUT=FAN_OUT,
-            M=X.size(0),
-            K=X.size(1),
-            N=out.size(1),
-            E=W.size(0),
-            BLOCK_M=BLOCK_M,
-            x_grouped=x_grouped,
-            y_grouped=y_grouped,
-        )
+    scatter2scatter_triton_kernel[grid](
+        # X_ptr, stride_xm, stride_xk,
+        X,
+        X.stride(0),
+        X.stride(1),
+        # W_ptr, stride_we, stride_wk, stride_wn,
+        W,
+        W.stride(0),
+        W.stride(1),
+        W.stride(2),
+        # Y_ptr, stride_ym, stride_yn,
+        out,
+        out.stride(0),
+        out.stride(1),
+        grouped_idx_ptr=sorted_scattered_idxs,
+        expert_idxs_ptr=sorted_expert_idxs,
+        FAN_OUT=FAN_OUT,
+        M=X.size(0),
+        K=X.size(1),
+        N=out.size(1),
+        E=W.size(0),
+        BLOCK_M=BLOCK_M,
+        x_grouped=x_grouped,
+        y_grouped=y_grouped,
+    )

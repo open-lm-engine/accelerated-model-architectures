@@ -2,5 +2,5 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-
-class CutoTuneParameter: ...
+from .backward import m2rnn_backward_triton
+from .forward import m2rnn_forward_triton

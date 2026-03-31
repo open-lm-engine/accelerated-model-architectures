@@ -14,6 +14,7 @@ from ...utils import (
     is_torch_xla_available,
     is_triton_available,
 )
+from .mps_implementation import swiglu_backward_mps, swiglu_forward_mps
 
 
 if is_cute_dsl_available():
@@ -59,6 +60,8 @@ class _Swiglu(CustomOp):
 
         if kernel_backend == KernelBackend.cuda:
             swiglu_forward_cuda(g=g, u=u, y=y)
+        elif kernel_backend == KernelBackend.mps:
+            swiglu_forward_mps(g=g, u=u, y=y)
         elif kernel_backend == KernelBackend.nki:
             swiglu_forward_nki(g=g, u=u, y=y)
         elif kernel_backend == KernelBackend.triton:
@@ -85,6 +88,8 @@ class _Swiglu(CustomOp):
 
         if kernel_backend == KernelBackend.cuda:
             swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
+        elif kernel_backend == KernelBackend.mps:
+            swiglu_backward_mps(g=g, u=u, dy=dy, dg=dg, du=du)
         elif kernel_backend == KernelBackend.nki:
             swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
         elif kernel_backend == KernelBackend.triton:
@@ -96,14 +101,17 @@ class _Swiglu(CustomOp):
 
 
 def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
-    """computes swiglu activation as `up` * `gate` * sigmoid(`gate`)
+    """
+    computes swiglu activation as `up * gate * sigmoid(gate)`
 
-    Args:
-        gate (torch.Tensor): `gate` activation tensor
-        up (torch.Tensor): `up` activation tensor
-
-    Returns:
-        torch.Tensor: output tensor
+    :param gate: `gate` activation tensor
+    :type gate: torch.Tensor
+    :param up: `up` activation tensor
+    :type up: torch.Tensor
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
     assert gate.size() == up.size(), "tensors gate and up should have same shape"

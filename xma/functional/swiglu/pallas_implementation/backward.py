@@ -64,22 +64,7 @@ def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tup
     return kernel(g, u, dy)
 
 
-@xma_op(mutates_args={})
-def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    assert g.is_contiguous()
-    assert u.is_contiguous()
-    assert dy.is_contiguous()
-
-    if swiglu_backward_pallas.cache is None:
-        swiglu_backward_pallas.cache = make_kernel_from_pallas(
-            swiglu_backward_pallas_jit, lambda g, u, dy: [(g.shape, g.dtype), (g.shape, g.dtype)]
-        )
-
-    return swiglu_backward_pallas.cache(g, u, dy)
-
-
-@swiglu_backward_pallas.register_fake
-def _(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def _fake_func(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     assert g.is_contiguous()
     assert u.is_contiguous()
     assert dy.is_contiguous()
@@ -87,4 +72,20 @@ def _(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor,
     return torch.empty_like(g), torch.empty_like(u)
 
 
-swiglu_backward_pallas.cache = None
+_CACHE = None
+
+
+@xma_op(mutates_args={}, fake_func=_fake_func)
+def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    assert g.is_contiguous()
+    assert u.is_contiguous()
+    assert dy.is_contiguous()
+
+    global _CACHE
+
+    if _CACHE is None:
+        _CACHE = make_kernel_from_pallas(
+            swiglu_backward_pallas_jit, lambda g, u, dy: [(g.shape, g.dtype), (g.shape, g.dtype)]
+        )
+
+    return _CACHE(g, u, dy)

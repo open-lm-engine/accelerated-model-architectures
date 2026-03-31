@@ -9,7 +9,6 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide
 from ....triton_utils import sigmoid
-from ....utils import get_num_elements_and_hidden_size
 from .forward import _get_autotune_configs
 
 
@@ -31,8 +30,8 @@ def swiglu_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID_B = tl.program_id(axis=0)
-    BLOCK_ID_H = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(0)
+    BLOCK_ID_H = tl.program_id(1)
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
@@ -60,21 +59,20 @@ def swiglu_backward_triton_kernel(
 def swiglu_backward_triton(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(g)
+    B, H = g.size()
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
-    with torch.device(g.device):
-        swiglu_backward_triton_kernel[GRID](
-            g_ptr=g,
-            g_stride=g.stride(),
-            u_ptr=u,
-            u_stride=u.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            dg_ptr=dg,
-            dg_stride=dg.stride(),
-            du_ptr=du,
-            du_stride=du.stride(),
-            B=B,
-            H=H,
-        )
+    swiglu_backward_triton_kernel[GRID](
+        g_ptr=g,
+        g_stride=g.stride(),
+        u_ptr=u,
+        u_stride=u.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        dg_ptr=dg,
+        dg_stride=dg.stride(),
+        du_ptr=du,
+        du_stride=du.stride(),
+        B=B,
+        H=H,
+    )

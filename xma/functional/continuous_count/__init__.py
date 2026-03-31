@@ -10,16 +10,19 @@ from .cuda_implementation import continuous_count_cuda
 
 @torch.no_grad()
 def continuous_count(x: torch.Tensor, bins: int, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
-    """counts the number of occurances of the values [0, 1, ..., `bins`) in the input tensor (`bins` is excluded).
-        NOTE: the user is responsible for ensuring that the values lie in the valid range, any values outside this
-        range are ignored and not counted.
+    """
+    counts the number of occurances of the values [0, 1, ..., `bins`) in the input tensor (`bins` is excluded).
+    NOTE: the user is responsible for ensuring that the values lie in the valid range, any values outside this
+    range are ignored and not counted.
 
-    Args:
-        x (torch.Tensor): input tensor
-        bins (int): values [0, 1, ..., `bins`) are counted (`bins` is excluded)
-
-    Returns:
-        torch.Tensor: output tensor
+    :param x: input tensor
+    :type x: torch.Tensor
+    :param bins: values [0, 1, ..., `bins`) are counted (`bins` is excluded)
+    :type bins: int
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
     """
 
     if bins == 1:

@@ -7,92 +7,30 @@ import triton.language as tl
 
 
 @triton.jit
-def clamp(x, min_value, max_value):
-    dtype = x.dtype
+def compute_p_norm(x, P, P_inv, is_P_inf, eps):
+    if is_P_inf:
+        x = tl.max(tl.abs(x), axis=1)
+    elif P == 1:
+        x = tl.sum(tl.abs(x), axis=1)
+    elif P == 2:
+        x = x.to(tl.float32)
+        x = tl.sqrt(tl.sum(x * x, axis=1))
+    else:
+        if P_inv is None:
+            P_inv = 1 / P
 
-    x = max(min_value, x)
-    x = min(max_value, x)
-    x = x.to(dtype)
-
-    return x
-
-
-@triton.jit
-def tanh(x, output_dtype: tl.constexpr = None):
-    if output_dtype is None:
-        output_dtype = x.dtype
-
-    x = x.to(tl.float32)
-    x = tl.inline_asm_elementwise("tanh.approx.f32 $0, $1;", "=f,f", [x], dtype=tl.float32, is_pure=True, pack=1)
-    x = x.to(output_dtype)
-
-    return x
-
-
-@triton.jit
-def tanh_backward(y):
-    dtype = y.dtype
-
-    y = y.to(tl.float32)
-    y = 1 - y * y
-    y = y.to(dtype)
-
-    return y
-
-
-@triton.jit
-def sigmoid(x, output_dtype: tl.constexpr = None):
-    if output_dtype is None:
-        output_dtype = x.dtype
-
-    x = x.to(tl.float32)
-    x = tanh(0.5 * x, output_dtype=tl.float32)
-    x = 0.5 * x + 0.5
-    x = x.to(output_dtype)
-
-    return x
-
-
-@triton.jit
-def sigmoid_backward(y):
-    dtype = y.dtype
-
-    y = y.to(tl.float32)
-    y = y * (1 - y)
-    y = y.to(dtype)
-
-    return y
-
-
-@triton.jit
-def leaky_relu(x, negative_slope):
-    return max(0, x) + negative_slope * min(0, x)
-
-
-@triton.jit
-def leaky_relu_backward(y, relu_negative_slope):
-    return tl.where(y >= 0, 1, relu_negative_slope)
-
-
-@triton.jit
-def silu(x, output_dtype: tl.constexpr = None):
-    if output_dtype is None:
-        output_dtype = x.dtype
-
-    x = x.to(tl.float32)
-    x *= sigmoid(x, output_dtype=tl.float32)
-    x = x.to(output_dtype)
-
-    return x
-
-
-@triton.jit
-def silu_backward(x):
-    dtype = x.dtype
-
-    x = x.to(tl.float32)
-    s = sigmoid(x, output_dtype=tl.float32)
-    x = s + s * (x - x * s)
-    x = x.to(dtype)
+        x = tl.abs(x)
+        m = tl.max(x, axis=1)
+        x = x.to(tl.float32)
+        x /= m
+        x += eps
+        x = tl.log2(x)
+        x *= P
+        x = tl.exp2(x)
+        x = tl.sum(x, axis=1) + eps
+        x = tl.log2(x)
+        x *= P_inv
+        x = tl.exp2(x)
+        x *= m
 
     return x

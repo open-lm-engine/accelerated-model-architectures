@@ -2,6 +2,10 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
+import math
+
 import torch
 
 import cutlass.cute as cute
@@ -9,109 +13,121 @@ from cutlass import Boolean, Float32, range_constexpr
 
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
 from ....custom_op import xma_op
-from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
+from ....cute_dsl_utils import get_fake_cute_tensor, sigmoid
 
 
-@cute.kernel
-def swiglu_forward_cuda_kernel(
-    gG: cute.Tensor,
-    gU: cute.Tensor,
-    gY: cute.Tensor,
-    gID: cute.Tensor,
-    copy_atom: cute.CopyAtom,
-    tiled_copy: cute.TiledCopy,
-    shape: cute.Shape,
-) -> None:
-    BLOCK_ID, _, _ = cute.arch.block_idx()
-    THREAD_ID, _, _ = cute.arch.thread_idx()
+class SwiGLUForwardCUDAKernel:
+    def __init__(self, BLOCK_SIZE: int = 128) -> SwiGLUForwardCUDAKernel:
+        self.BLOCK_SIZE = BLOCK_SIZE
 
-    block_coord = ((None, None), BLOCK_ID)
+    @cute.kernel
+    def kernel(
+        self,
+        gG: cute.Tensor,
+        gU: cute.Tensor,
+        gY: cute.Tensor,
+        gC: cute.Tensor,
+        copy_atom: cute.CopyAtom,
+        tiled_copy: cute.TiledCopy,
+        shape: cute.Shape,
+    ) -> None:
+        BLOCK_ID, _, _ = cute.arch.block_idx()
+        THREAD_ID, _, _ = cute.arch.thread_idx()
 
-    bG = gG[block_coord]
-    bU = gU[block_coord]
-    bY = gY[block_coord]
-    bID = gID[block_coord]
+        block_coord = ((None, None), BLOCK_ID)
 
-    thr_copy = tiled_copy.get_slice(THREAD_ID)
+        bG = gG[block_coord]
+        bU = gU[block_coord]
+        bY = gY[block_coord]
+        bC = gC[block_coord]
 
-    tG = thr_copy.partition_S(bG)
-    tU = thr_copy.partition_S(bU)
-    tY = thr_copy.partition_D(bY)
-    tID = thr_copy.partition_S(bID)
+        thr_copy = tiled_copy.get_slice(THREAD_ID)
 
-    fragG = cute.make_fragment_like(tG)
-    fragU = cute.make_fragment_like(tU)
-    fragY = cute.make_fragment_like(tY)
+        tG = thr_copy.partition_S(bG)
+        tU = thr_copy.partition_S(bU)
+        tY = thr_copy.partition_D(bY)
+        tC = thr_copy.partition_S(bC)
 
-    fragID = cute.make_fragment(tID.shape, Boolean)
-    for i in range_constexpr(cute.size(fragID)):
-        fragID[i] = cute.elem_less(tID[i], shape)
+        rG = cute.make_rmem_tensor_like(tG)
+        rU = cute.make_rmem_tensor_like(tU)
+        rY = cute.make_rmem_tensor_like(tY)
 
-    is_within_boundary = cute.elem_less(tID[cute.size(tID) - 1], shape)
+        rC = cute.make_rmem_tensor(tC.shape, Boolean)
+        for i in range_constexpr(cute.size(rC)):
+            rC[i] = cute.elem_less(tC[i], shape)
 
-    if is_within_boundary:
-        cute.copy(copy_atom, tG, fragG)
-        cute.copy(copy_atom, tU, fragU)
-    else:
-        cute.copy(copy_atom, tG, fragG, pred=fragID)
-        cute.copy(copy_atom, tU, fragU, pred=fragID)
+        is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
-    g = fragG.load()
-    u = fragU.load()
+        if is_within_boundary:
+            cute.copy(copy_atom, tG, rG)
+            cute.copy(copy_atom, tU, rU)
+        else:
+            cute.copy(copy_atom, tG, rG, pred=rC)
+            cute.copy(copy_atom, tU, rU, pred=rC)
 
-    dtype = g.dtype
-    g = g.to(Float32)
-    y = u * g * sigmoid(g)
-    y = y.to(dtype)
+        g = rG.load()
+        u = rU.load()
 
-    fragY.store(y)
+        dtype = g.dtype
+        g = g.to(Float32)
+        y = u * g * sigmoid(g)
+        y = y.to(dtype)
 
-    if is_within_boundary:
-        cute.copy(copy_atom, fragY, tY)
-    else:
-        cute.copy(copy_atom, fragY, tY, pred=fragID)
+        rY.store(y)
+
+        if is_within_boundary:
+            cute.copy(copy_atom, rY, tY)
+        else:
+            cute.copy(copy_atom, rY, tY, pred=rC)
+
+    @cute.jit
+    def __call__(self, mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
+        vector_size = 128 // mG.element_type.width
+
+        thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
+        val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
+        tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
+
+        mC = cute.make_identity_tensor(mG.shape)
+
+        gG = cute.zipped_divide(mG, tiler_mn)
+        gU = cute.zipped_divide(mU, tiler_mn)
+        gY = cute.zipped_divide(mY, tiler_mn)
+        gC = cute.zipped_divide(mC, tiler_mn)
+
+        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
+        tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
+
+        NUM_BLOCKS = cute.size(gG, mode=[1])
+
+        self.kernel(gG=gG, gU=gU, gY=gY, gC=gC, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape).launch(
+            grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1)
+        )
 
 
-@cute.jit
-def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
-    BLOCK_SIZE = 128
-    vector_size = 128 // mG.element_type.width
-
-    thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-    val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
-    tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
-
-    gG = cute.zipped_divide(mG, tiler_mn)
-    gU = cute.zipped_divide(mU, tiler_mn)
-    gY = cute.zipped_divide(mY, tiler_mn)
-
-    mID = cute.make_identity_tensor(mG.shape)
-    gID = cute.zipped_divide(mID, tiler_mn)
-
-    copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
-    tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
-
-    NUM_BLOCKS = cute.size(gG, mode=[1])
-
-    kernel = swiglu_forward_cuda_kernel(
-        gG=gG, gU=gU, gY=gY, gID=gID, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape
-    )
-
-    kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
+_CACHE = {}
 
 
 @xma_op(mutates_args={"y"})
 def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
-    g, u, y = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (g, u, y)]
-
-    key = g.element_type
-    function = swiglu_forward_cuda.cache.get(key, None)
+    key = g.dtype
+    function = _CACHE.get(key, None)
 
     if function is None:
-        function = cute.compile(swiglu_forward_cuda_jit, g, u, y)
-        swiglu_forward_cuda.cache[key] = function
+        N = g.size(1)
+        divisibility = math.gcd(16 // key.itemsize, N)
+
+        _g, _u, _y = [
+            get_fake_cute_tensor(
+                dtype=i.dtype,
+                shape=(cute.sym_int(), cute.sym_int(divisibility=divisibility)),
+                divisibility=divisibility,
+            )
+            for i in (g, u, y)
+        ]
+
+        function = SwiGLUForwardCUDAKernel()
+        function = cute.compile(function, _g, _u, _y, options="--enable-tvm-ffi")
+        _CACHE[key] = function
 
     function(g, u, y)
-
-
-swiglu_forward_cuda.cache = {}

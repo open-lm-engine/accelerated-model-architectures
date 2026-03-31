@@ -2,8 +2,6 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from functools import partial
-
 import torch
 from tabulate import tabulate
 
@@ -16,8 +14,7 @@ torch._functorch.config.donated_buffer = False
 n = 100
 
 kernels = [
-    (partial(rmsnorm, deterministic=False), KernelBackend.triton, "triton with atomic_add"),
-    (partial(rmsnorm, deterministic=True), KernelBackend.triton, "triton without atomic_add"),
+    (rmsnorm, KernelBackend.triton, "triton"),
     (rmsnorm, KernelBackend.torch, "torch"),
     (torch.compile(rmsnorm), KernelBackend.torch, "torch compile static"),
     (torch.compile(rmsnorm, dynamic=True), KernelBackend.torch, "torch compile dynamic"),

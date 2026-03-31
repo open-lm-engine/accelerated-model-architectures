@@ -188,6 +188,23 @@ def pack_sequence(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> Sequence[torch.Tensor]:
+    """
+    pack tensors
+
+    :param inputs: list of tensors
+    :type inputs: Sequence[torch.Tensor]
+    :param cu_seqlens: cumulative sequence length
+    :type cu_seqlens: torch.Tensor
+    :param total_tokens: total number of tokens
+    :type total_tokens: int
+    :param padding_side: padding side
+    :type padding_side: str
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: list of packed tensors
+    :rtype: Sequence[Tensor]
+    """
+
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
 
@@ -219,6 +236,25 @@ def unpack_sequence(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> Sequence[torch.Tensor]:
+    """
+    unpack tensors
+
+    :param inputs: list of tensors
+    :type inputs: Sequence[torch.Tensor]
+    :param cu_seqlens: cumulative sequence length
+    :type cu_seqlens: torch.Tensor
+    :param batch_size: batch size
+    :type batch_size: int
+    :param sequence_length: sequence length
+    :type sequence_length: int
+    :param padding_side: padding side
+    :type padding_side: str
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: list of unpacked tensors
+    :rtype: Sequence[Tensor]
+    """
+
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
 

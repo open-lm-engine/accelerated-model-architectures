@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from typing import Callable
 
 import torch
@@ -14,13 +16,13 @@ from ...utils import is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import scattered_experts
+    from .triton_implementation import down_projection_experts, up_projection_experts
 
 
 class Experts(nn.Module):
     def __init__(
         self, num_experts: int, in_features: int, out_features: int, add_bias: bool = True, std: float | None = None
-    ) -> None:
+    ) -> Experts:
         super().__init__()
 
         self.weight = nn.Parameter(torch.empty(num_experts, out_features, in_features))
@@ -42,7 +44,7 @@ class Experts(nn.Module):
 
     def up_projection_triton_forward(
         self,
-        input: torch.Tensor,
+        x: torch.Tensor,
         num_experts_per_token: int | None = None,
         sorted_expert_idxs: torch.Tensor | None = None,
         sorted_scattered_idxs: torch.Tensor | None = None,
@@ -50,62 +52,57 @@ class Experts(nn.Module):
     ) -> torch.Tensor:
         assert self.bias is None
 
-        input = scattered_experts(
-            inputs=input,
+        x = up_projection_experts(
+            x=x,
             expert_weights=self.weight.permute(0, 2, 1),
             k=num_experts_per_token,
             sorted_expert_idxs=sorted_expert_idxs,
             sorted_scattered_idxs=sorted_scattered_idxs,
             expert_offsets=expert_offsets,
-            gates=None,
-            grouped_in=False,
-            grouped_out=True,
         )
 
-        return input
+        return x
 
     def down_projection_triton_forward(
         self,
-        input: torch.Tensor,
+        x: torch.Tensor,
         num_experts_per_token: int | None = None,
         sorted_expert_idxs: torch.Tensor | None = None,
         sorted_scattered_idxs: torch.Tensor | None = None,
         expert_offsets: torch.Tensor | None = None,
-        gates: torch.Tensor | None = None,
+        router_weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         assert self.bias is None
 
-        input = scattered_experts(
-            inputs=input,
+        x = down_projection_experts(
+            x=x,
             expert_weights=self.weight.permute(0, 2, 1),
             k=num_experts_per_token,
             sorted_expert_idxs=sorted_expert_idxs,
             sorted_scattered_idxs=sorted_scattered_idxs,
             expert_offsets=expert_offsets,
-            gates=gates,
-            grouped_in=True,
-            grouped_out=False,
+            router_weights=router_weights,
         )
 
-        return input
+        return x
 
     def torch_forward(
-        self, input: torch.Tensor, expert_frequency: torch.Tensor | None, return_list: bool = False
+        self, x: torch.Tensor, expert_frequency: torch.Tensor | None, return_list: bool = False
     ) -> list[torch.Tensor] | torch.Tensor:
-        if isinstance(input, torch.Tensor):
-            input = input.split(expert_frequency.tolist(), dim=0)
+        if isinstance(x, torch.Tensor):
+            x = x.split(expert_frequency.tolist(), dim=0)
         else:
             assert expert_frequency is None
 
-        input = [
-            F.linear(input[i], self.weight[i], None if self.bias is None else self.bias[i])
+        x = [
+            F.linear(x[i], self.weight[i], None if self.bias is None else self.bias[i])
             for i in range(self.num_experts)
         ]
 
         if not return_list:
-            input = torch.cat(input, dim=0)
+            x = torch.cat(x, dim=0)
 
-        return input
+        return x
 
     def extra_repr(self):
         return "num_experts={}, in_features={}, out_features={}".format(
@@ -133,7 +130,7 @@ class MoE(nn.Module):
         is_glu: bool,
         add_bias: bool,
         std: float,
-    ) -> None:
+    ) -> MoE:
         super().__init__()
 
         self.num_experts = num_experts
@@ -162,31 +159,29 @@ class MoE(nn.Module):
             std=std,
         )
 
-    def forward(self, hidden_states: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
-        original_shape = hidden_states.shape
+    def forward(self, x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
+        original_shape = x.shape
 
-        # hidden_states -> (batch_size, query_length, hidden_size)
-        hidden_states = hidden_states.view(-1, self.hidden_size)
-        # hidden_states -> (total_q, hidden_size)
-        router_logits, router_weights, selected_experts = self._compute_routing_weights(hidden_states)
+        # x -> (batch_size, query_length, hidden_size)
+        x = x.view(-1, self.hidden_size)
+        # x -> (total_q, hidden_size)
+        router_logits, router_weights, selected_experts = self._compute_routing_weights(x)
 
         # router_logits -> (total_q, num_experts)
         # router_weights -> (total_q, top_k)
         # selected_experts -> (total_q, top_k)
 
-        hidden_states = self._compute_experts(
-            hidden_states, router_weights, selected_experts, kernel_backend=kernel_backend
-        )
+        x = self._compute_experts(x, router_weights, selected_experts, kernel_backend=kernel_backend)
 
-        hidden_states = hidden_states.view(original_shape)
+        x = x.view(original_shape)
 
-        # hidden_states -> (batch_size, query_length, hidden_size)
+        # x -> (batch_size, query_length, hidden_size)
 
-        return hidden_states, router_logits
+        return x, router_logits
 
-    def _compute_routing_weights(self, hidden_states: torch.Tensor) -> tuple[torch.Tensor]:
-        # hidden_states -> (total_q, hidden_size)
-        router_logits = self.gate(hidden_states)
+    def _compute_routing_weights(self, x: torch.Tensor) -> tuple[torch.Tensor]:
+        # x -> (total_q, hidden_size)
+        router_logits = self.gate(x)
         # router_logits -> (total_q, num_experts)
 
         router_weights, selected_experts = self._get_topk(router_logits)
@@ -195,13 +190,13 @@ class MoE(nn.Module):
         # selected_experts -> (total_q, top_k)
 
         router_weights = F.softmax(router_weights.float(), dim=-1)
-        router_weights = router_weights.type_as(hidden_states)
+        router_weights = router_weights.type_as(x)
 
         return router_logits, router_weights, selected_experts
 
     def _compute_experts(
         self,
-        hidden_states: torch.Tensor,
+        x: torch.Tensor,
         router_weights: torch.Tensor,
         selected_experts: torch.Tensor,
         *,
@@ -215,27 +210,27 @@ class MoE(nn.Module):
         sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
         expert_frequency = continuous_count(sorted_expert_idxs, self.num_experts)
 
-        T = hidden_states.size(0)
+        T = x.size(0)
 
         if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
             with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)
 
-            hidden_states = self.c_fc.up_projection_triton_forward(
-                input=hidden_states,
+            x = self.c_fc.up_projection_triton_forward(
+                x=x,
                 num_experts_per_token=self.top_k,
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
                 expert_offsets=expert_offsets,
             )
-            hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj.down_projection_triton_forward(
-                input=hidden_states,
+            x = self.act(x)
+            x = self.c_proj.down_projection_triton_forward(
+                x=x,
                 num_experts_per_token=1,
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
                 expert_offsets=expert_offsets,
-                gates=router_weights,
+                router_weights=router_weights,
             )
         elif kernel_backend == KernelBackend.torch:
             # sort and group input tokens according to expert assignment
@@ -245,22 +240,18 @@ class MoE(nn.Module):
             router_weights = router_weights.flatten()
             batch_gates = router_weights[sorted_scattered_idxs]
 
-            hidden_states = hidden_states[fan_in_index]
+            x = x[fan_in_index]
+            x = self.c_fc.torch_forward(x=x, expert_frequency=expert_frequency, return_list=True)
+            x = [self.act(i) for i in x]
+            x = self.c_proj.torch_forward(x=x, expert_frequency=None, return_list=False)
 
-            hidden_states = self.c_fc.torch_forward(
-                input=hidden_states, expert_frequency=expert_frequency, return_list=True
-            )
-
-            hidden_states = [self.act(i) for i in hidden_states]
-            hidden_states = self.c_proj.torch_forward(input=hidden_states, expert_frequency=None, return_list=False)
-
-            hidden_states = hidden_states * batch_gates.unsqueeze(-1)
-            zeros = torch.zeros((T, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
-            hidden_states = zeros.index_add(0, fan_in_index, hidden_states)
+            x = x * batch_gates.unsqueeze(-1)
+            zeros = torch.zeros((T, self.hidden_size), dtype=x.dtype, device=x.device)
+            x = zeros.index_add(0, fan_in_index, x)
         else:
             raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-        return hidden_states
+        return x
 
     def _get_topk(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if self.top_k == 1:

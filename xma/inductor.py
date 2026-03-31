@@ -5,13 +5,12 @@
 from __future__ import annotations
 
 import inspect
-from contextlib import contextmanager
 from functools import partial
 from typing import Callable, Generator
 
 import torch
 from torch._inductor.fx_passes.joint_graph import patterns
-from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
+from torch._inductor.pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
 
 from .accelerator import KernelBackend
 from .functional import fused_residual_add_rmsnorm, rmsnorm
@@ -19,11 +18,6 @@ from .functional import fused_residual_add_rmsnorm, rmsnorm
 
 _ALL_TRACE_FUNCTIONS = [joint_fwd_bwd, fwd_only]
 _ALL_DTYPES = [torch.float32, torch.float16, torch.bfloat16]
-
-
-def init_inductor(cache_size_limit: int) -> None:
-    torch._dynamo.config.cache_size_limit = cache_size_limit
-    torch._dynamo.config.accumulated_cache_size_limit = cache_size_limit
 
 
 def partialize_and_update_signature(func: Callable, **kwargs) -> Callable:
@@ -64,9 +58,7 @@ def get_rmsnorm_replacer(
             rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.torch
         )
 
-        replacement_function = partialize_and_update_signature(
-            rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.triton
-        )
+        replacement_function = partialize_and_update_signature(rmsnorm, eps=None, memory_efficient=False)
 
         yield search_function, replacement_function, example_inputs
 
@@ -95,7 +87,6 @@ def get_fused_residual_add_rmsnorm_replacer(
                 eps=None,
                 multiplier=None,
                 memory_efficient=False,
-                kernel_backend=KernelBackend.triton,
             )
 
             yield search_function, replacement_function, example_inputs
@@ -107,18 +98,19 @@ _MAPPING = {
 }
 
 
-# @contextmanager
-def enable_kernels(kernels: list[str]):
-    device = torch.cuda.current_device()
-
+def enable_kernels(kernels: list[str], _patterns: PatternMatcherPass = patterns, device: torch.device = None) -> None:
     for kernel in kernels:
         for search_function, replacement_function, example_inputs in _MAPPING[kernel](device):
             for trace_function in _ALL_TRACE_FUNCTIONS:
-                print("hi")
                 register_replacement(
                     search_fn=search_function,
                     replace_fn=replacement_function,
                     example_inputs=example_inputs,
                     trace_fn=trace_function,
-                    pass_dicts=patterns,
+                    pass_dicts=_patterns,
                 )
+
+
+class _CallablePatternMatcherPass(PatternMatcherPass):
+    def __call__(self, g: torch.fx.graph.Graph):
+        self.apply(g)

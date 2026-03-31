@@ -42,6 +42,9 @@ def swiglu_backward_nki_kernel(g_ptr, u_ptr, dy_ptr, dg_ptr, du_ptr):
     nl.store(du_ptr[BLOCK_B, BLOCK_H], du, mask=MASK)
 
 
+_CACHE = {}
+
+
 @xma_op(mutates_args={"dg", "du"})
 def swiglu_backward_nki(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
@@ -52,7 +55,7 @@ def swiglu_backward_nki(
     B, H = g.size()
 
     compile_key = (B, H, g.dtype)
-    kernel = swiglu_backward_nki.cache.get(compile_key, None)
+    kernel = _CACHE.get(compile_key, None)
 
     if kernel is None:
         kernel = TorchNeuronNKIKernel(
@@ -62,9 +65,6 @@ def swiglu_backward_nki(
             return_tensor_overrides=(dg, du),
         )
 
-        swiglu_backward_nki.cache[compile_key] = kernel
+        _CACHE[compile_key] = kernel
 
     kernel(g, u, dy, dg, du)
-
-
-swiglu_backward_nki.cache = {}

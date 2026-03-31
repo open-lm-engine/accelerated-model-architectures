@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size, is_triton_available
+from ...utils import empty_like_contiguous, is_triton_available
 
 
 if is_triton_available():
@@ -64,25 +64,27 @@ def cross_entropy(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
-    """compute cross entropy loss
+    """
+    cross entropy loss
 
-    Args:
-        x (torch.Tensor): logits
-        labels (torch.Tensor): labels
-        reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
-        logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
-            Defaults to None.
-
-    Returns:
-        torch.Tensor: loss
+    :param x: logits
+    :type x: torch.Tensor
+    :param labels: labels
+    :type labels: torch.Tensor
+    :param reduction: reduction method: "sum", "mean" or None
+    :type reduction: str
+    :param logits_multiplier: logits multiplier pre-multiplies logits, None implies 1. Defaults to None.
+    :type logits_multiplier: float | None
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: loss
+    :rtype: Tensor
     """
 
     assert reduction in ["sum", "mean"]
     assert x.dim() == 2, "x should be 2 dimensional"
     assert labels.dim() == 1, "labels should be 1 dimensional"
-    assert (
-        labels.size(0) == get_num_elements_and_hidden_size(x)[0]
-    ), "x and labels have different number of elements along batch dimension"
+    assert labels.size(0) == x.size(0), "x and labels have different number of elements along batch dimension"
 
     x = _CrossEntropy.run(
         x=x, labels=labels, reduction=reduction, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend
