@@ -2,4 +2,4 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .sgd import SGD
+from .sgd import SGD, sgd
