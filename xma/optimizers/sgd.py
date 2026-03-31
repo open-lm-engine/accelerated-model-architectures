@@ -31,6 +31,12 @@ class SGD(_TorchSGD):
                 parameters.append(p)
                 gradients.append(p.grad)
 
-            sgd(parameters=parameters, gradients=gradients, lr=group["lr"], maximize=False, horizontal_fusion=False)
+            sgd(
+                parameters=parameters,
+                gradients=gradients,
+                lr=group["lr"],
+                maximize=False,
+                horizontal_fusion=group["foreach"],
+            )
 
         return loss
