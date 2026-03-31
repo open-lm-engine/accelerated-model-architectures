@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 
 from ...accelerator import KernelBackend
-from ...functional import linear_attention
 from ...math import divide_if_divisible
+from .op import linear_attention
 
 
 class LinearAttention(nn.Module):
