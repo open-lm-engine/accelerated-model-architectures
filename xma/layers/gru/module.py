@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 
 from ...accelerator import KernelBackend
-from ...functional import gru
 from ...math import divide_if_divisible
+from .op import gru
 
 
 class GRU(nn.Module):
