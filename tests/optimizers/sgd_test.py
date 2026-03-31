@@ -25,10 +25,14 @@ class Model(nn.Module):
 
 
 def test_sgd() -> None:
-    model = Model()
+    device = Accelerator.get_current_device()
+
+    with torch.device(device):
+        model = Model()
+
     optimizer = SGD(params=model.parameters())
 
-    x = torch.randn(5, 3, device=Accelerator.get_current_device())
+    x = torch.randn(5, 3, device=device)
     y = model(x)
 
     torch.autograd.grad(outputs=y, inputs=x, grad_outputs=torch.randn_like(y))
