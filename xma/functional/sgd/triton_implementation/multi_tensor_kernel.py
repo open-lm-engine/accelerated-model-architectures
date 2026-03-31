@@ -7,7 +7,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LOG_WARP_SIZE
-from .kernel import _sgd_step
+from .single_tensor_kernel import _sgd_step
 
 
 _TORCH_TO_TRITON_DTYPE = {
@@ -18,7 +18,7 @@ _TORCH_TO_TRITON_DTYPE = {
 
 
 @triton.jit
-def sgd_horizontally_fused_kernel(
+def multi_tensor_sgd_triton_kernel(
     W_ptr_ptr, dW_ptr_ptr, N_ptr, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr, DTYPE: tl.constexpr
 ):
     i = tl.program_id(0)
@@ -38,7 +38,7 @@ def sgd_horizontally_fused_kernel(
         tl.store(W_ptr + BLOCK, W, mask=MASK)
 
 
-def sgd_horizontally_fused_triton(Ws: list[torch.Tensor], dWs: list[torch.Tensor], lr: float, maximize: bool) -> None:
+def multi_tensor_sgd_triton(Ws: list[torch.Tensor], dWs: list[torch.Tensor], lr: float, maximize: bool) -> None:
     device = Ws[0].device
 
     W_ptr_ptr = torch.tensor([W.data_ptr() for W in Ws], dtype=torch.int64, device=device)
@@ -47,7 +47,7 @@ def sgd_horizontally_fused_triton(Ws: list[torch.Tensor], dWs: list[torch.Tensor
 
     NUM_WARPS = 8
 
-    sgd_horizontally_fused_kernel[(len(Ws),)](
+    multi_tensor_sgd_triton_kernel[(len(Ws),)](
         W_ptr_ptr=W_ptr_ptr,
         dW_ptr_ptr=dW_ptr_ptr,
         N_ptr=N_ptr,

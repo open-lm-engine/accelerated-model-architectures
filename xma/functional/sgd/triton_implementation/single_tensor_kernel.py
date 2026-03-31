@@ -31,7 +31,7 @@ def _sgd_step(W, dW, lr, MAXIMIZE):
 
 @triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr"])
 @triton.jit
-def sgd_triton_kernel(W_ptr, dW_ptr, N, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr):
+def single_tensor_sgd_triton_kernel(W_ptr, dW_ptr, N, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(0)
 
     BLOCK = BLOCK_ID * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
@@ -45,8 +45,8 @@ def sgd_triton_kernel(W_ptr, dW_ptr, N, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: 
 
 
 @xma_op(mutates_args={"W"})
-def sgd_triton(W: torch.Tensor, dW: torch.Tensor, lr: float, maximize: bool) -> None:
+def single_tensor_sgd_triton(W: torch.Tensor, dW: torch.Tensor, lr: float, maximize: bool) -> None:
     N = W.numel()
     GRID = lambda kwargs: (ceil_divide(N, kwargs["BLOCK_SIZE"]),)
 
-    sgd_triton_kernel[GRID](W_ptr=W, dW_ptr=dW, N=N, lr=lr, MAXIMIZE=maximize)
+    single_tensor_sgd_triton_kernel[GRID](W_ptr=W, dW_ptr=dW, N=N, lr=lr, MAXIMIZE=maximize)
