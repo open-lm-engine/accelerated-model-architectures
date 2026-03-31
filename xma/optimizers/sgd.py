@@ -38,6 +38,10 @@ class SGD(_TorchSGD):
                 lr=group["lr"],
                 maximize=False,
                 horizontal_fusion=group["foreach"],
+                weight_decay=group["weight_decay"],
+                momentum=group["momentum"],
+                dampening=group["dampening"],
+                nesterov=group["nesterov"],
                 kernel_backend=kernel_backend,
             )
 
