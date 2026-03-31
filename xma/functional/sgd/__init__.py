@@ -15,11 +15,7 @@ if is_triton_available():
 
     from .triton_implementation import multi_tensor_sgd_triton_kernel, single_tensor_sgd_triton
 
-    _TORCH_TO_TRITON_DTYPE = {
-        torch.float32: tl.float32,
-        torch.float16: tl.float16,
-        torch.bfloat16: tl.bfloat16,
-    }
+    _TORCH_TO_TRITON_DTYPE = {torch.float32: tl.float32, torch.float16: tl.float16, torch.bfloat16: tl.bfloat16}
 
 
 @torch.no_grad()
