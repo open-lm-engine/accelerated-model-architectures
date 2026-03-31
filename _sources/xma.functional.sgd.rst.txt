@@ -1,0 +1,11 @@
+xma.functional.sgd
+==================
+
+.. toctree::
+   :maxdepth: 4
+
+
+.. automodule:: xma.functional.sgd
+   :members:
+   :show-inheritance:
+   :undoc-members:

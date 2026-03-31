@@ -1,0 +1,7 @@
+xma.optimizers.sgd
+==================
+
+.. automodule:: xma.optimizers.sgd
+   :members:
+   :show-inheritance:
+   :undoc-members:

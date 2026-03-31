@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.layers.rnn - XMA documentation</title>
+        <title>xma.optimizers.sgd - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -264,101 +264,59 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <h1>Source code for xma.layers.rnn</h1><div class="highlight"><pre>
+          <h1>Source code for xma.optimizers.sgd</h1><div class="highlight"><pre>
 <span></span><span class="c1"># **************************************************</span>
 <span class="c1"># Copyright (c) 2025, Mayank Mishra</span>
 <span class="c1"># **************************************************</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">SGD</span> <span class="k">as</span> <span class="n">_TorchSGD</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">..accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">KernelBackend</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..functional</span><span class="w"> </span><span class="kn">import</span> <span class="n">rnn</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..math</span><span class="w"> </span><span class="kn">import</span> <span class="n">divide_if_divisible</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..functional</span><span class="w"> </span><span class="kn">import</span> <span class="n">sgd</span>
 
 
-<div class="viewcode-block" id="RNN">
-<a class="viewcode-back" href="../../../xma.layers.rnn.html#xma.layers.rnn.RNN">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">RNN</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">input_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">state_head_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">output_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">num_input_heads</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">num_weight_heads</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">add_bias</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-        <span class="n">gradient_clipping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RNN</span><span class="p">:</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_input_heads</span> <span class="o">=</span> <span class="n">num_input_heads</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_weight_heads</span> <span class="o">=</span> <span class="n">num_weight_heads</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_input_heads</span><span class="p">,</span> <span class="n">num_weight_heads</span><span class="p">)</span>
-
-        <span class="n">divide_if_divisible</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_input_heads</span><span class="p">)</span>
-        <span class="n">divide_if_divisible</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_weight_heads</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">gradient_clipping</span> <span class="o">=</span> <span class="n">gradient_clipping</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">state_head_dim</span> <span class="o">=</span> <span class="n">state_head_dim</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">state_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_head_dim</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">input_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">input_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_input_heads</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_head_dim</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">add_bias</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">state_weight</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_weight_heads</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_head_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_head_dim</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">output_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_size</span><span class="p">,</span> <span class="n">output_size</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">add_bias</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
-
-<div class="viewcode-block" id="RNN.forward">
-<a class="viewcode-back" href="../../../xma.layers.rnn.html#xma.layers.rnn.RNN.forward">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="nb">input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">input_state</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">cu_seqlens</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">max_seqlen</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="nb">input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_projection</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
-        <span class="nb">input</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">*</span><span class="nb">input</span><span class="o">.</span><span class="n">size</span><span class="p">()[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_input_heads</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_head_dim</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">input_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">input_state</span> <span class="o">=</span> <span class="n">input_state</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_head_dim</span><span class="p">)</span>
-
-        <span class="nb">input</span><span class="p">,</span> <span class="n">input_state</span> <span class="o">=</span> <span class="n">rnn</span><span class="p">(</span>
-            <span class="nb">input</span><span class="o">=</span><span class="nb">input</span><span class="p">,</span>
-            <span class="n">weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">state_weight</span><span class="p">,</span>
-            <span class="n">input_state</span><span class="o">=</span><span class="n">input_state</span><span class="p">,</span>
-            <span class="n">gradient_clipping</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gradient_clipping</span><span class="p">,</span>
-            <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span>
-            <span class="n">max_seqlen</span><span class="o">=</span><span class="n">max_seqlen</span><span class="p">,</span>
-            <span class="n">kernel_backend</span><span class="o">=</span><span class="n">kernel_backend</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="nb">input</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">input_state</span> <span class="o">=</span> <span class="n">input_state</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-
-        <span class="nb">input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_projection</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="nb">input</span><span class="p">,</span> <span class="n">input_state</span></div>
-
-
-<div class="viewcode-block" id="RNN.reset_parameters">
-<a class="viewcode-back" href="../../../xma.layers.rnn.html#xma.layers.rnn.RNN.reset_parameters">[docs]</a>
+<div class="viewcode-block" id="SGD">
+<a class="viewcode-back" href="../../../xma.optimizers.sgd.html#xma.optimizers.sgd.SGD">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SGD</span><span class="p">(</span><span class="n">_TorchSGD</span><span class="p">):</span>
+<div class="viewcode-block" id="SGD.step">
+<a class="viewcode-back" href="../../../xma.optimizers.sgd.html#xma.optimizers.sgd.SGD.step">[docs]</a>
     <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">reset_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">normal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_weight</span><span class="p">)</span></div>
+    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">closure</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
+                <span class="n">loss</span> <span class="o">=</span> <span class="n">closure</span><span class="p">()</span>
 
+        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_groups</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">gradients</span> <span class="o">=</span> <span class="p">[]</span>
 
-<div class="viewcode-block" id="RNN.extra_repr">
-<a class="viewcode-back" href="../../../xma.layers.rnn.html#xma.layers.rnn.RNN.extra_repr">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="n">output</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">extra_repr</span><span class="p">()</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="se">\n</span><span class="s2">state size = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_size</span><span class="si">}</span><span class="s2"> elements&quot;</span></div>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">group</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">grad</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+                <span class="n">gradients</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+
+            <span class="n">sgd</span><span class="p">(</span>
+                <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">,</span>
+                <span class="n">gradients</span><span class="o">=</span><span class="n">gradients</span><span class="p">,</span>
+                <span class="n">lr</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;lr&quot;</span><span class="p">],</span>
+                <span class="n">maximize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">horizontal_fusion</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;foreach&quot;</span><span class="p">],</span>
+                <span class="n">weight_decay</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;weight_decay&quot;</span><span class="p">],</span>
+                <span class="n">momentum</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;momentum&quot;</span><span class="p">],</span>
+                <span class="n">dampening</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;dampening&quot;</span><span class="p">],</span>
+                <span class="n">nesterov</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;nesterov&quot;</span><span class="p">],</span>
+                <span class="n">kernel_backend</span><span class="o">=</span><span class="n">kernel_backend</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">loss</span></div>
 </div>
 
 </pre></div>
