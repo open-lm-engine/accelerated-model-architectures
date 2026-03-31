@@ -13,9 +13,9 @@ from .triton_implementation import sgd_horizontally_fused_triton, sgd_triton
 def sgd(
     parameters: list[torch.Tensor],
     gradients: list[torch.Tensor],
-    lr: float = 1e-3,
-    maximize: bool = False,
-    horizontal_fusion: bool = True,
+    lr: float,
+    maximize: bool,
+    horizontal_fusion: bool,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> None:
@@ -37,7 +37,7 @@ def sgd(
         (_multi_tensor_sgd if horizontal_fusion else _single_tensor_sgd)(
             params=parameters,
             grads=gradients,
-            momentum_buffer_list=None,
+            momentum_buffer_list=[None] * len(parameters),
             grad_scale=None,
             found_inf=None,
             weight_decay=0,
