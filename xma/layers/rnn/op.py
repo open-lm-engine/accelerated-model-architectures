@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import torch
 
 from ...accelerator import KernelBackend
@@ -24,17 +26,6 @@ def _get_num_heads(x: torch.Tensor, W: torch.Tensor, run_check: bool) -> tuple[i
         assert N % Nw == 0
 
     return Nx, Nw, N
-
-
-def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
-    if Nx == N:
-        dx = empty_like_contiguous(y)
-    else:
-        x_shape = list(y.size())
-        x_shape[-2] = Nx
-        dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
-
-    return dx
 
 
 class _RNN(CustomOp):
@@ -142,7 +133,13 @@ class _RNN(CustomOp):
         Nx = ctx.Nx
         N = y.size(-2)
 
-        dx = _get_backward_tensor(y=y, Nx=Nx, N=N)
+        if Nx == N:
+            dx = empty_like_contiguous(y)
+        else:
+            x_shape = list(y.size())
+            x_shape[-2] = Nx
+            dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
+
         dW = zeros_like_contiguous(W, dtype=torch.float32)
         dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 

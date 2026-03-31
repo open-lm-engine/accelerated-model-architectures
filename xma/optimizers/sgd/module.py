@@ -9,8 +9,8 @@ from typing import Callable
 import torch
 from torch.optim import SGD as _TorchSGD
 
-from ..accelerator import KernelBackend
-from ..functional import sgd
+from ...accelerator import KernelBackend
+from .op import sgd
 
 
 class SGD(_TorchSGD):

@@ -8,12 +8,22 @@ from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...torch_utils import clip_gradients, sigmoid, tanh
 from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
-from ..rnn import _get_backward_tensor
 from .utils import _get_num_heads
 
 
 if is_triton_available():
     from .triton_implementation import gru_backward_triton, gru_forward_triton
+
+
+def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
+    if Nx == N:
+        dx = empty_like_contiguous(y)
+    else:
+        x_shape = list(y.size())
+        x_shape[-2] = Nx
+        dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
+
+    return dx
 
 
 class _GRU(CustomOp):

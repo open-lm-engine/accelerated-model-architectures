@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import torch
 from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
 
@@ -47,7 +49,7 @@ def sgd(
             device = parameters[0].device
             NUM_WARPS = 8
 
-            multi_tensor_sgd_triton_kernel[(len(parameters),)](
+            multi_tensor_sgd_triton_kernel[len(parameters),](
                 W_ptr_ptr=torch.tensor([W.data_ptr() for W in parameters], dtype=torch.int64, device=device),
                 dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in gradients], dtype=torch.int64, device=device),
                 N_ptr=torch.tensor([W.numel() for W in parameters], dtype=torch.int64, device=device),

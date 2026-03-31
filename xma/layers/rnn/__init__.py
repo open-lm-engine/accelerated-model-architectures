@@ -2,4 +2,5 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .sgd import SGD, sgd
+from .module import RNN
+from .op import rnn
