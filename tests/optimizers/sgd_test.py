@@ -13,8 +13,8 @@ from xma import SGD, Accelerator
 class Model(nn.Module):
     def __init__(self) -> Model:
         self.linear1 = nn.Linear(3, 17)
-        self.linear2 = nn.Linear(3, 17)
-        self.linear3 = nn.Linear(3, 17)
+        self.linear2 = nn.Linear(17, 61)
+        self.linear3 = nn.Linear(61, 3)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.linear1(x)
