@@ -21,6 +21,13 @@ class SGD(_TorchSGD):
                 loss = closure()
 
         for group in self.param_groups:
-            sgd(parameters=group["params"], lr=group["lr"], maximize=False)
+            parameters = []
+            gradients = []
+
+            for p in group["params"]:
+                parameters.append(p)
+                gradients.append(p.grad)
+
+            sgd(parameters=parameters, gradients=gradients, lr=group["lr"], maximize=False)
 
         return loss
