@@ -26,7 +26,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr"])
 @triton.jit
 def sgd_horizontally_fused_kernel(
     W_ptr_ptr, dW_ptr_ptr, N_ptr, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr, DTYPE: tl.constexpr
