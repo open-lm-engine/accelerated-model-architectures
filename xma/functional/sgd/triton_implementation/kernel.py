@@ -24,7 +24,7 @@ def _sgd_step(W, dW, lr, MAXIMIZE):
     if MAXIMIZE:
         dW = -dW
 
-    W -= lr * dW
+    W -= lr * dW.to(W.dtype)
 
     return W
 
