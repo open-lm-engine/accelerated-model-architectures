@@ -7,7 +7,16 @@ import triton
 import triton.language as tl
 
 from ....custom_op import xma_op
-from ....math import ceil_divide
+from ....math import ceil_divide, get_powers_of_2
+
+
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for num_warps in get_powers_of_2(4, 32):
+        for BLOCK_SIZE in get_powers_of_2(64, 8192):
+            configs.append(triton.Config({"BLOCK_SIZE": BLOCK_SIZE}, num_warps=num_warps))
+
+    return configs
 
 
 @triton.jit
@@ -20,6 +29,7 @@ def _sgd_step(W, dW, lr, MAXIMIZE):
     return W
 
 
+@triton.autotune(configs=_get_autotune_configs())
 @triton.jit
 def sgd_triton_kernel(W_ptr, dW_ptr, N, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(0)
