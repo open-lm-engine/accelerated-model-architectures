@@ -2,7 +2,6 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from ..layers.gru.op import gru
 from .bmm import bmm
 from .continuous_count import continuous_count
 from .cross_entropy import cross_entropy

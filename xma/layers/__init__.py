@@ -2,7 +2,7 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .gru import GRU
+from .gru import GRU, gru
 from .linear_attention import LinearAttention
 from .m2rnn import M2RNN
 from .moe import MoE
