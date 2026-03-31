@@ -4,36 +4,59 @@
 
 from __future__ import annotations
 
+from itertools import product
+
+import pytest
 import torch
-import torch.nn as nn
 
-from xma import SGD, Accelerator
+from xma import KernelBackend
+from xma.functional import sgd
 
-
-class Model(nn.Module):
-    def __init__(self) -> Model:
-        super().__init__()
-        self.linear1 = nn.Linear(3, 17)
-        self.linear2 = nn.Linear(17, 61)
-        self.linear3 = nn.Linear(61, 3)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.linear1(x)
-        x = self.linear2(x)
-        x = self.linear3(x)
-        return x
+from ..utils import assert_equal_tensors, get_1d_tensor_sizes, skip_if_incompatible_kernel_backend
 
 
-def test_sgd() -> None:
-    device = Accelerator.get_current_device()
+@pytest.mark.parametrize("size", get_1d_tensor_sizes())
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("horizontal_fusion", [True, False])
+@pytest.mark.parametrize("maximize", [True, False])
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
+def test_sgd(
+    size: int, dtype: torch.dtype, horizontal_fusion: bool, maximize: bool, kernel_backend: KernelBackend
+) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-    with torch.device(device):
-        model = Model()
+    params_triton = [torch.randn(size, device=device, dtype=dtype) for _ in range(3)]
+    grads = [torch.randn(size, device=device, dtype=dtype) for _ in range(3)]
+    params_torch = [p.clone() for p in params_triton]
 
-    optimizer = SGD(params=model.parameters())
+    sgd(
+        parameters=params_triton,
+        gradients=grads,
+        lr=1e-3,
+        maximize=maximize,
+        horizontal_fusion=horizontal_fusion,
+        kernel_backend=kernel_backend,
+    )
 
-    x = torch.randn(5, 3, device=device)
-    y = model(x)
-    y.sum().backward()
+    sgd(
+        parameters=params_torch,
+        gradients=[g.clone() for g in grads],
+        lr=1e-3,
+        maximize=maximize,
+        horizontal_fusion=horizontal_fusion,
+        kernel_backend=KernelBackend.torch,
+    )
 
-    optimizer.step()
+    for p_triton, p_torch in zip(params_triton, params_torch):
+        assert_equal_tensors(
+            p_triton,
+            p_torch,
+            exact_match=False,
+            atol_float32=0,
+            rtol_float32=0,
+            atol_float16=0,
+            rtol_float16=0,
+            atol_bfloat16=0,
+            rtol_bfloat16=0,
+        )
