@@ -6,7 +6,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....math import get_powers_of_2
+from ....constants import LOG_WARP_SIZE
 from .kernel import _sgd_step
 
 
@@ -17,16 +17,6 @@ _TORCH_TO_TRITON_DTYPE = {
 }
 
 
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for num_warps in get_powers_of_2(4, 32):
-        for BLOCK_SIZE in get_powers_of_2(64, 16384):
-            configs.append(triton.Config({"BLOCK_SIZE": BLOCK_SIZE}, num_warps=num_warps))
-
-    return configs
-
-
-@triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr"])
 @triton.jit
 def sgd_horizontally_fused_kernel(
     W_ptr_ptr, dW_ptr_ptr, N_ptr, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr, DTYPE: tl.constexpr
@@ -50,16 +40,21 @@ def sgd_horizontally_fused_kernel(
 
 def sgd_horizontally_fused_triton(Ws: list[torch.Tensor], dWs: list[torch.Tensor], lr: float, maximize: bool) -> None:
     device = Ws[0].device
+    dtype = Ws[0].dtype.itemsize
 
     W_ptr_ptr = torch.tensor([W.data_ptr() for W in Ws], dtype=torch.int64, device=device)
     dW_ptr_ptr = torch.tensor([dW.data_ptr() for dW in dWs], dtype=torch.int64, device=device)
     N_ptr = torch.tensor([W.numel() for W in Ws], dtype=torch.int64, device=device)
+
+    NUM_WARPS = 8
 
     sgd_horizontally_fused_kernel[(len(Ws),)](
         W_ptr_ptr=W_ptr_ptr,
         dW_ptr_ptr=dW_ptr_ptr,
         N_ptr=N_ptr,
         lr=lr,
+        BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // dtype.itemsize),
         MAXIMIZE=maximize,
         DTYPE=_TORCH_TO_TRITON_DTYPE[Ws[0].dtype],
+        num_warps=NUM_WARPS,
     )
