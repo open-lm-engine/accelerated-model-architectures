@@ -29,6 +29,10 @@ def sgd(
     lr: float,
     maximize: bool,
     horizontal_fusion: bool,
+    weight_decay: float,
+    momentum: float,
+    dampening: float,
+    nesterov: bool,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> None:
@@ -38,6 +42,11 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
+        assert weight_decay == 0
+        assert momentum == 0
+        assert dampening == 0
+        assert not nesterov
+
         if horizontal_fusion:
             device = parameters[0].device
             NUM_WARPS = 8
@@ -65,11 +74,11 @@ def sgd(
             momentum_buffer_list=[None] * len(parameters),
             grad_scale=None,
             found_inf=None,
-            weight_decay=0,
-            momentum=0,
+            weight_decay=weight_decay,
+            momentum=momentum,
             lr=lr,
-            dampening=0,
-            nesterov=False,
+            dampening=dampening,
+            nesterov=nesterov,
             maximize=maximize,
             has_sparse_grad=False,
         )
