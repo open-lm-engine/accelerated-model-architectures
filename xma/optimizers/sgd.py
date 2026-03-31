@@ -9,12 +9,13 @@ from typing import Callable
 import torch
 from torch.optim import SGD as _TorchSGD
 
+from ..accelerator import KernelBackend
 from ..functional import sgd
 
 
 class SGD(_TorchSGD):
     @torch.no_grad()
-    def step(self, closure: Callable | None = None) -> None:
+    def step(self, closure: Callable | None = None, *, kernel_backend: KernelBackend | None = None) -> None:
         loss = None
         if closure is not None:
             with torch.enable_grad():
@@ -37,6 +38,7 @@ class SGD(_TorchSGD):
                 lr=group["lr"],
                 maximize=False,
                 horizontal_fusion=group["foreach"],
+                kernel_backend=kernel_backend,
             )
 
         return loss
