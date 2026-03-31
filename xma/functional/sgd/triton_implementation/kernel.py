@@ -29,7 +29,7 @@ def _sgd_step(W, dW, lr, MAXIMIZE):
     return W
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr"])
 @triton.jit
 def sgd_triton_kernel(W_ptr, dW_ptr, N, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(0)
