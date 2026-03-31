@@ -3,3 +3,4 @@
 # **************************************************
 
 from .module import LinearAttention
+from .op import linear_attention

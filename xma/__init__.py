@@ -20,7 +20,7 @@ from .functional import (
     unpack_sequence,
 )
 from .inductor import enable_kernels
-from .layers import GRU, M2RNN, RNN, LinearAttention, MoE, gru, rnn
+from .layers import GRU, M2RNN, RNN, LinearAttention, MoE, gru, linear_attention, rnn
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .optimizers import SGD, sgd
 from .utils import get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
