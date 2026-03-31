@@ -2,4 +2,5 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .sgd import SGD, sgd
+from .layer import M2RNN
+from .op import m2rnn

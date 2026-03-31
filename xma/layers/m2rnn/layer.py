@@ -5,9 +5,9 @@
 import torch
 import torch.nn as nn
 
-from ..accelerator import KernelBackend
-from ..functional import m2rnn
-from ..math import divide_if_divisible
+from ...accelerator import KernelBackend
+from ...math import divide_if_divisible
+from .op import m2rnn
 
 
 class M2RNN(nn.Module):

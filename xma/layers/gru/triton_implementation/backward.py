@@ -9,7 +9,6 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_utils import clamp, get_start_end, matmul, sigmoid, sigmoid_backward, tanh, tanh_backward
-from ...rnn.triton_implementation.backward import _get_autotune_configs
 from ..utils import _get_num_heads
 from .forward import _get_autotune_configs
 
