@@ -30,17 +30,6 @@ def _get_num_heads(x: torch.Tensor, W: torch.Tensor, run_check: bool) -> tuple[i
     return Nx, Nw, N
 
 
-def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
-    if Nx == N:
-        dx = empty_like_contiguous(y)
-    else:
-        x_shape = list(y.size())
-        x_shape[-2] = Nx
-        dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
-
-    return dx
-
-
 class _RNN(CustomOp):
     @staticmethod
     def forward_backward_torch(
