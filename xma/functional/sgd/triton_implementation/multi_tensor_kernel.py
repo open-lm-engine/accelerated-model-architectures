@@ -12,11 +12,11 @@ from .single_tensor_kernel import _sgd_step
 def multi_tensor_sgd_triton_kernel(
     W_ptr_ptr, dW_ptr_ptr, N_ptr, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr, DTYPE: tl.constexpr
 ):
-    i = tl.program_id(0)
+    BLOCK_ID = tl.program_id(0)
 
-    W_ptr = tl.load(W_ptr_ptr + i).to(tl.pointer_type(DTYPE))
-    dW_ptr = tl.load(dW_ptr_ptr + i).to(tl.pointer_type(DTYPE))
-    N = tl.load(N_ptr + i)
+    W_ptr = tl.load(W_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
+    dW_ptr = tl.load(dW_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
+    N = tl.load(N_ptr + BLOCK_ID)
 
     for START in range(0, N, BLOCK_SIZE):
         BLOCK = START + tl.arange(0, BLOCK_SIZE)
