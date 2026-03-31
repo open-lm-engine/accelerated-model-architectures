@@ -32,7 +32,7 @@ def test_sgd() -> None:
 
     optimizer = SGD(params=model.parameters())
 
-    x = torch.randn(5, 3, device=device)
+    x = torch.randn(5, 3, device=device, requires_grad=True)
     y = model(x)
 
     torch.autograd.grad(outputs=y, inputs=x, grad_outputs=torch.randn_like(y))
