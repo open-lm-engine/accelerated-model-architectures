@@ -16,6 +16,7 @@ from .functional import (
     pack_sequence,
     rmsnorm,
     rnn,
+    sgd,
     softmax,
     swiglu,
     swiglu_packed,
