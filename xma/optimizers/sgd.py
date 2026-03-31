@@ -20,7 +20,7 @@ class SGD(_TorchSGD):
             with torch.enable_grad():
                 loss = closure()
 
-        for param_group in self.param_groups:
-            sgd(parameters=self.param_groups["params"], lr=param_group["lr"], maximize=False)
+        for group in self.param_groups:
+            sgd(parameters=group["params"], lr=group["lr"], maximize=False)
 
         return loss
