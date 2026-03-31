@@ -24,5 +24,6 @@ from .functional import (
 from .inductor import enable_kernels
 from .layers import GRU, M2RNN, RNN, LinearAttention, MoE
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
+from .optimizers import SGD
 from .utils import get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
 from .xtuner import XTuneConfig, XTuneParameter, get_cartesian_product_xtune_configs, get_xtune_cache, xtune

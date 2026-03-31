@@ -1,18 +1,18 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from __future__ import annotations
 
 from typing import Callable
 
 import torch
-import torch.nn as nn
-from torch.optim import Adam, Optimizer
+from torch.optim import SGD as _TorchSGD
 
 from ..functional import sgd
 
 
-class SGD(Optimizer):
-    def __init__(self, params: list[nn.Parameter], defaults) -> SGD:
-        super().__init__(params, defaults)
-
+class SGD(_TorchSGD):
     @torch.no_grad()
     def step(self, closure: Callable | None = None) -> None:
         loss = None
