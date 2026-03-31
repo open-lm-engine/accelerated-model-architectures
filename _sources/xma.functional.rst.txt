@@ -16,7 +16,6 @@ xma.functional
    xma.functional.rmsnorm
    xma.functional.rnn
    xma.functional.sequence_packing
-   xma.functional.sgd
    xma.functional.softmax
    xma.functional.swiglu
    xma.functional.swiglu_packed
