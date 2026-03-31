@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from itertools import product
+from typing import Callable
 
 import pytest
 import torch
@@ -20,8 +21,14 @@ from ..utils import assert_equal_tensors, get_1d_tensor_sizes, skip_if_incompati
 @pytest.mark.parametrize("horizontal_fusion", [True, False])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
+@pytest.mark.parametrize("function", [sgd, torch.compile(sgd, fullgraph=True)])
 def test_sgd(
-    size: int, dtype: torch.dtype, horizontal_fusion: bool, maximize: bool, kernel_backend: KernelBackend
+    size: int,
+    dtype: torch.dtype,
+    horizontal_fusion: bool,
+    maximize: bool,
+    kernel_backend: KernelBackend,
+    function: Callable,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -30,7 +37,7 @@ def test_sgd(
     grads = [torch.randn(size, device=device, dtype=dtype) for _ in range(3)]
     params_torch = [p.clone() for p in params_triton]
 
-    sgd(
+    function(
         parameters=params_triton,
         gradients=grads,
         lr=1e-3,
