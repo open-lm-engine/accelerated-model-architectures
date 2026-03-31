@@ -6,15 +6,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LOG_WARP_SIZE
 from .single_tensor_kernel import _sgd_step
-
-
-_TORCH_TO_TRITON_DTYPE = {
-    torch.float32: tl.float32,
-    torch.float16: tl.float16,
-    torch.bfloat16: tl.bfloat16,
-}
 
 
 @triton.jit
@@ -36,24 +28,3 @@ def multi_tensor_sgd_triton_kernel(
 
         W = _sgd_step(W=W, dW=dW, lr=lr, MAXIMIZE=MAXIMIZE)
         tl.store(W_ptr + BLOCK, W, mask=MASK)
-
-
-def multi_tensor_sgd_triton(Ws: list[torch.Tensor], dWs: list[torch.Tensor], lr: float, maximize: bool) -> None:
-    device = Ws[0].device
-
-    W_ptr_ptr = torch.tensor([W.data_ptr() for W in Ws], dtype=torch.int64, device=device)
-    dW_ptr_ptr = torch.tensor([dW.data_ptr() for dW in dWs], dtype=torch.int64, device=device)
-    N_ptr = torch.tensor([W.numel() for W in Ws], dtype=torch.int64, device=device)
-
-    NUM_WARPS = 8
-
-    multi_tensor_sgd_triton_kernel[(len(Ws),)](
-        W_ptr_ptr=W_ptr_ptr,
-        dW_ptr_ptr=dW_ptr_ptr,
-        N_ptr=N_ptr,
-        lr=lr,
-        BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // Ws[0].dtype.itemsize),
-        MAXIMIZE=maximize,
-        DTYPE=_TORCH_TO_TRITON_DTYPE[Ws[0].dtype],
-        num_warps=NUM_WARPS,
-    )

@@ -6,7 +6,20 @@ import torch
 from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
 
 from ...accelerator import Accelerator, KernelBackend
-from .triton_implementation import multi_tensor_sgd_triton, single_tensor_sgd_triton
+from ...constants import LOG_WARP_SIZE
+from ...utils import is_triton_available
+
+
+if is_triton_available():
+    import triton.language as tl
+
+    from .triton_implementation import multi_tensor_sgd_triton_kernel, single_tensor_sgd_triton
+
+    _TORCH_TO_TRITON_DTYPE = {
+        torch.float32: tl.float32,
+        torch.float16: tl.float16,
+        torch.bfloat16: tl.bfloat16,
+    }
 
 
 @torch.no_grad()
@@ -26,7 +39,19 @@ def sgd(
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
         if horizontal_fusion:
-            multi_tensor_sgd_triton(Ws=parameters, dWs=gradients, lr=lr, maximize=maximize)
+            device = parameters[0].device
+            NUM_WARPS = 8
+
+            multi_tensor_sgd_triton_kernel[(len(parameters),)](
+                W_ptr_ptr=torch.tensor([W.data_ptr() for W in parameters], dtype=torch.int64, device=device),
+                dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in gradients], dtype=torch.int64, device=device),
+                N_ptr=torch.tensor([W.numel() for W in parameters], dtype=torch.int64, device=device),
+                lr=lr,
+                BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // parameters[0].dtype.itemsize),
+                MAXIMIZE=maximize,
+                DTYPE=_TORCH_TO_TRITON_DTYPE[parameters[0].dtype],
+                num_warps=NUM_WARPS,
+            )
         else:
             for W, dW in zip(parameters, gradients):
                 assert W.is_contiguous()
