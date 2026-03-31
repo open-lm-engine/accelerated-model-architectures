@@ -39,7 +39,7 @@ def test_sgd(
     sgd_torch = SGD(params=params_torch, lr=_LEARNING_RATE, maximize=maximize, foreach=horizontal_fusion)
 
     sgd_kernel.step(kernel_backend=kernel_backend)
-    sgd_torch(kernel_backend=KernelBackend.torch)
+    sgd_torch.step(kernel_backend=KernelBackend.torch)
 
     for p_triton, p_torch in zip(params_kernel, params_torch):
         assert_equal_tensors(
