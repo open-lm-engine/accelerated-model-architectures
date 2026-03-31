@@ -24,9 +24,7 @@ def sgd(
     else:
         assert kernel_backend.verify_accelerator()
 
-    if kernel_backend == KernelBackend.cuda:
-        pass
-    elif kernel_backend == KernelBackend.triton:
+    if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
         if horizontal_fusion:
             sgd_horizontally_fused_triton(Ws=parameters, dWs=gradients, lr=lr, maximize=maximize)
         else:
