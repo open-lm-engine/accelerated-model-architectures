@@ -25,6 +25,9 @@ class SGD(_TorchSGD):
             gradients = []
 
             for p in group["params"]:
+                if p.grad is None:
+                    continue
+
                 parameters.append(p)
                 gradients.append(p.grad)
 
