@@ -40,7 +40,6 @@ def sgd_horizontally_fused_kernel(
 
 def sgd_horizontally_fused_triton(Ws: list[torch.Tensor], dWs: list[torch.Tensor], lr: float, maximize: bool) -> None:
     device = Ws[0].device
-    dtype = Ws[0].dtype.itemsize
 
     W_ptr_ptr = torch.tensor([W.data_ptr() for W in Ws], dtype=torch.int64, device=device)
     dW_ptr_ptr = torch.tensor([dW.data_ptr() for dW in dWs], dtype=torch.int64, device=device)
@@ -53,7 +52,7 @@ def sgd_horizontally_fused_triton(Ws: list[torch.Tensor], dWs: list[torch.Tensor
         dW_ptr_ptr=dW_ptr_ptr,
         N_ptr=N_ptr,
         lr=lr,
-        BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // dtype.itemsize),
+        BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // Ws[0].dtype.itemsize),
         MAXIMIZE=maximize,
         DTYPE=_TORCH_TO_TRITON_DTYPE[Ws[0].dtype],
         num_warps=NUM_WARPS,
