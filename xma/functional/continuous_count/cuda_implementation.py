@@ -65,14 +65,20 @@ class _ContinuousCountCUDAKernel:
         )
 
         vector_size = 128 // sY.element_type.width
+
+        rY = cute.make_rmem_tensor(cute.make_ordered_layout((1, vector_size), order=(1, 0)), sY.element_type)
+        rY.fill(0)
+
+        init_copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), sY.element_type)
+
         for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
             idx = (i * self.BLOCK_SIZE + THREAD_ID) * vector_size
-
-            for _ in cutlass.range_constexpr(vector_size):
-                if idx < self.C:
-                    sY[0, idx] = 0
-
-                idx += 1
+            if idx < self.C:
+                cute.copy(
+                    init_copy_atom,
+                    rY,
+                    cute.local_tile(sY, cute.make_layout(vector_size), (0, i * self.BLOCK_SIZE + THREAD_ID)),
+                )
 
         cute.arch.sync_threads()
 
