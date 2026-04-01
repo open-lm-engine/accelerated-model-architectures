@@ -8,16 +8,17 @@ import math
 
 import torch
 
+import cutlass
 import cutlass.cute as cute
-from cutlass import Boolean, range_constexpr
 
 from ...custom_op import xma_op
 from ...cute_dsl_utils import get_fake_cute_tensor
 
 
 class _ContinuousCountCUDAKernel:
-    def __init__(self, B: int, BLOCK_SIZE: int = 128) -> _ContinuousCountCUDAKernel:
+    def __init__(self, B: int, C: int, BLOCK_SIZE: int = 128) -> _ContinuousCountCUDAKernel:
         self.B = max(B, 4)
+        self.C = C
         self.BLOCK_SIZE = BLOCK_SIZE
 
     @cute.kernel
@@ -43,8 +44,8 @@ class _ContinuousCountCUDAKernel:
         tC = thr_copy.partition_S(bC)
 
         rX = cute.make_rmem_tensor_like(tX)
-        rC = cute.make_rmem_tensor_like(tC, dtype=Boolean)
-        for i in range_constexpr(cute.size(rC)):
+        rC = cute.make_rmem_tensor_like(tC, dtype=cutlass.Boolean)
+        for i in cutlass.range_constexpr(cute.size(rC)):
             rC[i] = cute.elem_less(tC[i], shape)
 
         is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
@@ -54,8 +55,19 @@ class _ContinuousCountCUDAKernel:
         else:
             cute.copy(copy_atom, tX, rX, pred=rC)
 
+        smem_allocator = cutlass.utils.SmemAllocator()
+        sY = smem_allocator.allocate_tensor(
+            gY.element_type, layout=cute.make_ordered_layout((1, self.C), order=(1, 0)), byte_alignment=16
+        )
+        sY.fill(0)
+
+        cute.arch.sync_threads()
+
         x = rX.load()
-        print(x)
+        for i in cutlass.range_constexpr(cute.size(rX)):
+            cute.arch.atomic_add(sY[x[i]], 1, sem="relaxed")
+
+        cute.arch.sync_threads()
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor) -> None:
@@ -101,7 +113,7 @@ def continuous_count_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
 
         _y = get_fake_cute_tensor(dtype=y.dtype, shape=(C,), divisibility=math.gcd(16 // y.dtype.itemsize, C))
 
-        function = _ContinuousCountCUDAKernel(B=B)
+        function = _ContinuousCountCUDAKernel(B=B, C=C)
         function = cute.compile(function, _x, _y, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
