@@ -13,6 +13,7 @@ import cutlass.cute as cute
 
 from ...custom_op import xma_op
 from ...cute_dsl_utils import get_fake_cute_tensor
+from ...math import ceil_divide
 
 
 class _ContinuousCountCUDAKernel:
@@ -20,6 +21,7 @@ class _ContinuousCountCUDAKernel:
         self.B = max(B, 4)
         self.C = C
         self.BLOCK_SIZE = BLOCK_SIZE
+        self.NUM_STORE_LOOPS = ceil_divide(C, BLOCK_SIZE)
 
     @cute.kernel
     def kernel(
@@ -71,9 +73,13 @@ class _ContinuousCountCUDAKernel:
 
         cute.arch.sync_threads()
 
-        for i in cutlass.range_constexpr(self.C):
-            if THREAD_ID == 0:
-                cute.arch.atomic_add(gY.iterator + i, sY[i], sem="relaxed")
+        vector_size = 128 // sY.element_type.width
+        for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
+            index = (i * self.BLOCK_SIZE + THREAD_ID) * vector_size
+            for _ in cutlass.range_constexpr(vector_size):
+                if index < self.C:
+                    cute.arch.atomic_add(gY.iterator + index, sY[index], sem="relaxed")
+                index += 1
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor) -> None:
