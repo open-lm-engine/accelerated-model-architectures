@@ -20,8 +20,6 @@ class _ContinuousCountCUDAKernel:
         gX: cute.Tensor,
         gY: cute.Tensor,
         gC: cute.Tensor,
-        N: int,
-        C: int,
         copy_atom: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
@@ -36,16 +34,33 @@ class _ContinuousCountCUDAKernel:
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor) -> None:
         vector_size = 128 // mX.element_type.width
 
+        Q = 4
+
         thr_layout = cute.make_ordered_layout((1, self.BLOCK_SIZE), order=(1, 0))
-        val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
+        val_layout = cute.make_ordered_layout((Q, vector_size), order=(1, 0))
         tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
         mC = cute.make_identity_tensor(mX.shape)
 
+        cute.recast_tensor()
+        mX = cute.make_tensor(
+            mX.iterator, layout=cute.make_layout(shape=(Q, cute.size(mX) // Q), stride=(cute.size(mX) // Q, 1))
+        )
+        mC = cute.make_tensor(
+            mC.iterator, layout=cute.make_layout(shape=(Q, cute.size(mC) // Q), stride=(cute.size(mC) // Q, 1))
+        )
+        print(mX)
+        print(mC)
+
         gX = cute.zipped_divide(mX, tiler_mn)
         gC = cute.zipped_divide(mC, tiler_mn)
 
-        copy_atom = cute.make_copy_atom(cute.nvgpu.Cop)
+        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX.element_type)
+        tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
+
+        NUM_BLOCKS = cute.Size(gX, mode=[1])
+        kernel = self.kernel(gX=gX, gY=mY, gC=gC, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=gX.shape)
+        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
 
 
 _CACHE = {}
