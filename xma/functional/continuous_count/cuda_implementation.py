@@ -63,7 +63,10 @@ class _ContinuousCountCUDAKernel:
         sY = smem_allocator.allocate_tensor(
             gY.element_type, layout=cute.make_ordered_layout((1, self.C), order=(1, 0)), byte_alignment=16
         )
-        sY.fill(0)
+        for i in cutlass.range_constexpr((self.C + self.BLOCK_SIZE - 1) // self.BLOCK_SIZE):
+            idx = i * self.BLOCK_SIZE + THREAD_ID
+            if idx < self.C:
+                sY[0, idx] = 0
 
         cute.arch.sync_threads()
 
