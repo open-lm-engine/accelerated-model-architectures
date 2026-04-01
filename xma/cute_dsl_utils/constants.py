@@ -4,7 +4,7 @@
 
 import torch
 
-from cutlass import BFloat16, Float16, Float32, Int32, Int64, Numeric
+from cutlass import BFloat16, Float16, Float32, Int32, Int64, Numeric, Uint32
 
 
 _TORCH_DTYPE_TO_CUTE_DTYPE_MAPPING = {
@@ -15,6 +15,7 @@ _TORCH_DTYPE_TO_CUTE_DTYPE_MAPPING = {
     # integer dtypes
     torch.int32: Int32,
     torch.int64: Int64,
+    torch.uint32: Uint32,
 }
 
 
