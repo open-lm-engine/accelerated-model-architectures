@@ -63,7 +63,8 @@ class _ContinuousCountCUDAKernel:
         sY = smem_allocator.allocate_tensor(
             gY.element_type, layout=cute.make_ordered_layout((1, self.C), order=(1, 0)), byte_alignment=16
         )
-        for i in cutlass.range_constexpr((self.C + self.BLOCK_SIZE - 1) // self.BLOCK_SIZE):
+
+        for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
             idx = i * self.BLOCK_SIZE + THREAD_ID
             if idx < self.C:
                 sY[0, idx] = 0
@@ -79,14 +80,13 @@ class _ContinuousCountCUDAKernel:
 
         vector_size = 128 // sY.element_type.width
         for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
-            not_last_loop = i != self.NUM_STORE_LOOPS - 1
+            idx = (i * self.BLOCK_SIZE + THREAD_ID) * vector_size
 
-            index = (i * self.BLOCK_SIZE + THREAD_ID) * vector_size
             for _ in cutlass.range_constexpr(vector_size):
-                if not_last_loop or index < self.C:
-                    cute.arch.atomic_add(gY.iterator + index, sY[index], sem="relaxed")
+                if idx < self.C:
+                    cute.arch.atomic_add(gY.iterator + idx, sY[idx], sem="relaxed")
 
-                index += 1
+                idx += 1
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, stream: cuda.CUstream) -> None:
