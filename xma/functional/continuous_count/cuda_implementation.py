@@ -18,7 +18,7 @@ from ...math import ceil_divide
 
 class _ContinuousCountCUDAKernel:
     def __init__(self, B: int, C: int, BLOCK_SIZE: int = 128) -> _ContinuousCountCUDAKernel:
-        self.B = max(B, 4)
+        self.B = min(B, 4)
         self.C = C
         self.BLOCK_SIZE = BLOCK_SIZE
         self.NUM_STORE_LOOPS = ceil_divide(C, BLOCK_SIZE)
