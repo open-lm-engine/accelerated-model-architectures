@@ -113,7 +113,10 @@ def continuous_count_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
     N = x.numel()
     C = y.numel()
 
-    key = (x.dtype, C)
+    x_div = math.gcd(16 // x.dtype.itemsize, N)
+    y_div = math.gcd(16 // y.dtype.itemsize, C)
+
+    key = (x.dtype, C, x_div, y_div)
     function = _CACHE.get(key, None)
 
     if x.dim() == 1:
@@ -122,11 +125,8 @@ def continuous_count_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
     B = x.size(0)
 
     if function is None:
-        _x = get_fake_cute_tensor(
-            dtype=x.dtype, shape=(B, cute.sym_int()), divisibility=math.gcd(16 // x.dtype.itemsize, N)
-        )
-
-        _y = get_fake_cute_tensor(dtype=y.dtype, shape=(C,), divisibility=math.gcd(16 // y.dtype.itemsize, C))
+        _x = get_fake_cute_tensor(dtype=x.dtype, shape=(B, cute.sym_int()), divisibility=x_div)
+        _y = get_fake_cute_tensor(dtype=y.dtype, shape=(C,), divisibility=y_div)
 
         function = _ContinuousCountCUDAKernel(B=B, C=C)
         function = cute.compile(function, _x, _y, options="--enable-tvm-ffi")
