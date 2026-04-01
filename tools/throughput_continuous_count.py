@@ -14,7 +14,7 @@ torch._functorch.config.donated_buffer = False
 n = 100
 
 kernels = [
-    (continuous_count, KernelBackend.cuda, "triton"),
+    (continuous_count, KernelBackend.cuda, "cuda"),
     (continuous_count, KernelBackend.torch, "torch"),
 ]
 dtypes = [torch.int32, torch.int64]
