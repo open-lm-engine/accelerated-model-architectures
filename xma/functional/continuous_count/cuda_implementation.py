@@ -81,6 +81,7 @@ class _ContinuousCountCUDAKernel:
             for _ in cutlass.range_constexpr(vector_size):
                 if not_last_loop or index < self.C:
                     cute.arch.atomic_add(gY.iterator + index, sY[index], sem="relaxed")
+
                 index += 1
 
     @cute.jit
