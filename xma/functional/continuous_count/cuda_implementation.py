@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 
+import cuda.bindings.driver as cuda
 import torch
 
 import cutlass
@@ -85,7 +86,7 @@ class _ContinuousCountCUDAKernel:
                 index += 1
 
     @cute.jit
-    def __call__(self, mX: cute.Tensor, mY: cute.Tensor) -> None:
+    def __call__(self, mX: cute.Tensor, mY: cute.Tensor, stream: cuda.CUstream) -> None:
         vector_size = 128 // mX.element_type.width
 
         thr_layout = cute.make_ordered_layout((1, self.BLOCK_SIZE), order=(1, 0))
@@ -102,7 +103,7 @@ class _ContinuousCountCUDAKernel:
 
         NUM_BLOCKS = cute.size(gX, mode=[1])
         kernel = self.kernel(gX=gX, gY=mY, gC=gC, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mX.shape)
-        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
+        kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
 
 _CACHE = {}
@@ -123,13 +124,15 @@ def continuous_count_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
         x = x[None, ...]
 
     B = x.size(0)
+    stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
     if function is None:
         _x = get_fake_cute_tensor(dtype=x.dtype, shape=(B, cute.sym_int()), divisibility=x_div)
         _y = get_fake_cute_tensor(dtype=y.dtype, shape=(C,), divisibility=y_div)
 
         function = _ContinuousCountCUDAKernel(B=B, C=C)
-        function = cute.compile(function, _x, _y, options="--enable-tvm-ffi")
+
+        function = cute.compile(function, _x, _y, stream, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
-    function(x, y)
+    function(x, y, stream)
