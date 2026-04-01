@@ -111,6 +111,7 @@ _CACHE = {}
 
 @xma_op(mutates_args={"y"})
 def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+    N = g.size(1)
     div = math.gcd(16 // g.dtype.itemsize, N)
 
     key = (g.dtype, div)
@@ -119,13 +120,10 @@ def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> No
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
     if function is None:
-        N = g.size(1)
 
         _g, _u, _y = [
             get_fake_cute_tensor(
-                dtype=i.dtype,
-                shape=(cute.sym_int(), cute.sym_int(divisibility=divisibility)),
-                divisibility=divisibility,
+                dtype=i.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
             )
             for i in (g, u, y)
         ]
