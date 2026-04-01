@@ -64,10 +64,15 @@ class _ContinuousCountCUDAKernel:
             gY.element_type, layout=cute.make_ordered_layout((1, self.C), order=(1, 0)), byte_alignment=16
         )
 
+        vector_size = 128 // sY.element_type.width
         for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
-            idx = i * self.BLOCK_SIZE + THREAD_ID
-            if idx < self.C:
-                sY[0, idx] = 0
+            idx = (i * self.BLOCK_SIZE + THREAD_ID) * vector_size
+
+            for _ in cutlass.range_constexpr(vector_size):
+                if idx < self.C:
+                    sY[0, idx] = 0
+
+                idx += 1
 
         cute.arch.sync_threads()
 
@@ -78,7 +83,6 @@ class _ContinuousCountCUDAKernel:
 
         cute.arch.sync_threads()
 
-        vector_size = 128 // sY.element_type.width
         for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
             idx = (i * self.BLOCK_SIZE + THREAD_ID) * vector_size
 
