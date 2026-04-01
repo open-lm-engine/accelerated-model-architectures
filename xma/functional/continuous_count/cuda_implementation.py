@@ -46,7 +46,6 @@ class _ContinuousCountCUDAKernel:
 
         mC = cute.make_identity_tensor(mX.shape)
 
-        cute.recast_tensor()
         mX = cute.make_tensor(
             mX.iterator, layout=cute.make_layout(shape=(Q, cute.size(mX) // Q), stride=(cute.size(mX) // Q, 1))
         )
