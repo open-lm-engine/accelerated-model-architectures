@@ -36,7 +36,7 @@ for kernel, kernel_backend, row_header in kernels:
     device = kernel_backend.get_compatible_accelerator().get_current_device()
 
     for dtype in dtypes:
-        x = torch.randn(B, device=device, dtype=dtype)
+        x = torch.randint(B, device=device, dtype=dtype)
         y = kernel(x=x, bins=C, kernel_backend=kernel_backend)
 
         s = torch.cuda.Event(enable_timing=True)
