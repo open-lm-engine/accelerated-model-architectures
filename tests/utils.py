@@ -27,7 +27,7 @@ def get_1d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_
     # not powers of 2
     for _ in range(num_not_powers_of_2):
         sizes.add(3000 + random.randint(-1000, 1000))
-    return sizes
+    return list(sizes)
 
 
 def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50) -> set[int]:
@@ -40,7 +40,7 @@ def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_
     # not powers of 2
     for _ in range(num_not_powers_of_2):
         sizes.add((3000 + random.randint(-1000, 1000), 3000 + random.randint(-1000, 1000)))
-    return sizes
+    return list(sizes)
 
 
 def get_random_duplicated_tensors(
