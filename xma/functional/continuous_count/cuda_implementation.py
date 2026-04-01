@@ -75,9 +75,11 @@ class _ContinuousCountCUDAKernel:
 
         vector_size = 128 // sY.element_type.width
         for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
+            not_last_loop = i != self.NUM_STORE_LOOPS - 1
+
             index = (i * self.BLOCK_SIZE + THREAD_ID) * vector_size
             for _ in cutlass.range_constexpr(vector_size):
-                if index < self.C:
+                if not_last_loop or index < self.C:
                     cute.arch.atomic_add(gY.iterator + index, sY[index], sem="relaxed")
                 index += 1
 
