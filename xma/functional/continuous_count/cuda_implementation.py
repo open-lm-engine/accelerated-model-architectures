@@ -66,10 +66,11 @@ class _ContinuousCountCUDAKernel:
 
         x = rX.load()
 
-        for i in cutlass.range_constexpr(cute.size(rX)):
-            q = sY.iterator + x[i]
-            if is_within_boundary or rC[i]:
-                cute.arch.atomic_add(q, 1, sem="relaxed", scope="cta")
+        if is_within_boundary:
+            for i in cutlass.range_constexpr(cute.size(rX)):
+                q = sY.iterator + x[i]
+                if rC[i]:
+                    cute.arch.atomic_add(q, 1, sem="relaxed", scope="cta")
 
         cute.arch.sync_threads()
 
