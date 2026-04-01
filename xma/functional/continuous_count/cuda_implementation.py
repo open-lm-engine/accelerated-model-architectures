@@ -9,6 +9,7 @@ import math
 import torch
 
 import cutlass.cute as cute
+from cutlass import Boolean, range_constexpr
 
 from ...custom_op import xma_op
 from ...cute_dsl_utils import get_fake_cute_tensor
@@ -31,9 +32,30 @@ class _ContinuousCountCUDAKernel:
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
-        block_coord = (None, BLOCK_ID)
+        block_coord = ((None, None), BLOCK_ID)
 
         bX = gX[block_coord]
+        bC = gC[block_coord]
+
+        thr_copy = tiled_copy.get_slice(THREAD_ID)
+
+        tX = thr_copy.partition_S(bX)
+        tC = thr_copy.partition_S(bC)
+
+        rX = cute.make_rmem_tensor_like(tX)
+        rC = cute.make_rmem_tensor_like(tC, dtype=Boolean)
+        for i in range_constexpr(cute.size(rC)):
+            rC[i] = cute.elem_less(tC[i], shape)
+
+        is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
+
+        if is_within_boundary:
+            cute.copy(copy_atom, tX, rX)
+        else:
+            cute.copy(copy_atom, tX, rX, pred=rC)
+
+        x = rX.load()
+        print(x)
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor) -> None:
@@ -52,7 +74,7 @@ class _ContinuousCountCUDAKernel:
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
 
         NUM_BLOCKS = cute.size(gX, mode=[1])
-        kernel = self.kernel(gX=gX, gY=mY, gC=gC, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=gX.shape)
+        kernel = self.kernel(gX=gX, gY=mY, gC=gC, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mX.shape)
         kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1))
 
 
