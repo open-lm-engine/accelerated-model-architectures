@@ -56,6 +56,7 @@ class _ContinuousCountCUDAKernel:
             cute.copy(copy_atom, tX, rX, pred=rC)
 
         smem_allocator = cutlass.utils.SmemAllocator()
+
         sY = smem_allocator.allocate_tensor(
             gY.element_type, layout=cute.make_ordered_layout((1, self.C), order=(1, 0)), byte_alignment=16
         )
@@ -64,8 +65,11 @@ class _ContinuousCountCUDAKernel:
         cute.arch.sync_threads()
 
         x = rX.load()
+
         for i in cutlass.range_constexpr(cute.size(rX)):
-            cute.arch.atomic_add(sY[x[i]], 1, sem="relaxed")
+            q = sY.iterator + x[i]
+            if is_within_boundary or rC[i]:
+                cute.arch.atomic_add(q, 1, sem="relaxed", scope="cta")
 
         cute.arch.sync_threads()
 
