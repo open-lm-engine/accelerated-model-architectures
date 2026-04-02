@@ -59,7 +59,6 @@ class _ContinuousCountCUDAKernel:
             cute.copy(copy_atom, tX, rX, pred=rC)
 
         sY = self._get_shared_memory(gY.element_type, THREAD_ID)
-        elements_per_thread = 128 // sY.element_type.width
 
         for i in cutlass.range_constexpr(cute.size(rX)):
             xi = rX[i]
