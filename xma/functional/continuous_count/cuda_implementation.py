@@ -68,7 +68,7 @@ class _ContinuousCountCUDAKernel:
 
         cute.arch.sync_threads()
 
-        self._write_out_output(sY=sY, BLOCK_ID=BLOCK_ID, THREAD_ID=THREAD_ID)
+        self._write_out_output(sY=sY, gY=gY, BLOCK_ID=BLOCK_ID, THREAD_ID=THREAD_ID)
 
     @cute.jit
     def _get_shared_memory(self, dtype: cute.Numeric, THREAD_ID: int) -> cute.Tensor:
