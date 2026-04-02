@@ -68,19 +68,10 @@ class _ContinuousCountCUDAKernel:
 
         cute.arch.sync_threads()
 
-        # self._write_out_output(sY=sY, BLOCK_ID=BLOCK_ID, THREAD_ID=THREAD_ID)
-
-        for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
-            idx = (i * self.BLOCK_SIZE + THREAD_ID) * elements_per_thread
-
-            for _ in cutlass.range_constexpr(elements_per_thread):
-                if idx < self.C:
-                    cute.arch.atomic_add(gY.iterator + idx, sY[idx], sem="relaxed")
-
-                idx += 1
+        self._write_out_output(sY=sY, BLOCK_ID=BLOCK_ID, THREAD_ID=THREAD_ID)
 
     @cute.jit
-    def _get_shared_memory(self, dtype: cute.Numeric, THREAD_ID: int) -> None:
+    def _get_shared_memory(self, dtype: cute.Numeric, THREAD_ID: int) -> cute.Tensor:
         elements_per_thread = 128 // dtype.width
         smem_allocator = cutlass.utils.SmemAllocator()
 
@@ -117,13 +108,25 @@ class _ContinuousCountCUDAKernel:
         return sY
 
     @cute.jit
-    def _write_out_output(self, sY: cute.Tensor, BLOCK_ID: int, THREAD_ID: int) -> None:
+    def _write_out_output(self, sY: cute.Tensor, gY: cute.Tensor, BLOCK_ID: int, THREAD_ID: int) -> None:
         dtype = sY.element_type
-        vector_size = 128 // dtype.width
+        elements_per_thread = 128 // dtype.width
 
-        layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
-        rY = cute.local_tile(sY, layout, (0, THREAD_ID))
-        print(rY)
+        for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
+            idx = (i * self.BLOCK_SIZE + THREAD_ID) * elements_per_thread
+
+            for _ in cutlass.range_constexpr(elements_per_thread):
+                if idx < self.C:
+                    cute.arch.atomic_add(gY.iterator + idx, sY[idx], sem="relaxed")
+
+                idx += 1
+
+        # dtype = sY.element_type
+        # vector_size = 128 // dtype.width
+
+        # layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
+        # rY = cute.local_tile(sY, layout, (0, THREAD_ID))
+        # print(rY)
         # rY = cute.make_rmem_tensor(layout, dtype)
 
         # copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), dtype)
