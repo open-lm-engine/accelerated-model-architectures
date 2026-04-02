@@ -76,6 +76,7 @@ class _ContinuousCountCUDAKernel:
         smem_allocator = cutlass.utils.SmemAllocator()
 
         shape = (1, self.C)
+        val_shape = (1, elements_per_thread)
 
         sY = smem_allocator.allocate_tensor(
             dtype, layout=cute.make_ordered_layout(shape, order=(1, 0)), byte_alignment=16
@@ -83,14 +84,15 @@ class _ContinuousCountCUDAKernel:
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), dtype)
 
-        rY = cute.make_rmem_tensor(cute.make_ordered_layout((1, elements_per_thread), order=(1, 0)), sY.element_type)
+        rY = cute.make_rmem_tensor(cute.make_ordered_layout(val_shape, order=(1, 0)), sY.element_type)
         rY.fill(0)
 
         gC = cute.make_identity_tensor(shape)
 
         for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
             idx = i * self.BLOCK_SIZE + THREAD_ID
-            tC = cute.local_tile(gC, (1, elements_per_thread), (0, idx))
+            coord = (0, idx)
+            tC = cute.local_tile(gC, val_shape, coord)
 
             rC = cute.make_rmem_tensor_like(rY, dtype=cutlass.Boolean)
             for j in cutlass.range_constexpr(cute.size(rC)):
@@ -99,9 +101,9 @@ class _ContinuousCountCUDAKernel:
             is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
             if is_within_boundary:
-                cute.copy(copy_atom, rY, cute.local_tile(sY, (1, elements_per_thread), (0, idx)))
+                cute.copy(copy_atom, rY, cute.local_tile(sY, val_shape, coord))
             else:
-                cute.copy(copy_atom, rY, cute.local_tile(sY, (1, elements_per_thread), (0, idx)), pred=rC)
+                cute.copy(copy_atom, rY, cute.local_tile(sY, val_shape, coord), pred=rC)
 
         cute.arch.sync_threads()
 
@@ -112,27 +114,37 @@ class _ContinuousCountCUDAKernel:
         dtype = sY.element_type
         elements_per_thread = 128 // dtype.width
 
+        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), dtype)
+
+        shape = (1, self.C)
+        val_shape = (1, elements_per_thread)
+
+        gC = cute.make_identity_tensor(shape)
+
         for i in cutlass.range_constexpr(self.NUM_STORE_LOOPS):
-            idx = (i * self.BLOCK_SIZE + THREAD_ID) * elements_per_thread
+            idx = i * self.BLOCK_SIZE + THREAD_ID
+            coord = (0, idx)
+            tC = cute.local_tile(gC, val_shape, coord)
 
-            for _ in cutlass.range_constexpr(elements_per_thread):
+            rY = cute.make_rmem_tensor(cute.make_ordered_layout(val_shape, order=(1, 0)), sY.element_type)
+            rC = cute.make_rmem_tensor_like(rY, dtype=cutlass.Boolean)
+            for j in cutlass.range_constexpr(cute.size(rC)):
+                rC[j] = cute.elem_less(tC[j], shape)
+
+            is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
+
+            if is_within_boundary:
+                cute.copy(copy_atom, cute.local_tile(sY, val_shape, coord), rY)
+            else:
+                cute.copy(copy_atom, cute.local_tile(sY, val_shape, coord), rY, pred=rC)
+
+            gidx = idx * elements_per_thread
+
+            for j in cutlass.range_constexpr(elements_per_thread):
                 if idx < self.C:
-                    cute.arch.atomic_add(gY.iterator + idx, sY[idx], sem="relaxed")
+                    cute.arch.atomic_add(gY.iterator + gidx, rY[j], sem="relaxed")
 
-                idx += 1
-
-        # dtype = sY.element_type
-        # vector_size = 128 // dtype.width
-
-        # layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
-        # rY = cute.local_tile(sY, layout, (0, THREAD_ID))
-        # print(rY)
-        # rY = cute.make_rmem_tensor(layout, dtype)
-
-        # copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), dtype)
-        # cute.copy(copy_atom, rY)
-
-        # print(copy_atom)
+                gidx += 1
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, stream: cuda.CUstream) -> None:
