@@ -20,7 +20,7 @@ def compute_p_norm(x, P, P_inv, is_P_inf, eps):
             P_inv = 1 / P
 
         x = tl.abs(x)
-        m = tl.max(x, axis=1)
+        m = tl.max(x, axis=1, keep_dims=True)
         x = x.to(tl.float32)
         x /= m
         x += eps
