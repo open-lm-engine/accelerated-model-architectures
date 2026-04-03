@@ -32,6 +32,5 @@ def compute_p_norm(x, P, P_inv, is_P_inf, eps):
         x *= P_inv
         x = tl.exp2(x)
         x *= m
-        x = tl.view(x, 1)
 
     return x
