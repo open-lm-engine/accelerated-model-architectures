@@ -140,7 +140,7 @@ class _ContinuousCountCUDAKernel:
             gidx = idx * elements_per_thread
 
             for j in cutlass.range_constexpr(elements_per_thread):
-                if idx < self.C:
+                if gidx < self.C:
                     cute.arch.atomic_add(gY.iterator + gidx, rY[j], sem="relaxed")
 
                 gidx += 1
