@@ -177,7 +177,7 @@ def continuous_count_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
     x_div = math.gcd(16 // x.dtype.itemsize, N)
     y_div = math.gcd(16 // y.dtype.itemsize, C)
 
-    key = (x.dtype, C, x_div, y_div)
+    key = (x.dtype, y.dtype, C, x_div, y_div)
     function = _CACHE.get(key, None)
 
     if x.dim() == 1:
