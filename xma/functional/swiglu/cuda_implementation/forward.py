@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 
+import cuda.bindings.driver as cuda
 import torch
 
 import cutlass.cute as cute
@@ -81,7 +82,7 @@ class SwiGLUForwardCUDAKernel:
             cute.copy(copy_atom, rY, tY, pred=rC)
 
     @cute.jit
-    def __call__(self, mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
+    def __call__(self, mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor, stream: cuda.CUstream) -> None:
         vector_size = 128 // mG.element_type.width
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
@@ -101,7 +102,7 @@ class SwiGLUForwardCUDAKernel:
         NUM_BLOCKS = cute.size(gG, mode=[1])
 
         self.kernel(gG=gG, gU=gU, gY=gY, gC=gC, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape).launch(
-            grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1)
+            grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream
         )
 
 
@@ -110,24 +111,24 @@ _CACHE = {}
 
 @xma_op(mutates_args={"y"})
 def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
-    key = g.dtype
+    N = g.size(1)
+    div = math.gcd(16 // g.dtype.itemsize, N)
+
+    key = (g.dtype, div)
     function = _CACHE.get(key, None)
 
-    if function is None:
-        N = g.size(1)
-        divisibility = math.gcd(16 // key.itemsize, N)
+    stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
+    if function is None:
         _g, _u, _y = [
             get_fake_cute_tensor(
-                dtype=i.dtype,
-                shape=(cute.sym_int(), cute.sym_int(divisibility=divisibility)),
-                divisibility=divisibility,
+                dtype=i.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
             )
             for i in (g, u, y)
         ]
 
         function = SwiGLUForwardCUDAKernel()
-        function = cute.compile(function, _g, _u, _y, options="--enable-tvm-ffi")
+        function = cute.compile(function, _g, _u, _y, stream, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
-    function(g, u, y)
+    function(g, u, y, stream)

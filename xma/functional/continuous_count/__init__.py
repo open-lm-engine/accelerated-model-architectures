@@ -36,12 +36,12 @@ def continuous_count(x: torch.Tensor, bins: int, *, kernel_backend: KernelBacken
     else:
         assert kernel_backend.verify_accelerator()
 
-    if kernel_backend == KernelBackend.torch:
-        output = x.bincount(minlength=bins).to(torch.uint32)
-    elif kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        output = torch.empty(bins, dtype=torch.uint32, device=x.device)
-        continuous_count_cuda(x=x, output=output, E=bins, THREAD_BLOCK_CLUSTER_SIZE=1, BLOCK_SIZE=1024)
+    if kernel_backend == KernelBackend.cuda:
+        y = torch.zeros(bins, dtype=torch.uint32, device=x.device)
+        continuous_count_cuda(x=x, y=y)
+    elif kernel_backend == KernelBackend.torch:
+        y = x.bincount(minlength=bins).to(torch.uint32)
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return output
+    return y
