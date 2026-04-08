@@ -55,9 +55,7 @@ def p_norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p:
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
-
-    p_norm_triton_kernel[GRID](
+    p_norm_triton_kernel[B,](
         x_ptr=x,
         x_stride=x.stride(),
         y_ptr=y,

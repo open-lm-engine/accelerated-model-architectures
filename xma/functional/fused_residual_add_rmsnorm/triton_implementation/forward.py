@@ -87,9 +87,7 @@ def fused_residual_add_rmsnorm_forward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
-
-    fused_residual_add_rmsnorm_forward_triton_kernel[GRID](
+    fused_residual_add_rmsnorm_forward_triton_kernel[B,](
         x_ptr=x,
         x_stride=x.stride(),
         r_ptr=r,
