@@ -46,14 +46,15 @@ def _generate_args(function: Callable, add_mps: bool) -> list:
         )
     )
 
-    args += list(
-        product(
-            [(4100, 3700)],
-            [torch.float32, torch.float16, torch.bfloat16],
-            [KernelBackend.mps],
-            [function, torch.compile(function, fullgraph=True)],
+    if add_mps:
+        args += list(
+            product(
+                [(4100, 3700)],
+                [torch.float32, torch.float16, torch.bfloat16],
+                [KernelBackend.mps],
+                [function, torch.compile(function, fullgraph=True)],
+            )
         )
-    )
 
     return args
 
