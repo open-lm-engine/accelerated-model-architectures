@@ -69,5 +69,6 @@ def p_norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p:
         is_P_inf=is_p_inf,
         P=p,
         P_inv=None if is_p_inf else 1 / p,
+        BLOCK_SIZE_B=1,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
     )
