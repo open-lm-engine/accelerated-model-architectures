@@ -49,7 +49,7 @@ static at::native::mps::MetalShaderLibrary& get_library() {
 
 // swiglu_forward_mps: the main entry point called from Python.
 // Dispatches the Metal kernel to compute y = u * g * sigmoid(g) element-wise.
-void swiglu_forward_mps(const torch::Tensor& g, const torch::Tensor& u, torch::Tensor& y) {
+void _swiglu_forward_mps(const torch::Tensor& g, const torch::Tensor& u, torch::Tensor& y) {
     // Validate that all tensors live on the MPS device (Apple GPU)
     TORCH_CHECK(g.is_mps() && u.is_mps() && y.is_mps(), "all tensors must be on MPS device");
     // Metal kernels index by thread ID into flat memory, so tensors must be contiguous
@@ -97,7 +97,7 @@ void swiglu_forward_mps(const torch::Tensor& g, const torch::Tensor& u, torch::T
 // swiglu_backward_mps: backward pass entry point called from Python.
 // Computes gradients: dg = dy * u * (sigmoid(g) + silu(g) * (1 - sigmoid(g)))
 //                     du = dy * silu(g)
-void swiglu_backward_mps(
+void _swiglu_backward_mps(
     const torch::Tensor& g, const torch::Tensor& u, const torch::Tensor& dy, torch::Tensor& dg, torch::Tensor& du) {
     TORCH_CHECK(g.is_mps() && u.is_mps() && dy.is_mps() && dg.is_mps() && du.is_mps(),
                 "all tensors must be on MPS device");
@@ -133,6 +133,6 @@ void swiglu_backward_mps(
 // It creates a Python module and exposes our C++ functions as callable Python functions.
 // TORCH_EXTENSION_NAME is a macro set by the build system to the module name we specified.
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("swiglu_forward_mps", &swiglu_forward_mps, "SwiGLU forward (MPS)");
-    m.def("swiglu_backward_mps", &swiglu_backward_mps, "SwiGLU backward (MPS)");
+    m.def("_swiglu_forward_mps", &_swiglu_forward_mps, "SwiGLU forward (MPS)");
+    m.def("_swiglu_backward_mps", &_swiglu_backward_mps, "SwiGLU backward (MPS)");
 }

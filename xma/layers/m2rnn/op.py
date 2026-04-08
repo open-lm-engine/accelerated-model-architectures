@@ -14,7 +14,7 @@ from .utils import _get_num_heads
 
 
 if is_triton_available():
-    from .triton_implementation import m2rnn_backward_triton, m2rnn_forward_triton
+    from .triton_implementation import _m2rnn_backward_triton, _m2rnn_forward_triton
 
 
 class _M2RNN(CustomOp):
@@ -136,7 +136,7 @@ class _M2RNN(CustomOp):
         y_shape[-2] = N
         y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
 
-        m2rnn_forward_triton(
+        _m2rnn_forward_triton(
             q=q,
             k=k,
             v=v,
@@ -178,7 +178,7 @@ class _M2RNN(CustomOp):
             T, _, K = q.size()
             h = torch.empty(T, N, K, V, dtype=q.dtype, device=q.device)
 
-        m2rnn_forward_triton(
+        _m2rnn_forward_triton(
             q=None,
             k=k,
             v=v,
@@ -206,7 +206,7 @@ class _M2RNN(CustomOp):
         dxf = (empty_like_contiguous if Nxf == N else function)(xf)
         dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 
-        m2rnn_backward_triton(
+        _m2rnn_backward_triton(
             q=q,
             k=k,
             v=v,

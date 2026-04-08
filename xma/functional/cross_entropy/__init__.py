@@ -11,7 +11,7 @@ from ...utils import empty_like_contiguous, is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import cross_entropy_forward_backward_triton
+    from .triton_implementation import _cross_entropy_forward_backward_triton
 
 
 class _CrossEntropy(CustomOp):
@@ -40,7 +40,7 @@ class _CrossEntropy(CustomOp):
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
         x_grad = empty_like_contiguous(x) if ctx_needs_gradients(ctx) else None
 
-        cross_entropy_forward_backward_triton(
+        _cross_entropy_forward_backward_triton(
             x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
         )
 

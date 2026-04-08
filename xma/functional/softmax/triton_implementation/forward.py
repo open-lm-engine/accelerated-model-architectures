@@ -22,7 +22,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def softmax_forward_triton_kernel(
+def _softmax_forward_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -72,7 +72,7 @@ def _get_online_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_online_autotune_configs(), key=[])
 @triton.jit
-def online_softmax_forward_triton_kernel(
+def _online_softmax_forward_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -166,11 +166,11 @@ def _autotuned_softmax_forward_triton(
     }
 
     if use_online_softmax:
-        online_softmax_forward_triton_kernel[GRID](**kwargs)
+        _online_softmax_forward_triton_kernel[GRID](**kwargs)
     else:
-        softmax_forward_triton_kernel[GRID](**kwargs, BLOCK_SIZE_H=get_next_power_of_2(H))
+        _softmax_forward_triton_kernel[GRID](**kwargs, BLOCK_SIZE_H=get_next_power_of_2(H))
 
 
 @xma_op(mutates_args={"y"})
-def softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
+def _softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
     _autotuned_softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)

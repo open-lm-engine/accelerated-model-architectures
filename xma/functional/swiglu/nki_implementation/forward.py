@@ -10,7 +10,7 @@ from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
-def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
+def _swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
@@ -40,7 +40,7 @@ _CACHE = {}
 
 
 @xma_op(mutates_args={"y"})
-def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+def _swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
@@ -51,7 +51,7 @@ def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> Non
 
     if kernel is None:
         kernel = TorchNeuronNKIKernel(
-            func=swiglu_forward_nki_kernel,
+            func=_swiglu_forward_nki_kernel,
             grid=(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)),
             kernel_return=False,
             return_tensor_overrides=(y,),

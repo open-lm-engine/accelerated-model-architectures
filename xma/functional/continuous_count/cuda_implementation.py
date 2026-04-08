@@ -170,7 +170,7 @@ _CACHE = {}
 
 
 @xma_op(mutates_args={"y"})
-def continuous_count_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
+def _continuous_count_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
     N = x.numel()
     C = y.numel()
 

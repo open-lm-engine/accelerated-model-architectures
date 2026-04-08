@@ -15,7 +15,7 @@ from ..utils import _get_num_heads
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
-def gru_forward_triton_kernel(
+def _gru_forward_triton_kernel(
     x_ptr,
     x_stride,
     xf_ptr,
@@ -162,7 +162,7 @@ def gru_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"f", "r", "z", "y"})
-def gru_forward_triton(
+def _gru_forward_triton(
     x: torch.Tensor,
     W: torch.Tensor,
     xf: torch.Tensor,
@@ -191,7 +191,7 @@ def gru_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), N)
 
-    gru_forward_triton_kernel[GRID](
+    _gru_forward_triton_kernel[GRID](
         x_ptr=x,
         x_stride=x.stride(),
         xf_ptr=xf,

@@ -9,11 +9,11 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...utils import is_triton_available
-from .cuda_implementation import pack_unpack_sequence_cuda
+from .cuda_implementation import _pack_unpack_sequence_cuda
 
 
 if is_triton_available():
-    from .triton_implementation import pack_unpack_sequence_triton
+    from .triton_implementation import _pack_unpack_sequence_triton
 
 
 class _PackSequence(CustomOp):
@@ -59,11 +59,11 @@ class _PackSequence(CustomOp):
         y = torch.empty(output_shape, device=x.device, dtype=x.dtype)
 
         if kernel_backend == KernelBackend.cuda:
-            pack_unpack_sequence_cuda(
+            _pack_unpack_sequence_cuda(
                 x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True, BLOCK_SIZE=1024
             )
         elif kernel_backend == KernelBackend.triton:
-            pack_unpack_sequence_triton(x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
+            _pack_unpack_sequence_triton(x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
         else:
             raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
@@ -79,7 +79,7 @@ class _PackSequence(CustomOp):
         if kernel_backend == KernelBackend.cuda:
             dy = dy.contiguous()
 
-            pack_unpack_sequence_cuda(
+            _pack_unpack_sequence_cuda(
                 x=dy,
                 output=dx,
                 cu_seqlens=cu_seqlens,
@@ -88,7 +88,7 @@ class _PackSequence(CustomOp):
                 BLOCK_SIZE=1024,
             )
         elif kernel_backend == KernelBackend.triton:
-            pack_unpack_sequence_triton(
+            _pack_unpack_sequence_triton(
                 x=dy, output=dx, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=False
             )
         else:
@@ -143,11 +143,11 @@ class _UnpackSequence(CustomOp):
         y = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
 
         if kernel_backend == KernelBackend.cuda:
-            pack_unpack_sequence_cuda(
+            _pack_unpack_sequence_cuda(
                 x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False, BLOCK_SIZE=1024
             )
         elif kernel_backend == KernelBackend.triton:
-            pack_unpack_sequence_triton(x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False)
+            _pack_unpack_sequence_triton(x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False)
         else:
             raise ValueError(f"unexpected padding_side ({padding_side})")
 
@@ -164,7 +164,7 @@ class _UnpackSequence(CustomOp):
         if kernel_backend == KernelBackend.cuda:
             dy = dy.contiguous()
 
-            pack_unpack_sequence_cuda(
+            _pack_unpack_sequence_cuda(
                 x=dy,
                 output=dx,
                 cu_seqlens=cu_seqlens,
@@ -173,7 +173,7 @@ class _UnpackSequence(CustomOp):
                 BLOCK_SIZE=1024,
             )
         elif kernel_backend == KernelBackend.triton:
-            pack_unpack_sequence_triton(x=dy, output=dx, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
+            _pack_unpack_sequence_triton(x=dy, output=dx, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
         else:
             raise ValueError(f"unexpected padding_side ({padding_side})")
 

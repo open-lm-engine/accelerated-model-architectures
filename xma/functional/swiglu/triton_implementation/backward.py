@@ -14,7 +14,7 @@ from .forward import _get_autotune_configs
 
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def swiglu_backward_triton_kernel(
+def _swiglu_backward_triton_kernel(
     g_ptr,
     g_stride,
     u_ptr,
@@ -56,13 +56,13 @@ def swiglu_backward_triton_kernel(
 
 
 @xma_op(mutates_args={"dg", "du"})
-def swiglu_backward_triton(
+def _swiglu_backward_triton(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
     B, H = g.size()
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
-    swiglu_backward_triton_kernel[GRID](
+    _swiglu_backward_triton_kernel[GRID](
         g_ptr=g,
         g_stride=g.stride(),
         u_ptr=u,

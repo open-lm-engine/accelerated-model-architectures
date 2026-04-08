@@ -10,7 +10,7 @@ from ...custom_op import xma_op
 
 
 @triton.jit
-def pack_unpack_sequence_triton_kernel(
+def _pack_unpack_sequence_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -57,7 +57,7 @@ def pack_unpack_sequence_triton_kernel(
 
 
 @xma_op(mutates_args={"output"})
-def pack_unpack_sequence_triton(
+def _pack_unpack_sequence_triton(
     x: torch.Tensor, output: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
 ) -> None:
     if pack:
@@ -70,7 +70,7 @@ def pack_unpack_sequence_triton(
     BLOCK_SIZE = 4096
     NUM_WARPS = 32
 
-    pack_unpack_sequence_triton_kernel[S, B](
+    _pack_unpack_sequence_triton_kernel[S, B](
         x_ptr=x,
         x_stride=x.stride(),
         y_ptr=output,

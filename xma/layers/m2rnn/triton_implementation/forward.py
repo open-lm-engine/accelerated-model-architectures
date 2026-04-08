@@ -33,7 +33,7 @@ def _forward_single_step(h_prev, W, k, v, f):
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_K", "BLOCK_SIZE_V"])
 @triton.jit
-def m2rnn_forward_triton_kernel(
+def _m2rnn_forward_triton_kernel(
     q_ptr,
     q_stride,
     k_ptr,
@@ -174,7 +174,7 @@ def m2rnn_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"h", "ht", "y"})
-def m2rnn_forward_triton(
+def _m2rnn_forward_triton(
     q: torch.Tensor | None,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -208,7 +208,7 @@ def m2rnn_forward_triton(
     BLOCK_SIZE_V = get_next_power_of_2(V)
     BLOCK_SIZE_V = max(16, BLOCK_SIZE_V)
 
-    m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
+    _m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
         q_ptr=q,
         q_stride=None if q is None else q.stride(),
         k_ptr=k,

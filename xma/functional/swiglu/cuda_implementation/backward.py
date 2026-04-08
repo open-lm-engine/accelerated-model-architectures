@@ -149,7 +149,7 @@ _CACHE = {}
 
 
 @xma_op(mutates_args={"dg", "du"})
-def swiglu_backward_cuda(
+def _swiglu_backward_cuda(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
     N = g.size(1)

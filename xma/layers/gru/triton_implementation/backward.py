@@ -19,7 +19,7 @@ from .forward import _get_autotune_configs
     reset_to_zero=["dx_ptr", "dxf_ptr", "dxr_ptr", "dW_ptr", "dWf_ptr", "dWr_ptr"],
 )
 @triton.jit
-def gru_backward_triton_kernel(
+def _gru_backward_triton_kernel(
     x_ptr,
     x_stride,
     W_ptr,
@@ -362,7 +362,7 @@ def gru_backward_triton_kernel(
 
 
 @xma_op(mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW", "dh0"})
-def gru_backward_triton(
+def _gru_backward_triton(
     x: torch.Tensor | None,
     W: torch.Tensor,
     y: torch.Tensor,
@@ -401,7 +401,7 @@ def gru_backward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), N)
 
-    gru_backward_triton_kernel[GRID](
+    _gru_backward_triton_kernel[GRID](
         x_ptr=x,
         x_stride=None if x is None else x.stride(),
         W_ptr=W,

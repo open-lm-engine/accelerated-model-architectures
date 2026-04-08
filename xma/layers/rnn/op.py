@@ -13,7 +13,7 @@ from ...utils import empty_like_contiguous, is_triton_available, zeros_like_cont
 
 
 if is_triton_available():
-    from .triton_implementation import rnn_backward_triton, rnn_forward_triton
+    from .triton_implementation import _rnn_backward_triton, _rnn_forward_triton
 
 
 def _get_num_heads(x: torch.Tensor, W: torch.Tensor, run_check: bool) -> tuple[int, int, int]:
@@ -107,7 +107,7 @@ class _RNN(CustomOp):
 
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
 
-        rnn_forward_triton(
+        _rnn_forward_triton(
             x=x,
             W=W,
             h0=h0,
@@ -143,7 +143,7 @@ class _RNN(CustomOp):
         dW = zeros_like_contiguous(W, dtype=torch.float32)
         dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 
-        rnn_backward_triton(
+        _rnn_backward_triton(
             W=W,
             y=y,
             h0=h0,

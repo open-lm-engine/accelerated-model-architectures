@@ -10,7 +10,7 @@ from ....jit import cpp_jit
 
 @xma_op(mutates_args={"output"})
 @cpp_jit(is_cuda=True)
-def pack_unpack_sequence_cuda(
+def _pack_unpack_sequence_cuda(
     x: torch.Tensor,
     output: torch.Tensor,
     cu_seqlens: torch.Tensor,
