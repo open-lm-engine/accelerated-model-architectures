@@ -12,7 +12,7 @@ from .utils import _get_num_heads
 
 
 if is_triton_available():
-    from .triton_implementation import gru_backward_triton, gru_forward_triton
+    from .triton_implementation import _gru_backward_triton, _gru_forward_triton
 
 
 def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
@@ -144,7 +144,7 @@ class _GRU(CustomOp):
         r = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxr == N else None
         z = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nx == N else None
 
-        gru_forward_triton(
+        _gru_forward_triton(
             x=x,
             W=W,
             xf=xf,
@@ -200,7 +200,7 @@ class _GRU(CustomOp):
 
         dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 
-        gru_backward_triton(
+        _gru_backward_triton(
             x=x,
             W=W,
             y=y,
