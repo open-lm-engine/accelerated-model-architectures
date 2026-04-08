@@ -14,7 +14,7 @@ from .utils import _get_num_heads
 
 
 if is_triton_available():
-    from .triton_implementation import linear_attention_forward_triton
+    from .triton_implementation import _linear_attention_forward_triton
 
 
 class _LinearAttention(CustomOp):
@@ -109,7 +109,7 @@ class _LinearAttention(CustomOp):
             else None
         )
 
-        linear_attention_forward_triton(
+        _linear_attention_forward_triton(
             q=q,
             k=k,
             v=v,
