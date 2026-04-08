@@ -11,7 +11,7 @@ from ...utils import empty_like_contiguous, is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import softmax_backward_triton, softmax_forward_triton
+    from .triton_implementation import _softmax_backward_triton, _softmax_forward_triton
 
 
 class _Softmax(CustomOp):
@@ -34,7 +34,7 @@ class _Softmax(CustomOp):
 
         y = empty_like_contiguous(x)
 
-        softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
+        _softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
 
         ctx_save_for_backward(ctx, y)
         ctx.logits_multiplier = logits_multiplier
@@ -46,7 +46,7 @@ class _Softmax(CustomOp):
         y = ctx.saved_tensors[0]
         dx = empty_like_contiguous(y)
 
-        softmax_backward_triton(y=y, dy=dy, dx=dx, logits_multiplier=ctx.logits_multiplier)
+        _softmax_backward_triton(y=y, dy=dy, dx=dx, logits_multiplier=ctx.logits_multiplier)
 
         return dx, None, None
 
