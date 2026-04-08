@@ -13,7 +13,7 @@ from ....math import get_next_power_of_2, get_powers_of_2
 
 @triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 16)], key=[])
 @triton.jit
-def fused_residual_add_rmsnorm_forward_triton_kernel(
+def _fused_residual_add_rmsnorm_forward_triton_kernel(
     x_ptr,
     x_stride,
     r_ptr,
@@ -72,7 +72,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"y", "xr", "s"})
-def fused_residual_add_rmsnorm_forward_triton(
+def _fused_residual_add_rmsnorm_forward_triton(
     x: torch.Tensor,
     r: torch.Tensor | None,
     W: torch.Tensor | None,
@@ -87,7 +87,7 @@ def fused_residual_add_rmsnorm_forward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    fused_residual_add_rmsnorm_forward_triton_kernel[B,](
+    _fused_residual_add_rmsnorm_forward_triton_kernel[B,](
         x_ptr=x,
         x_stride=x.stride(),
         r_ptr=r,

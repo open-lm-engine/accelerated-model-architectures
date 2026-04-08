@@ -12,8 +12,8 @@ from ...utils import empty_like_contiguous, is_triton_available
 
 if is_triton_available():
     from .triton_implementation import (
-        fused_residual_add_rmsnorm_backward_triton,
-        fused_residual_add_rmsnorm_forward_triton,
+        _fused_residual_add_rmsnorm_backward_triton,
+        _fused_residual_add_rmsnorm_forward_triton,
     )
 
 
@@ -37,7 +37,7 @@ def fused_residual_add_rmsnorm_forward(
     xr = None if r is None else empty_like_contiguous(x)
     s = torch.empty(B, device=x.device, dtype=torch.float32) if output_std else None
 
-    fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
+    _fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
 
     return y, xr, s
 
@@ -64,7 +64,7 @@ def fused_residual_add_rmsnorm_backward(
     if not has_residual:
         assert dxr is None
 
-    fused_residual_add_rmsnorm_backward_triton(
+    _fused_residual_add_rmsnorm_backward_triton(
         xr=xr,
         W=W,
         dy=dy,

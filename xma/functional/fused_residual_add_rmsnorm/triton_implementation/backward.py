@@ -23,7 +23,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def fused_residual_add_rmsnorm_backward_triton_kernel(
+def _fused_residual_add_rmsnorm_backward_triton_kernel(
     xr_ptr,
     xr_stride,
     W_ptr,
@@ -114,7 +114,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
 
 @xma_op(mutates_args={"dx", "dr", "dW"})
-def fused_residual_add_rmsnorm_backward_triton(
+def _fused_residual_add_rmsnorm_backward_triton(
     xr: torch.Tensor,
     W: torch.Tensor | None,
     dy: torch.Tensor,
@@ -137,7 +137,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     else:
         GRID = (dW.size(0),)
 
-    fused_residual_add_rmsnorm_backward_triton_kernel[GRID](
+    _fused_residual_add_rmsnorm_backward_triton_kernel[GRID](
         xr_ptr=xr,
         xr_stride=None if xr is None else xr.stride(),
         W_ptr=W,
