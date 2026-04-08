@@ -276,8 +276,8 @@
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-        <span class="n">fused_residual_add_rmsnorm_backward_triton</span><span class="p">,</span>
-        <span class="n">fused_residual_add_rmsnorm_forward_triton</span><span class="p">,</span>
+        <span class="n">_fused_residual_add_rmsnorm_backward_triton</span><span class="p">,</span>
+        <span class="n">_fused_residual_add_rmsnorm_forward_triton</span><span class="p">,</span>
     <span class="p">)</span>
 
 
@@ -328,7 +328,7 @@
         <span class="k">if</span> <span class="n">ctx_needs_gradients</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">memory_efficient</span><span class="p">:</span>
             <span class="n">s</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
-        <span class="n">fused_residual_add_rmsnorm_forward_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">_fused_residual_add_rmsnorm_forward_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
 
         <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">xr</span> <span class="k">if</span> <span class="n">has_residual</span> <span class="k">else</span> <span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
         <span class="n">ctx</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">eps</span>
@@ -356,7 +356,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">has_residual</span><span class="p">:</span>
             <span class="k">assert</span> <span class="n">dxr</span> <span class="ow">is</span> <span class="kc">None</span>
 
-        <span class="n">fused_residual_add_rmsnorm_backward_triton</span><span class="p">(</span>
+        <span class="n">_fused_residual_add_rmsnorm_backward_triton</span><span class="p">(</span>
             <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span>
             <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span>
             <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span>

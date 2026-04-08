@@ -278,7 +278,7 @@
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">linear_attention_forward_triton</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_linear_attention_forward_triton</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_LinearAttention</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>
@@ -373,7 +373,7 @@
             <span class="k">else</span> <span class="kc">None</span>
         <span class="p">)</span>
 
-        <span class="n">linear_attention_forward_triton</span><span class="p">(</span>
+        <span class="n">_linear_attention_forward_triton</span><span class="p">(</span>
             <span class="n">q</span><span class="o">=</span><span class="n">q</span><span class="p">,</span>
             <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
             <span class="n">v</span><span class="o">=</span><span class="n">v</span><span class="p">,</span>

@@ -273,11 +273,11 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">KernelBackend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...custom_op</span><span class="w"> </span><span class="kn">import</span> <span class="n">CustomOp</span><span class="p">,</span> <span class="n">ctx_save_for_backward</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_triton_available</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.cuda_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">pack_unpack_sequence_cuda</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.cuda_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_pack_unpack_sequence_cuda</span>
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">pack_unpack_sequence_triton</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_pack_unpack_sequence_triton</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_PackSequence</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>
@@ -323,11 +323,11 @@
         <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">output_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
-            <span class="n">pack_unpack_sequence_cuda</span><span class="p">(</span>
+            <span class="n">_pack_unpack_sequence_cuda</span><span class="p">(</span>
                 <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">BLOCK_SIZE</span><span class="o">=</span><span class="mi">1024</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">:</span>
-            <span class="n">pack_unpack_sequence_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">_pack_unpack_sequence_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected kernel_backend (</span><span class="si">{</span><span class="n">kernel_backend</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
@@ -343,7 +343,7 @@
         <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
             <span class="n">dy</span> <span class="o">=</span> <span class="n">dy</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
 
-            <span class="n">pack_unpack_sequence_cuda</span><span class="p">(</span>
+            <span class="n">_pack_unpack_sequence_cuda</span><span class="p">(</span>
                 <span class="n">x</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span>
                 <span class="n">output</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span>
                 <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span>
@@ -352,7 +352,7 @@
                 <span class="n">BLOCK_SIZE</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">:</span>
-            <span class="n">pack_unpack_sequence_triton</span><span class="p">(</span>
+            <span class="n">_pack_unpack_sequence_triton</span><span class="p">(</span>
                 <span class="n">x</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">False</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -407,11 +407,11 @@
         <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="o">*</span><span class="n">output_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
-            <span class="n">pack_unpack_sequence_cuda</span><span class="p">(</span>
+            <span class="n">_pack_unpack_sequence_cuda</span><span class="p">(</span>
                 <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">BLOCK_SIZE</span><span class="o">=</span><span class="mi">1024</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">:</span>
-            <span class="n">pack_unpack_sequence_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">_pack_unpack_sequence_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected padding_side (</span><span class="si">{</span><span class="n">padding_side</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
@@ -428,7 +428,7 @@
         <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
             <span class="n">dy</span> <span class="o">=</span> <span class="n">dy</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
 
-            <span class="n">pack_unpack_sequence_cuda</span><span class="p">(</span>
+            <span class="n">_pack_unpack_sequence_cuda</span><span class="p">(</span>
                 <span class="n">x</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span>
                 <span class="n">output</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span>
                 <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span>
@@ -437,7 +437,7 @@
                 <span class="n">BLOCK_SIZE</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">:</span>
-            <span class="n">pack_unpack_sequence_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">_pack_unpack_sequence_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="o">=</span><span class="n">cu_seqlens</span><span class="p">,</span> <span class="n">padding_side</span><span class="o">=</span><span class="n">padding_side</span><span class="p">,</span> <span class="n">pack</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected padding_side (</span><span class="si">{</span><span class="n">padding_side</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 

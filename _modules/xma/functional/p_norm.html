@@ -273,7 +273,7 @@
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">p_norm_triton</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_p_norm_triton</span>
 
 
 <div class="viewcode-block" id="p_norm">
@@ -315,7 +315,7 @@
         <span class="n">is_p_inf</span> <span class="o">=</span> <span class="n">p</span> <span class="o">==</span> <span class="s2">&quot;inf&quot;</span>
 
         <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">output_dtype</span><span class="p">)</span>
-        <span class="n">p_norm_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">is_p_inf</span> <span class="k">else</span> <span class="n">p</span><span class="p">,</span> <span class="n">is_p_inf</span><span class="o">=</span><span class="n">is_p_inf</span><span class="p">)</span>
+        <span class="n">_p_norm_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">is_p_inf</span> <span class="k">else</span> <span class="n">p</span><span class="p">,</span> <span class="n">is_p_inf</span><span class="o">=</span><span class="n">is_p_inf</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">torch</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">multiplier</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
             <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">multiplier</span>

@@ -273,7 +273,7 @@
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">bmm_triton</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_bmm_triton</span>
 
 
 <div class="viewcode-block" id="bmm">
@@ -349,7 +349,7 @@
     <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="ow">in</span> <span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">,</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">]:</span>
         <span class="n">D</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">A</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">A</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
-        <span class="n">bmm_triton</span><span class="p">(</span>
+        <span class="n">_bmm_triton</span><span class="p">(</span>
             <span class="n">A</span><span class="o">=</span><span class="n">A</span><span class="p">,</span>
             <span class="n">B</span><span class="o">=</span><span class="n">B</span><span class="p">,</span>
             <span class="n">C</span><span class="o">=</span><span class="n">C</span><span class="p">,</span>

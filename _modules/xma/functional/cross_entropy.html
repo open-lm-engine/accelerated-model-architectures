@@ -275,7 +275,7 @@
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">cross_entropy_forward_backward_triton</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_cross_entropy_forward_backward_triton</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_CrossEntropy</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>
@@ -304,7 +304,7 @@
         <span class="n">loss</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((),</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="n">x_grad</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="n">ctx_needs_gradients</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
 
-        <span class="n">cross_entropy_forward_backward_triton</span><span class="p">(</span>
+        <span class="n">_cross_entropy_forward_backward_triton</span><span class="p">(</span>
             <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">x_grad</span><span class="o">=</span><span class="n">x_grad</span><span class="p">,</span> <span class="n">logits_multiplier</span><span class="o">=</span><span class="n">logits_multiplier</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="n">reduction</span>
         <span class="p">)</span>
 

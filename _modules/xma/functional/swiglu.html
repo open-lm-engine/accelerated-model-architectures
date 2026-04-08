@@ -278,20 +278,29 @@
     <span class="n">is_torch_xla_available</span><span class="p">,</span>
     <span class="n">is_triton_available</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.mps_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">swiglu_backward_mps</span><span class="p">,</span> <span class="n">swiglu_forward_mps</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.mps_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_swiglu_backward_mps</span><span class="p">,</span> <span class="n">_swiglu_forward_mps</span>
+
+
+<span class="n">_FUNCTIONS</span> <span class="o">=</span> <span class="p">{</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">mps</span><span class="p">:</span> <span class="p">(</span><span class="n">_swiglu_forward_mps</span><span class="p">,</span> <span class="n">_swiglu_backward_mps</span><span class="p">)}</span>
 
 
 <span class="k">if</span> <span class="n">is_cute_dsl_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.cuda_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">swiglu_backward_cuda</span><span class="p">,</span> <span class="n">swiglu_forward_cuda</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.cuda_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_swiglu_backward_cuda</span><span class="p">,</span> <span class="n">_swiglu_forward_cuda</span>
+
+    <span class="n">_FUNCTIONS</span><span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">_swiglu_forward_cuda</span><span class="p">,</span> <span class="n">_swiglu_backward_cuda</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="n">is_torch_neuronx_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.nki_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">swiglu_backward_nki</span><span class="p">,</span> <span class="n">swiglu_forward_nki</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.nki_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_swiglu_backward_nki</span><span class="p">,</span> <span class="n">_swiglu_forward_nki</span>
+
+    <span class="n">_FUNCTIONS</span><span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">nki</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">_swiglu_forward_nki</span><span class="p">,</span> <span class="n">_swiglu_backward_nki</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="n">is_torch_xla_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.pallas_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">swiglu_backward_pallas</span><span class="p">,</span> <span class="n">swiglu_forward_pallas</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.pallas_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_swiglu_backward_pallas</span><span class="p">,</span> <span class="n">_swiglu_forward_pallas</span>
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">swiglu_backward_triton</span><span class="p">,</span> <span class="n">swiglu_forward_triton</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_swiglu_backward_triton</span><span class="p">,</span> <span class="n">_swiglu_forward_triton</span>
+
+    <span class="n">_FUNCTIONS</span><span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">_swiglu_forward_triton</span><span class="p">,</span> <span class="n">_swiglu_backward_triton</span><span class="p">)</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_Swiglu</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>
@@ -318,20 +327,13 @@
         <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">pallas</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">swiglu_forward_pallas</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_swiglu_forward_pallas</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">)</span>
 
         <span class="n">y</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
-            <span class="n">swiglu_forward_cuda</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">mps</span><span class="p">:</span>
-            <span class="n">swiglu_forward_mps</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">nki</span><span class="p">:</span>
-            <span class="n">swiglu_forward_nki</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">:</span>
-            <span class="n">swiglu_forward_triton</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected kernel_backend (</span><span class="si">{</span><span class="n">kernel_backend</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">forward_function</span><span class="p">,</span> <span class="n">backward_function</span> <span class="o">=</span> <span class="n">_FUNCTIONS</span><span class="p">[</span><span class="n">kernel_backend</span><span class="p">]</span>
+        <span class="n">forward_function</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">backward_function</span> <span class="o">=</span> <span class="n">backward_function</span>
 
         <span class="k">return</span> <span class="n">y</span>
 
@@ -344,22 +346,13 @@
             <span class="n">dy</span> <span class="o">=</span> <span class="n">dy</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">pallas</span><span class="p">:</span>
-            <span class="n">dg</span><span class="p">,</span> <span class="n">du</span> <span class="o">=</span> <span class="n">swiglu_backward_pallas</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">)</span>
+            <span class="n">dg</span><span class="p">,</span> <span class="n">du</span> <span class="o">=</span> <span class="n">_swiglu_backward_pallas</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="kc">None</span>
 
         <span class="n">dg</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
         <span class="n">du</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
-            <span class="n">swiglu_backward_cuda</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">dg</span><span class="o">=</span><span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="o">=</span><span class="n">du</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">mps</span><span class="p">:</span>
-            <span class="n">swiglu_backward_mps</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">dg</span><span class="o">=</span><span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="o">=</span><span class="n">du</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">nki</span><span class="p">:</span>
-            <span class="n">swiglu_backward_nki</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">dg</span><span class="o">=</span><span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="o">=</span><span class="n">du</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">:</span>
-            <span class="n">swiglu_backward_triton</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">dg</span><span class="o">=</span><span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="o">=</span><span class="n">du</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected kernel_backend (</span><span class="si">{</span><span class="n">kernel_backend</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">backward_function</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">dg</span><span class="o">=</span><span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="o">=</span><span class="n">du</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="kc">None</span>
 
