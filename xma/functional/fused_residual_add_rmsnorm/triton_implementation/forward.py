@@ -30,10 +30,11 @@ def _fused_residual_add_rmsnorm_forward_triton_kernel(
     multiplier,
     B,
     H: tl.constexpr,
-    H_inv,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
+    H_inv: tl.constexpr = 1 / H
+
     BLOCK_ID_B = tl.program_id(0)
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
@@ -104,7 +105,6 @@ def _fused_residual_add_rmsnorm_forward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
-        H_inv=1 / H,
         BLOCK_SIZE_B=1,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
     )
