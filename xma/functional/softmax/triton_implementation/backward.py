@@ -14,7 +14,7 @@ from .forward import _get_autotune_configs, _get_online_autotune_configs
 
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def softmax_backward_triton_kernel(
+def _softmax_backward_triton_kernel(
     y_ptr,
     y_stride,
     dy_ptr,
@@ -56,7 +56,7 @@ def softmax_backward_triton_kernel(
 
 @triton.autotune(configs=_get_online_autotune_configs(), key=[])
 @triton.jit
-def online_softmax_backward_triton_kernel(
+def _online_softmax_backward_triton_kernel(
     y_ptr,
     y_stride,
     dy_ptr,
@@ -148,13 +148,13 @@ def _autotuned_softmax_backward_triton(
     }
 
     if use_online_softmax:
-        online_softmax_backward_triton_kernel[GRID](**kwargs)
+        _online_softmax_backward_triton_kernel[GRID](**kwargs)
     else:
-        softmax_backward_triton_kernel[GRID](**kwargs, BLOCK_SIZE_H=get_next_power_of_2(H))
+        _softmax_backward_triton_kernel[GRID](**kwargs, BLOCK_SIZE_H=get_next_power_of_2(H))
 
 
 @xma_op(mutates_args={"dx"})
-def softmax_backward_triton(
+def _softmax_backward_triton(
     y: torch.Tensor, dy: torch.Tensor, dx: torch.Tensor, logits_multiplier: float | None
 ) -> None:
     _autotuned_softmax_backward_triton(y=y, dy=dy, dx=dx, logits_multiplier=logits_multiplier)

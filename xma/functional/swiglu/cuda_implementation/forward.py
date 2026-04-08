@@ -110,7 +110,7 @@ _CACHE = {}
 
 
 @xma_op(mutates_args={"y"})
-def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     N = g.size(1)
     div = math.gcd(16 // g.dtype.itemsize, N)
 

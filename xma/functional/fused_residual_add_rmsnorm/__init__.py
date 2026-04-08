@@ -12,8 +12,8 @@ from ...utils import empty_like_contiguous, is_triton_available, zeros_like_cont
 
 if is_triton_available():
     from .triton_implementation import (
-        fused_residual_add_rmsnorm_backward_triton,
-        fused_residual_add_rmsnorm_forward_triton,
+        _fused_residual_add_rmsnorm_backward_triton,
+        _fused_residual_add_rmsnorm_forward_triton,
     )
 
 
@@ -64,7 +64,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         if ctx_needs_gradients(ctx) and not memory_efficient:
             s = torch.empty(B, device=x.device, dtype=torch.float32)
 
-        fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
+        _fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
 
         ctx_save_for_backward(ctx, xr if has_residual else x, W, s)
         ctx.eps = eps
@@ -92,7 +92,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         if not has_residual:
             assert dxr is None
 
-        fused_residual_add_rmsnorm_backward_triton(
+        _fused_residual_add_rmsnorm_backward_triton(
             xr=xr,
             W=W,
             dy=dy,

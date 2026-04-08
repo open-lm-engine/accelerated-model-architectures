@@ -18,7 +18,7 @@ import jax.numpy as jnp
 from jax.nn import sigmoid
 
 
-def swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
+def _swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
     g = g_ref[...]
     u = u_ref[...]
 
@@ -31,13 +31,13 @@ def swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
 
 
 @jax.jit
-def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
+def _swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
     B, H = g.shape
     BLOCK_SIZE_H = min(ceil_divide(H, 128) * 128, 1024)
     BLOCK_SIZE_B = min(1, 32 * 1024 * 1024 // (3 * BLOCK_SIZE_H * g.dtype.itemsize * 8)) << 3
 
     kernel = pl.pallas_call(
-        swiglu_forward_pallas_kernel,
+        _swiglu_forward_pallas_kernel,
         out_shape=jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
         grid=(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)),
         in_specs=[
@@ -62,13 +62,13 @@ _CACHE = None
 
 
 @xma_op(mutates_args={}, fake_func=_fake_function)
-def swiglu_forward_pallas(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+def _swiglu_forward_pallas(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
     assert g.is_contiguous()
     assert u.is_contiguous()
 
     global _CACHE
 
     if _CACHE is None:
-        _CACHE = make_kernel_from_pallas(swiglu_forward_pallas_jit, lambda g, u: [(g.shape, g.dtype)])
+        _CACHE = make_kernel_from_pallas(_swiglu_forward_pallas_jit, lambda g, u: [(g.shape, g.dtype)])
 
     return _CACHE(g, u)

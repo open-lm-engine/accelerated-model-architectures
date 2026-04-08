@@ -18,7 +18,7 @@ import jax.numpy as jnp
 from jax.nn import sigmoid
 
 
-def swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
+def _swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
     g = g_ref[...]
     u = u_ref[...]
     dy = dy_ref[...]
@@ -37,13 +37,13 @@ def swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
 
 
 @jax.jit
-def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tuple[jax.Array, jax.Array]:
+def _swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tuple[jax.Array, jax.Array]:
     B, H = g.shape
     BLOCK_SIZE_H = min(ceil_divide(H, 128) * 128, 1024)
     BLOCK_SIZE_B = min(1, 32 * 1024 * 1024 // (5 * BLOCK_SIZE_H * g.dtype.itemsize * 8)) << 3
 
     kernel = pl.pallas_call(
-        swiglu_backward_pallas_kernel,
+        _swiglu_backward_pallas_kernel,
         out_shape=[
             jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
             jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
@@ -76,7 +76,7 @@ _CACHE = None
 
 
 @xma_op(mutates_args={}, fake_func=_fake_func)
-def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def _swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     assert g.is_contiguous()
     assert u.is_contiguous()
     assert dy.is_contiguous()
@@ -85,7 +85,7 @@ def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -
 
     if _CACHE is None:
         _CACHE = make_kernel_from_pallas(
-            swiglu_backward_pallas_jit, lambda g, u, dy: [(g.shape, g.dtype), (g.shape, g.dtype)]
+            _swiglu_backward_pallas_jit, lambda g, u, dy: [(g.shape, g.dtype), (g.shape, g.dtype)]
         )
 
     return _CACHE(g, u, dy)

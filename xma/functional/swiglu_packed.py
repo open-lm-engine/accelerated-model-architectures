@@ -7,27 +7,12 @@ import torch
 from ..accelerator import KernelBackend
 from ..custom_op import CustomOp, ctx_save_for_backward
 from ..math import divide_if_divisible
-from ..utils import (
-    empty_like_contiguous,
-    is_cute_dsl_available,
-    is_torch_neuronx_available,
-    is_torch_xla_available,
-    is_triton_available,
-)
-from .swiglu import swiglu
+from ..utils import empty_like_contiguous, is_torch_xla_available
+from .swiglu import _FUNCTIONS, swiglu
 
-
-if is_cute_dsl_available():
-    from .swiglu import swiglu_backward_cuda, swiglu_forward_cuda
-
-if is_torch_neuronx_available():
-    from .swiglu import swiglu_backward_nki, swiglu_forward_nki
 
 if is_torch_xla_available():
-    from .swiglu import swiglu_backward_pallas, swiglu_forward_pallas
-
-if is_triton_available():
-    from .swiglu import swiglu_backward_triton, swiglu_forward_triton
+    from .swiglu import _swiglu_backward_pallas, _swiglu_forward_pallas
 
 
 class _SwigluPacked(CustomOp):
@@ -48,18 +33,13 @@ class _SwigluPacked(CustomOp):
         u, g = x.chunk(2, dim=-1)
 
         if kernel_backend == KernelBackend.pallas:
-            return swiglu_forward_pallas(g=g, u=u)
+            return _swiglu_forward_pallas(g=g, u=u)
 
         y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
 
-        if kernel_backend == KernelBackend.cuda:
-            swiglu_forward_cuda(g=g, u=u, y=y)
-        elif kernel_backend == KernelBackend.nki:
-            swiglu_forward_nki(g=g, u=u, y=y)
-        elif kernel_backend == KernelBackend.triton:
-            swiglu_forward_triton(g=g, u=u, y=y)
-        else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+        forward_function, backward_function = _FUNCTIONS[kernel_backend]
+        forward_function(g=g, u=u, y=y)
+        ctx.backward_function = backward_function
 
         return y
 
@@ -74,25 +54,19 @@ class _SwigluPacked(CustomOp):
         u, g = x.chunk(2, dim=-1)
 
         if kernel_backend == KernelBackend.pallas:
-            dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
+            dg, du = _swiglu_backward_pallas(g=g, u=u, dy=dy)
             dx = torch.cat([du, dg], dim=-1)
         elif kernel_backend == KernelBackend.nki:
             du = empty_like_contiguous(u)
             dg = empty_like_contiguous(g)
 
-            swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
+            ctx.backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
 
             dx = torch.cat([du, dg], dim=-1)
         else:
             dx = empty_like_contiguous(x)
             du, dg = dx.chunk(2, dim=-1)
-
-            if kernel_backend == KernelBackend.cuda:
-                swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
-            elif kernel_backend == KernelBackend.triton:
-                swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
-            else:
-                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+            ctx.backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dx, None
 

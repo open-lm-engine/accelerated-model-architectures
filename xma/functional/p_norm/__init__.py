@@ -9,7 +9,7 @@ from ...utils import is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import p_norm_triton
+    from .triton_implementation import _p_norm_triton
 
 
 def p_norm(
@@ -49,7 +49,7 @@ def p_norm(
         is_p_inf = p == "inf"
 
         y = torch.empty(B, device=x.device, dtype=output_dtype)
-        p_norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
+        _p_norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
     elif kernel_backend == KernelBackend.torch:
         if multiplier not in [None, 1]:
             x = x * multiplier

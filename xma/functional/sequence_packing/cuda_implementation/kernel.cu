@@ -64,12 +64,12 @@ __global__ void pack_unpack_sequence_cuda_kernel(
     }
 }
 
-void pack_unpack_sequence_cuda(const torch::Tensor &x,
-                               torch::Tensor &output,
-                               const torch::Tensor &cu_seqlens,
-                               const std::string &padding_side,
-                               const bool &pack,
-                               const uint32 &BLOCK_SIZE) {
+void _pack_unpack_sequence_cuda(const torch::Tensor &x,
+                                torch::Tensor &output,
+                                const torch::Tensor &cu_seqlens,
+                                const std::string &padding_side,
+                                const bool &pack,
+                                const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
     CHECK_CUDA_TENSOR(cu_seqlens);

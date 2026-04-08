@@ -13,7 +13,7 @@ from .cross_entropy import cross_entropy
 
 
 if is_triton_available():
-    from .cross_entropy import cross_entropy_forward_backward_triton
+    from .cross_entropy import _cross_entropy_forward_backward_triton
 
 
 class _FusedLinearCrossEntropy(CustomOp):
@@ -72,7 +72,7 @@ class _FusedLinearCrossEntropy(CustomOp):
             _dh = empty_like_contiguous(_h)
             _y = y[start:end]
 
-            cross_entropy_forward_backward_triton(
+            _cross_entropy_forward_backward_triton(
                 x=_h, labels=_y, loss=l, x_grad=_dh, logits_multiplier=logits_multiplier, reduction="sum"
             )
 

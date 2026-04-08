@@ -19,7 +19,7 @@ from .forward import _forward_single_step, _get_autotune_configs
     reset_to_zero=["dxf_ptr", "dq_ptr", "dk_ptr", "dv_ptr", "dW_ptr"],
 )
 @triton.jit
-def m2rnn_backward_triton_kernel(
+def _m2rnn_backward_triton_kernel(
     q_ptr,
     q_stride,
     k_ptr,
@@ -261,7 +261,7 @@ def m2rnn_backward_triton_kernel(
 
 
 @xma_op(mutates_args={"dq", "dk", "dv", "dW", "dxf", "dh0"})
-def m2rnn_backward_triton(
+def _m2rnn_backward_triton(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -295,7 +295,7 @@ def m2rnn_backward_triton(
     BLOCK_SIZE_V = get_next_power_of_2(V)
     BLOCK_SIZE_V = max(16, BLOCK_SIZE_V)
 
-    m2rnn_backward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
+    _m2rnn_backward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
         q_ptr=q,
         q_stride=q.stride(),
         k_ptr=k,

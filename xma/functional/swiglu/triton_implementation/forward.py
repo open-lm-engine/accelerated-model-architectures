@@ -25,7 +25,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def swiglu_forward_triton_kernel(
+def _swiglu_forward_triton_kernel(
     g_ptr,
     g_stride,
     u_ptr,
@@ -56,11 +56,11 @@ def swiglu_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+def _swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     B, H = g.size()
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
     # second last stride can be used to iterate the token dimension
-    swiglu_forward_triton_kernel[GRID](
+    _swiglu_forward_triton_kernel[GRID](
         g_ptr=g, g_stride=g.stride(), u_ptr=u, u_stride=u.stride(), y_ptr=y, y_stride=y.stride(), B=B, H=H
     )

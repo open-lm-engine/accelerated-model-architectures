@@ -8,8 +8,8 @@ from ....custom_op import xma_op
 from ....math import ceil_divide
 from ....xtuner import XTuneConfig, XTuneParameter, xtune
 from ..utils import _get_num_heads
-from .output_forward import output_forward_triton_kernel
-from .recurrent_state_forward import recurrent_state_forward_triton_kernel
+from .output_forward import _output_forward_triton_kernel
+from .recurrent_state_forward import _recurrent_state_forward_triton_kernel
 
 
 @xtune(
@@ -65,7 +65,7 @@ def _autotuned_linear_attention_forward_triton(
 
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
-    recurrent_state_forward_triton_kernel[GRID](
+    _recurrent_state_forward_triton_kernel[GRID](
         q_ptr=q if use_fused_kernel_in_forward else None,
         q_stride=q.stride() if use_fused_kernel_in_forward else None,
         ht_ptr=ht,
@@ -80,13 +80,13 @@ def _autotuned_linear_attention_forward_triton(
         NUM_CHUNKS = h.size(1)
         GRID = lambda kwargs: (B * N, NUM_CHUNKS + 1, ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
-        output_forward_triton_kernel[GRID](
+        _output_forward_triton_kernel[GRID](
             q_ptr=q, q_stride=q.stride(), y_ptr=y, y_stride=y.stride(), BLOCK_SIZE_S=CHUNK_SIZE, **kwargs
         )
 
 
 @xma_op(mutates_args={"y", "h", "ht"})
-def linear_attention_forward_triton(
+def _linear_attention_forward_triton(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,

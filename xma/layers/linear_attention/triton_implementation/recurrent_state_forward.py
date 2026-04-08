@@ -33,7 +33,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
-def recurrent_state_forward_triton_kernel(
+def _recurrent_state_forward_triton_kernel(
     q_ptr,
     q_stride,
     k_ptr,
