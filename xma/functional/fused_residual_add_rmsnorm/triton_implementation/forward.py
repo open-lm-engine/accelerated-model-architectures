@@ -29,7 +29,8 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     eps,
     multiplier,
     B,
-    H,
+    H: tl.constexpr,
+    H_inv,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -56,7 +57,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
         tl.store(xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_H[None, :] * xr_stride[1], x, mask=MASK_BH)
 
     r = tl.sum(x * x, axis=1)
-    r = tl.rsqrt((r / H) + eps)
+    r = tl.rsqrt(r * H_inv + eps)
 
     if s_ptr is not None:
         tl.store(s_ptr + BLOCK_B * s_stride[0], r, mask=MASK_B)
@@ -105,5 +106,6 @@ def fused_residual_add_rmsnorm_forward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
+        H_inv=1 / H,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
     )
