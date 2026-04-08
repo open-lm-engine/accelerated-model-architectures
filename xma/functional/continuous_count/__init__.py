@@ -5,7 +5,7 @@
 import torch
 
 from ...accelerator import Accelerator, KernelBackend
-from .cuda_implementation import continuous_count_cuda
+from .cuda_implementation import _continuous_count_cuda
 
 
 @torch.no_grad()
@@ -38,7 +38,7 @@ def continuous_count(x: torch.Tensor, bins: int, *, kernel_backend: KernelBacken
 
     if kernel_backend == KernelBackend.cuda:
         y = torch.zeros(bins, dtype=torch.uint32, device=x.device)
-        continuous_count_cuda(x=x, y=y)
+        _continuous_count_cuda(x=x, y=y)
     elif kernel_backend == KernelBackend.torch:
         y = x.bincount(minlength=bins).to(torch.uint32)
     else:

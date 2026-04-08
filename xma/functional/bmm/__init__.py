@@ -9,7 +9,7 @@ from ...utils import is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import bmm_triton
+    from .triton_implementation import _bmm_triton
 
 
 def bmm(
@@ -83,7 +83,7 @@ def bmm(
     elif kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
         D = torch.empty(L, M, N, dtype=A.dtype, device=A.device)
 
-        bmm_triton(
+        _bmm_triton(
             A=A,
             B=B,
             C=C,

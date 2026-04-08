@@ -21,7 +21,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_V"], reset_to_zero=["l_ptr"])
 @triton.jit
-def cross_entropy_forward_backward_triton_kernel(
+def _cross_entropy_forward_backward_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -116,7 +116,7 @@ def cross_entropy_forward_backward_triton_kernel(
 
 
 @xma_op(mutates_args={"loss", "x_grad"})
-def cross_entropy_forward_backward_triton(
+def _cross_entropy_forward_backward_triton(
     x: torch.Tensor,
     labels: torch.Tensor,
     loss: torch.Tensor,
@@ -129,7 +129,7 @@ def cross_entropy_forward_backward_triton(
     BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
 
-    cross_entropy_forward_backward_triton_kernel[GRID](
+    _cross_entropy_forward_backward_triton_kernel[GRID](
         x_ptr=x,
         x_stride=x.stride(),
         y_ptr=labels,
