@@ -14,8 +14,8 @@ from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 
 def _get_autotune_configs() -> list[triton.Config]:
     configs = []
-    for num_warps in get_powers_of_2(4, 8):
-        for BLOCK_SIZE_B in get_powers_of_2(1, 16):
+    for num_warps in get_powers_of_2(2, 8):
+        for BLOCK_SIZE_B in get_powers_of_2(1, 1):
             configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
 
     return configs
@@ -43,7 +43,8 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
     eps,
     multiplier,
     B,
-    H,
+    H: tl.constexpr,
+    H_inv,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -65,9 +66,9 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         W = tl.load(W_ptr + BLOCK_H * W_stride[0], mask=MASK_H)[None, :]
         dW = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
-    for i in range(NUM_LOOPS):
-        BLOCK_B = start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_B = start + tl.arange(0, BLOCK_SIZE_B)
 
+    for _ in range(NUM_LOOPS):
         MASK_B = BLOCK_B < end
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
@@ -77,7 +78,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
         if s_ptr is None:
             r = tl.sum(xr * xr, axis=1)
-            r = tl.rsqrt(r / H + eps)
+            r = tl.rsqrt(r * H_inv + eps)
         else:
             r = tl.load(s_ptr + BLOCK_B * s_stride[0], mask=MASK_B)
 
@@ -90,7 +91,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         dyW = dyW.to(tl.float32)
 
         dx = r[:, None] * dyW
-        dx -= (1 / H) * r[:, None] * r[:, None] * r[:, None] * xr * tl.sum(dyW * xr, axis=1, keep_dims=True)
+        dx -= H_inv * r[:, None] * r[:, None] * r[:, None] * xr * tl.sum(dyW * xr, axis=1, keep_dims=True)
 
         if dxr_ptr is not None:
             dx += tl.load(dxr_ptr + BLOCK_B[:, None] * dxr_stride[0] + BLOCK_H[None, :] * dxr_stride[1], mask=MASK_BH)
@@ -105,6 +106,8 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
         if W_ptr is not None:
             dW += tl.sum(dy * (xr * r[:, None]), axis=0)
+
+        BLOCK_B += BLOCK_SIZE_B
 
     if W_ptr is not None:
         tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
@@ -155,5 +158,6 @@ def fused_residual_add_rmsnorm_backward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
+        H_inv=1 / H,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
     )
