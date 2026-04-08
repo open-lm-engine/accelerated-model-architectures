@@ -105,5 +105,6 @@ def fused_residual_add_rmsnorm_forward_triton(
         B=B,
         H=H,
         H_inv=1 / H,
+        BLOCK_SIZE_B=1,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
     )
