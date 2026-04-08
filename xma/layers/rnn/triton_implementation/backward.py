@@ -14,7 +14,7 @@ from .forward import _get_autotune_configs
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dx_ptr", "dW_ptr"])
 @triton.jit
-def rnn_backward_triton_kernel(
+def _rnn_backward_triton_kernel(
     W_ptr,
     W_stride,
     h0_ptr,
@@ -175,7 +175,7 @@ def rnn_backward_triton_kernel(
 
 
 @xma_op(mutates_args={"dx", "dW", "dh0"})
-def rnn_backward_triton(
+def _rnn_backward_triton(
     W: torch.Tensor,
     y: torch.Tensor,
     h0: torch.Tensor | None,
@@ -203,7 +203,7 @@ def rnn_backward_triton(
 
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), N)
 
-    rnn_backward_triton_kernel[GRID](
+    _rnn_backward_triton_kernel[GRID](
         W_ptr=W,
         W_stride=W.stride(),
         h0_ptr=h0,

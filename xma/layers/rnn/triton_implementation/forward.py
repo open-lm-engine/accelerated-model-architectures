@@ -25,7 +25,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
-def rnn_forward_triton_kernel(
+def _rnn_forward_triton_kernel(
     x_ptr,
     x_stride,
     W_ptr,
@@ -101,7 +101,7 @@ def rnn_forward_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def rnn_forward_triton(
+def _rnn_forward_triton(
     x: torch.Tensor,
     W: torch.Tensor,
     h0: torch.Tensor | None,
@@ -123,7 +123,7 @@ def rnn_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]), N)
 
-    rnn_forward_triton_kernel[GRID](
+    _rnn_forward_triton_kernel[GRID](
         x_ptr=x,
         x_stride=x.stride(),
         W_ptr=W,
