@@ -64,6 +64,9 @@ def fused_residual_add_rmsnorm_backward(
     if not has_residual:
         assert dxr is None
 
+    if eps is None:
+        eps = torch.finfo(dy.dtype).eps
+
     _fused_residual_add_rmsnorm_backward_triton(
         xr=xr,
         W=W,
