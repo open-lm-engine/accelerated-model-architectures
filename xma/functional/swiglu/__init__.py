@@ -17,11 +17,18 @@ from ...utils import (
 from .mps_implementation import _swiglu_backward_mps, _swiglu_forward_mps
 
 
+_FUNCTIONS = {KernelBackend.mps: (_swiglu_forward_mps, _swiglu_backward_mps)}
+
+
 if is_cute_dsl_available():
     from .cuda_implementation import _swiglu_backward_cuda, _swiglu_forward_cuda
 
+    _FUNCTIONS[KernelBackend.cuda] = (_swiglu_forward_cuda, _swiglu_backward_cuda)
+
 if is_torch_neuronx_available():
     from .nki_implementation import _swiglu_backward_nki, _swiglu_forward_nki
+
+    _FUNCTIONS[KernelBackend.nki] = (_swiglu_forward_nki, _swiglu_backward_nki)
 
 if is_torch_xla_available():
     from .pallas_implementation import _swiglu_backward_pallas, _swiglu_forward_pallas
@@ -29,13 +36,7 @@ if is_torch_xla_available():
 if is_triton_available():
     from .triton_implementation import _swiglu_backward_triton, _swiglu_forward_triton
 
-
-_FUNCTIONS = {
-    KernelBackend.cuda: (_swiglu_forward_cuda, _swiglu_backward_cuda),
-    KernelBackend.mps: (_swiglu_forward_mps, _swiglu_backward_mps),
-    KernelBackend.nki: (_swiglu_forward_nki, _swiglu_backward_nki),
-    KernelBackend.triton: (_swiglu_forward_triton, _swiglu_backward_triton),
-}
+    _FUNCTIONS[KernelBackend.triton] = (_swiglu_forward_triton, _swiglu_backward_triton)
 
 
 class _Swiglu(CustomOp):
