@@ -42,6 +42,48 @@ def fused_residual_add_rmsnorm_forward(
     return y, xr, s
 
 
+def fused_residual_add_rmsnorm_backward(
+    xr: torch.Tensor,
+    W: torch.Tensor,
+    s: torch.Tensor | None,
+    dy: torch.Tensor,
+    dxr: torch.Tensor,
+    has_residual: bool,
+    multiplier: float | None,
+    eps: float | None,
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+    dx = empty_like_contiguous(xr)
+    dr = empty_like_contiguous(xr) if has_residual else None
+
+    dW = (
+        None
+        if W is None
+        else torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
+    )
+
+    if not has_residual:
+        assert dxr is None
+
+    fused_residual_add_rmsnorm_backward_triton(
+        xr=xr,
+        W=W,
+        dy=dy,
+        dxr=dxr,
+        s=s,
+        dx=dx,
+        dr=dr,
+        dW=dW,
+        eps=eps,
+        multiplier=multiplier,
+    )
+
+    if dW is not None:
+        dW = dW.sum(0)
+        dW = dW.type_as(W)
+
+    return dx, dr, dW
+
+
 class _FusedResidualAddRMSNorm(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -99,37 +141,11 @@ class _FusedResidualAddRMSNorm(CustomOp):
     def backward(
         ctx, dy: torch.Tensor, dxr: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
-        has_residual = ctx.has_residual
-
         xr, W, s = ctx.saved_tensors
-        dx = empty_like_contiguous(xr)
-        dr = empty_like_contiguous(xr) if has_residual else None
 
-        dW = (
-            None
-            if W is None
-            else torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
+        dx, dr, dW = fused_residual_add_rmsnorm_backward(
+            xr=xr, W=W, s=s, dy=dy, dxr=dxr, has_residual=ctx.has_residual, multiplier=ctx.multiplier, eps=ctx.eps
         )
-
-        if not has_residual:
-            assert dxr is None
-
-        fused_residual_add_rmsnorm_backward_triton(
-            xr=xr,
-            W=W,
-            dy=dy,
-            dxr=dxr,
-            s=s,
-            dx=dx,
-            dr=dr,
-            dW=dW,
-            eps=ctx.eps,
-            multiplier=ctx.multiplier,
-        )
-
-        if dW is not None:
-            dW = dW.sum(0)
-            dW = dW.type_as(W)
 
         return dx, dr, dW, *[None] * 5
 
