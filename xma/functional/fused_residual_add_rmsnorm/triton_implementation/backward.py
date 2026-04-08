@@ -9,19 +9,10 @@ import triton.language as tl
 from ....accelerator import Accelerator
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
-from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....math import get_next_power_of_2, get_powers_of_2
 
 
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for num_warps in get_powers_of_2(2, 8):
-        for BLOCK_SIZE_B in get_powers_of_2(1, 1):
-            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
-
-    return configs
-
-
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 16)], key=[])
 @triton.jit
 def _fused_residual_add_rmsnorm_backward_triton_kernel(
     xr_ptr,
@@ -45,7 +36,6 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
     B,
     H: tl.constexpr,
     H_inv,
-    BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
@@ -58,57 +48,44 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
 
     start = BLOCK_ID * NUM_ELEMENTS_PER_BLOCK
     end = min(start + NUM_ELEMENTS_PER_BLOCK, B)
-    NUM_ELEMENTS_IN_CURRENT_BLOCK = end - start
-
-    NUM_LOOPS = tl.cdiv(NUM_ELEMENTS_IN_CURRENT_BLOCK, BLOCK_SIZE_B)
 
     if W_ptr is not None:
-        W = tl.load(W_ptr + BLOCK_H * W_stride[0], mask=MASK_H)[None, :]
+        W = tl.load(W_ptr + BLOCK_H * W_stride[0], mask=MASK_H)
         dW = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
-    BLOCK_B = start + tl.arange(0, BLOCK_SIZE_B)
-
-    for _ in range(NUM_LOOPS):
-        MASK_B = BLOCK_B < end
-        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
-
-        xr = tl.load(xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_H[None, :] * xr_stride[1], mask=MASK_BH).to(
-            tl.float32
-        )
+    for BLOCK_ID_B in range(start, end):
+        xr = tl.load(xr_ptr + BLOCK_ID_B * xr_stride[0] + BLOCK_H * xr_stride[1], mask=MASK_H).to(tl.float32)
 
         if s_ptr is None:
-            r = tl.sum(xr * xr, axis=1)
+            r = tl.sum(xr * xr)
             r = tl.rsqrt(r * H_inv + eps)
         else:
-            r = tl.load(s_ptr + BLOCK_B * s_stride[0], mask=MASK_B)
+            r = tl.load(s_ptr + BLOCK_ID_B * s_stride[0])
 
-        dy = tl.load(dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1], mask=MASK_BH)
+        z = r * xr
+
+        dy = tl.load(dy_ptr + BLOCK_ID_B * dy_stride[0] + BLOCK_H * dy_stride[1], mask=MASK_H).to(tl.float32)
 
         dyW = dy
         if W_ptr is not None:
             dyW *= W
 
-        dyW = dyW.to(tl.float32)
-
-        dx = r[:, None] * dyW
-        z = r[:, None] * xr
-        dx -= H_inv * r[:, None] * r[:, None] * z * tl.sum(dyW * xr, axis=1, keep_dims=True)
+        dx = r * dyW
+        dx -= H_inv * r * r * z * tl.sum(dyW * xr, keep_dims=True)
 
         if dxr_ptr is not None:
-            dx += tl.load(dxr_ptr + BLOCK_B[:, None] * dxr_stride[0] + BLOCK_H[None, :] * dxr_stride[1], mask=MASK_BH)
+            dx += tl.load(dxr_ptr + BLOCK_ID_B * dxr_stride[0] + BLOCK_H * dxr_stride[1], mask=MASK_H)
 
         if dr_ptr is not None:
-            tl.store(dr_ptr + BLOCK_B[:, None] * dr_stride[0] + BLOCK_H[None, :] * dr_stride[1], dx, mask=MASK_BH)
+            tl.store(dr_ptr + BLOCK_ID_B * dr_stride[0] + BLOCK_H * dr_stride[1], dx, mask=MASK_H)
 
         if multiplier is not None:
             dx *= multiplier
 
-        tl.store(dx_ptr + BLOCK_B[:, None] * dx_stride[0] + BLOCK_H[None, :] * dx_stride[1], dx, mask=MASK_BH)
+        tl.store(dx_ptr + BLOCK_ID_B * dx_stride[0] + BLOCK_H * dx_stride[1], dx, mask=MASK_H)
 
         if W_ptr is not None:
             dW += dy * z
-
-        BLOCK_B += BLOCK_SIZE_B
 
     if W_ptr is not None:
         tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
@@ -134,7 +111,7 @@ def _fused_residual_add_rmsnorm_backward_triton(
 
     if dW is None:
         sm_count = Accelerator.get_sm_count()
-        GRID = lambda kwargs: (min(sm_count, ceil_divide(B, kwargs["BLOCK_SIZE_B"])),)
+        GRID = lambda kwargs: (min(sm_count, B),)
     else:
         GRID = (dW.size(0),)
 
