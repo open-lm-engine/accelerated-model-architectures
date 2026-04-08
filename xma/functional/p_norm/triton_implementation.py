@@ -26,26 +26,20 @@ def _p_norm_triton_kernel(
     is_P_inf: tl.constexpr,
     P: tl.constexpr,
     P_inv: tl.constexpr,
-    BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(0)
 
-    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
-
-    MASK_B = BLOCK_B < B
     MASK_H = BLOCK_H < H
 
-    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
-
-    x = tl.load(x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1], mask=MASK_BH)
+    x = tl.load(x_ptr + BLOCK_ID_B * x_stride[0] + BLOCK_H * x_stride[1], mask=MASK_H)
 
     if multiplier is not None:
         x *= multiplier
 
-    y = compute_p_norm(x=x, P=P, P_inv=P_inv, is_P_inf=is_P_inf, eps=eps)
-    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0], y, mask=MASK_B[:, None])
+    y = compute_p_norm(x=x, P=P, P_inv=P_inv, is_P_inf=is_P_inf, eps=eps, axis=0)
+    tl.store(y_ptr + BLOCK_ID_B * y_stride[0], y)
 
 
 @xma_op(mutates_args={"y"})
@@ -67,6 +61,5 @@ def _p_norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p
         is_P_inf=is_p_inf,
         P=p,
         P_inv=None if is_p_inf else 1 / p,
-        BLOCK_SIZE_B=1,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
     )
