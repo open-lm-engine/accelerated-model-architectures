@@ -17,6 +17,31 @@ if is_triton_available():
     )
 
 
+def fused_residual_add_rmsnorm_forward(
+    x: torch.Tensor,
+    r: torch.Tensor | None,
+    W: torch.Tensor | None,
+    eps: float | None,
+    multiplier: float | None,
+    output_std: bool,
+    kernel_backend: KernelBackend,
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+    assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
+    if eps is None:
+        eps = torch.finfo(x.dtype).eps
+
+    B = x.size(0)
+
+    y = empty_like_contiguous(x)
+    xr = None if r is None else empty_like_contiguous(x)
+    s = torch.empty(B, device=x.device, dtype=torch.float32) if output_std else None
+
+    fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
+
+    return y, xr, s
+
+
 class _FusedResidualAddRMSNorm(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -51,20 +76,17 @@ class _FusedResidualAddRMSNorm(CustomOp):
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
-        if eps is None:
-            eps = torch.finfo(x.dtype).eps
+        y, xr, s = fused_residual_add_rmsnorm_forward(
+            x=x,
+            r=r,
+            W=W,
+            eps=eps,
+            multiplier=multiplier,
+            output_std=ctx_needs_gradients(ctx) and not memory_efficient,
+            kernel_backend=kernel_backend,
+        )
 
-        B = x.size(0)
         has_residual = r is not None
-
-        y = empty_like_contiguous(x)
-        xr = empty_like_contiguous(x) if has_residual else None
-
-        s = None
-        if ctx_needs_gradients(ctx) and not memory_efficient:
-            s = torch.empty(B, device=x.device, dtype=torch.float32)
-
-        fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
 
         ctx_save_for_backward(ctx, xr if has_residual else x, W, s)
         ctx.eps = eps
