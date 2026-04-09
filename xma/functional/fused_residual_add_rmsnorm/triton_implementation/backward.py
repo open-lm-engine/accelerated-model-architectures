@@ -9,7 +9,7 @@ import triton.language as tl
 from ....accelerator import Accelerator
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
-from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....math import get_next_power_of_2, get_powers_of_2
 
 
 @triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 16)], key=[])
@@ -37,9 +37,11 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
     H: tl.constexpr,
     H_inv,
     BLOCK_SIZE_H: tl.constexpr,
-    NUM_ELEMENTS_PER_BLOCK: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
+    NUM_BLOCKS = tl.num_programs(0)
+
+    NUM_ELEMENTS_PER_BLOCK = tl.cdiv(B, NUM_BLOCKS)
 
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
     MASK_H = BLOCK_H < H
@@ -106,7 +108,11 @@ def _fused_residual_add_rmsnorm_backward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    GRID = (min(Accelerator.get_sm_count(), B) if dW is None else dW.size(0),)
+    if dW is None:
+        sm_count = Accelerator.get_sm_count()
+        GRID = lambda kwargs: (min(sm_count, B),)
+    else:
+        GRID = (dW.size(0),)
 
     _fused_residual_add_rmsnorm_backward_triton_kernel[GRID](
         xr_ptr=xr,
@@ -131,5 +137,4 @@ def _fused_residual_add_rmsnorm_backward_triton(
         H=H,
         H_inv=1 / H,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
-        NUM_ELEMENTS_PER_BLOCK=ceil_divide(B, GRID[0]),
     )
