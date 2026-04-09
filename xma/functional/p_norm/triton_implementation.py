@@ -26,8 +26,7 @@ def _p_norm_triton_kernel(
     P: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    if not is_P_inf:
-        P_inv: tl.constexpr = 1 / P
+    P_inv: tl.constexpr = None if is_P_inf else 1 / P
 
     BLOCK_ID_B = tl.program_id(0)
 
