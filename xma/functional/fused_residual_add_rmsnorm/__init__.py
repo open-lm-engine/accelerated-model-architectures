@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import Accelerator, KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
+from ...utils import empty_like_contiguous, is_triton_available
 
 
 if is_triton_available():
@@ -15,6 +15,76 @@ if is_triton_available():
         _fused_residual_add_rmsnorm_backward_triton,
         _fused_residual_add_rmsnorm_forward_triton,
     )
+
+
+def fused_residual_add_rmsnorm_forward(
+    x: torch.Tensor,
+    r: torch.Tensor | None,
+    W: torch.Tensor | None,
+    eps: float | None,
+    multiplier: float | None,
+    output_std: bool,
+    kernel_backend: KernelBackend,
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+    assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
+    if eps is None:
+        eps = torch.finfo(x.dtype).eps
+
+    B = x.size(0)
+
+    y = empty_like_contiguous(x)
+    xr = None if r is None else empty_like_contiguous(x)
+    s = torch.empty(B, device=x.device, dtype=torch.float32) if output_std else None
+
+    _fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
+
+    return y, xr, s
+
+
+def fused_residual_add_rmsnorm_backward(
+    xr: torch.Tensor,
+    W: torch.Tensor | None,
+    s: torch.Tensor | None,
+    dy: torch.Tensor,
+    dxr: torch.Tensor | None,
+    has_residual: bool,
+    multiplier: float | None,
+    eps: float | None,
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+    dx = empty_like_contiguous(xr)
+    dr = empty_like_contiguous(xr) if has_residual else None
+
+    dW = (
+        None
+        if W is None
+        else torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
+    )
+
+    if not has_residual:
+        assert dxr is None
+
+    if eps is None:
+        eps = torch.finfo(dy.dtype).eps
+
+    _fused_residual_add_rmsnorm_backward_triton(
+        xr=xr,
+        W=W,
+        dy=dy,
+        dxr=dxr,
+        s=s,
+        dx=dx,
+        dr=dr,
+        dW=dW,
+        eps=eps,
+        multiplier=multiplier,
+    )
+
+    if dW is not None:
+        dW = dW.sum(0)
+        dW = dW.type_as(W)
+
+    return dx, dr, dW
 
 
 class _FusedResidualAddRMSNorm(CustomOp):
@@ -51,20 +121,17 @@ class _FusedResidualAddRMSNorm(CustomOp):
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
-        if eps is None:
-            eps = torch.finfo(x.dtype).eps
+        y, xr, s = fused_residual_add_rmsnorm_forward(
+            x=x,
+            r=r,
+            W=W,
+            eps=eps,
+            multiplier=multiplier,
+            output_std=ctx_needs_gradients(ctx) and not memory_efficient,
+            kernel_backend=kernel_backend,
+        )
 
-        B = x.size(0)
         has_residual = r is not None
-
-        y = empty_like_contiguous(x)
-        xr = empty_like_contiguous(x) if has_residual else None
-
-        s = None
-        if ctx_needs_gradients(ctx) and not memory_efficient:
-            s = torch.empty(B, device=x.device, dtype=torch.float32)
-
-        _fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
 
         ctx_save_for_backward(ctx, xr if has_residual else x, W, s)
         ctx.eps = eps
@@ -75,39 +142,13 @@ class _FusedResidualAddRMSNorm(CustomOp):
 
     @staticmethod
     def backward(
-        ctx, dy: torch.Tensor, dxr: torch.Tensor
+        ctx, dy: torch.Tensor, dxr: torch.Tensor | None
     ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
-        has_residual = ctx.has_residual
-
         xr, W, s = ctx.saved_tensors
-        dx = empty_like_contiguous(xr)
-        dr = empty_like_contiguous(xr) if has_residual else None
 
-        dW = (
-            None
-            if W is None
-            else torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
+        dx, dr, dW = fused_residual_add_rmsnorm_backward(
+            xr=xr, W=W, s=s, dy=dy, dxr=dxr, has_residual=ctx.has_residual, multiplier=ctx.multiplier, eps=ctx.eps
         )
-
-        if not has_residual:
-            assert dxr is None
-
-        _fused_residual_add_rmsnorm_backward_triton(
-            xr=xr,
-            W=W,
-            dy=dy,
-            dxr=dxr,
-            s=s,
-            dx=dx,
-            dr=dr,
-            dW=dW,
-            eps=ctx.eps,
-            multiplier=ctx.multiplier,
-        )
-
-        if dW is not None:
-            dW = dW.sum(0)
-            dW = dW.type_as(W)
 
         return dx, dr, dW, *[None] * 5
 

@@ -8,19 +8,10 @@ import triton.language as tl
 
 from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....custom_op import xma_op
-from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....math import get_next_power_of_2, get_powers_of_2
 
 
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for num_warps in get_powers_of_2(4, 8):
-        for BLOCK_SIZE_B in get_powers_of_2(1, 16):
-            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
-
-    return configs
-
-
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 16)], key=[])
 @triton.jit
 def _fused_residual_add_rmsnorm_forward_triton_kernel(
     x_ptr,
@@ -38,10 +29,12 @@ def _fused_residual_add_rmsnorm_forward_triton_kernel(
     eps,
     multiplier,
     B,
-    H,
+    H: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
+    H_inv: tl.constexpr = 1 / H
+
     BLOCK_ID_B = tl.program_id(0)
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
@@ -65,7 +58,7 @@ def _fused_residual_add_rmsnorm_forward_triton_kernel(
         tl.store(xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_H[None, :] * xr_stride[1], x, mask=MASK_BH)
 
     r = tl.sum(x * x, axis=1)
-    r = tl.rsqrt((r / H) + eps)
+    r = tl.rsqrt(r * H_inv + eps)
 
     if s_ptr is not None:
         tl.store(s_ptr + BLOCK_B * s_stride[0], r, mask=MASK_B)
@@ -95,9 +88,7 @@ def _fused_residual_add_rmsnorm_forward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    GRID = lambda kwargs: (ceil_divide(B, kwargs["BLOCK_SIZE_B"]),)
-
-    _fused_residual_add_rmsnorm_forward_triton_kernel[GRID](
+    _fused_residual_add_rmsnorm_forward_triton_kernel[B,](
         x_ptr=x,
         x_stride=x.stride(),
         r_ptr=r,
@@ -114,5 +105,6 @@ def _fused_residual_add_rmsnorm_forward_triton(
         multiplier=multiplier,
         B=B,
         H=H,
+        BLOCK_SIZE_B=1,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
     )
