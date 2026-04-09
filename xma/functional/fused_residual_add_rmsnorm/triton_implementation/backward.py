@@ -70,7 +70,7 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
         if W_ptr is not None:
             dyW *= W
 
-        dx = (dyW - H_inv * z * tl.sum(dyW * z, keep_dims=True)) * r
+        dx = (dyW - H_inv * r * z * tl.sum(dyW * xr, keep_dims=True)) * r
 
         if dxr_ptr is not None:
             dx += tl.load(dxr_ptr + BLOCK_ID_B * dxr_stride[0] + BLOCK_H * dxr_stride[1], mask=MASK_H)
