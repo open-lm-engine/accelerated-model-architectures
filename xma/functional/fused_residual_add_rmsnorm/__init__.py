@@ -52,7 +52,9 @@ def fused_residual_add_rmsnorm_backward(
     multiplier: float | None,
 ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     dx = empty_like_contiguous(xr)
-    dr = empty_like_contiguous(xr) if has_residual else None
+
+    if has_residual:
+        dr = None if multiplier is None else empty_like_contiguous(xr)
 
     dW = (
         None
@@ -80,6 +82,9 @@ def fused_residual_add_rmsnorm_backward(
     if dW is not None:
         dW = dW.sum(0)
         dW = dW.type_as(W)
+
+    if has_residual and multiplier is None:
+        dr = dx
 
     return dx, dr, dW
 
