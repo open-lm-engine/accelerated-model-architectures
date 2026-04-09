@@ -131,7 +131,6 @@ class _FusedResidualAddRMSNorm(CustomOp):
         has_residual = r is not None
 
         ctx_save_for_backward(ctx, xr if has_residual else x, W, s)
-        ctx.eps = eps
         ctx.has_residual = has_residual
         ctx.multiplier = multiplier
 
@@ -144,7 +143,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         xr, W, s = ctx.saved_tensors
 
         dx, dr, dW = fused_residual_add_rmsnorm_backward(
-            xr=xr, W=W, s=s, dy=dy, dxr=dxr, has_residual=ctx.has_residual, multiplier=ctx.multiplier, eps=ctx.eps
+            xr=xr, W=W, s=s, dy=dy, dxr=dxr, has_residual=ctx.has_residual, multiplier=ctx.multiplier
         )
 
         return dx, dr, dW, *[None] * 5
