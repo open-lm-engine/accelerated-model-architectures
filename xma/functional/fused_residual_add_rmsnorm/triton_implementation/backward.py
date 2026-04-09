@@ -55,7 +55,6 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
 
     for BLOCK_ID_B in range(start, end):
         xr = tl.load(xr_ptr + BLOCK_ID_B * xr_stride[0] + BLOCK_H * xr_stride[1], mask=MASK_H).to(tl.float32)
-        dy = tl.load(dy_ptr + BLOCK_ID_B * dy_stride[0] + BLOCK_H * dy_stride[1], mask=MASK_H).to(tl.float32)
 
         if s_ptr is None:
             r = tl.sum(xr * xr)
@@ -64,6 +63,8 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
             r = tl.load(s_ptr + BLOCK_ID_B * s_stride[0])
 
         z = r * xr
+
+        dy = tl.load(dy_ptr + BLOCK_ID_B * dy_stride[0] + BLOCK_H * dy_stride[1], mask=MASK_H).to(tl.float32)
 
         dyW = dy
         if W_ptr is not None:
