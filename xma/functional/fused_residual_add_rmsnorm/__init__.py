@@ -58,9 +58,7 @@ def fused_residual_add_rmsnorm_backward(
     dW = (
         None
         if W is None
-        else torch.empty(
-            min(Accelerator.get_sm_count(dx.device), xr.size(0)), *W.size(), dtype=torch.float32, device=dx.device
-        )
+        else torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
     )
 
     if not has_residual:

@@ -12,7 +12,7 @@ from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 
 
-@triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 16)], key=["H"])
+@triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 16)], key=[])
 @triton.jit
 def _fused_residual_add_rmsnorm_backward_triton_kernel(
     xr_ptr,
@@ -106,7 +106,7 @@ def _fused_residual_add_rmsnorm_backward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    GRID = (min(Accelerator.get_sm_count(), B),)
+    GRID = (min(Accelerator.get_sm_count(), B) if dW is None else dW.size(0),)
 
     _fused_residual_add_rmsnorm_backward_triton_kernel[GRID](
         xr_ptr=xr,
