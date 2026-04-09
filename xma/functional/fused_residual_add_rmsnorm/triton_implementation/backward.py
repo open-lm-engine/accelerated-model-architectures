@@ -31,6 +31,7 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
     dW_stride,
     s_ptr,
     s_stride,
+    eps,
     multiplier,
     B,
     H: tl.constexpr,
@@ -57,7 +58,7 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
 
         if s_ptr is None:
             r = tl.sum(xr * xr)
-            r = tl.rsqrt(r * H_inv + 1)
+            r = tl.rsqrt(r * H_inv + eps)
         else:
             r = tl.load(s_ptr + BLOCK_ID_B * s_stride[0])
 
@@ -98,6 +99,7 @@ def _fused_residual_add_rmsnorm_backward_triton(
     dx: torch.Tensor,
     dr: torch.Tensor | None,
     dW: torch.Tensor | None,
+    eps: float,
     multiplier: float | None,
 ) -> None:
     B, H = xr.size()
@@ -124,6 +126,7 @@ def _fused_residual_add_rmsnorm_backward_triton(
         dW_stride=None if dW is None else dW.stride(),
         s_ptr=s,
         s_stride=None if s is None else s.stride(),
+        eps=eps,
         multiplier=multiplier,
         B=B,
         H=H,
