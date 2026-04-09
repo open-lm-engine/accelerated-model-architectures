@@ -44,10 +44,10 @@ def fused_residual_add_rmsnorm_forward(
 
 def fused_residual_add_rmsnorm_backward(
     xr: torch.Tensor,
-    W: torch.Tensor,
+    W: torch.Tensor | None,
     s: torch.Tensor | None,
     dy: torch.Tensor,
-    dxr: torch.Tensor,
+    dxr: torch.Tensor | None,
     has_residual: bool,
     multiplier: float | None,
     eps: float | None,
@@ -142,7 +142,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
 
     @staticmethod
     def backward(
-        ctx, dy: torch.Tensor, dxr: torch.Tensor
+        ctx, dy: torch.Tensor, dxr: torch.Tensor | None
     ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
         xr, W, s = ctx.saved_tensors
 
