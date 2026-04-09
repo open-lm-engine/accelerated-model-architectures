@@ -50,7 +50,6 @@ def fused_residual_add_rmsnorm_backward(
     dxr: torch.Tensor,
     has_residual: bool,
     multiplier: float | None,
-    eps: float | None,
 ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     dx = empty_like_contiguous(xr)
     dr = empty_like_contiguous(xr) if has_residual else None
@@ -66,9 +65,6 @@ def fused_residual_add_rmsnorm_backward(
     if not has_residual:
         assert dxr is None
 
-    if eps is None:
-        eps = torch.finfo(dy.dtype).eps
-
     _fused_residual_add_rmsnorm_backward_triton(
         xr=xr,
         W=W,
@@ -78,7 +74,6 @@ def fused_residual_add_rmsnorm_backward(
         dx=dx,
         dr=dr,
         dW=dW,
-        eps=eps,
         multiplier=multiplier,
     )
 
