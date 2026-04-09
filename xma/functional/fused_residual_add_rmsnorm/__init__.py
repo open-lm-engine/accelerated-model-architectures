@@ -55,6 +55,8 @@ def fused_residual_add_rmsnorm_backward(
 
     if has_residual:
         dr = None if multiplier is None else empty_like_contiguous(xr)
+    else:
+        dr = None
 
     dW = (
         None
