@@ -271,7 +271,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">Accelerator</span><span class="p">,</span> <span class="n">KernelBackend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...custom_op</span><span class="w"> </span><span class="kn">import</span> <span class="n">CustomOp</span><span class="p">,</span> <span class="n">ctx_needs_gradients</span><span class="p">,</span> <span class="n">ctx_save_for_backward</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">is_triton_available</span><span class="p">,</span> <span class="n">zeros_like_contiguous</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">empty_like_contiguous</span><span class="p">,</span> <span class="n">is_triton_available</span>
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
@@ -279,6 +279,82 @@
         <span class="n">_fused_residual_add_rmsnorm_backward_triton</span><span class="p">,</span>
         <span class="n">_fused_residual_add_rmsnorm_forward_triton</span><span class="p">,</span>
     <span class="p">)</span>
+
+
+<div class="viewcode-block" id="fused_residual_add_rmsnorm_forward">
+<a class="viewcode-back" href="../../../xma.functional.fused_residual_add_rmsnorm.html#xma.functional.fused_residual_add_rmsnorm.fused_residual_add_rmsnorm_forward">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fused_residual_add_rmsnorm_forward</span><span class="p">(</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">r</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">W</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">output_std</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+    <span class="k">assert</span> <span class="n">kernel_backend</span> <span class="ow">in</span> <span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">,</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">eps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span>
+
+    <span class="n">B</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">y</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">xr</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="k">if</span> <span class="n">output_std</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="n">_fused_residual_add_rmsnorm_forward_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">y</span><span class="p">,</span> <span class="n">xr</span><span class="p">,</span> <span class="n">s</span></div>
+
+
+
+<div class="viewcode-block" id="fused_residual_add_rmsnorm_backward">
+<a class="viewcode-back" href="../../../xma.functional.fused_residual_add_rmsnorm.html#xma.functional.fused_residual_add_rmsnorm.fused_residual_add_rmsnorm_backward">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fused_residual_add_rmsnorm_backward</span><span class="p">(</span>
+    <span class="n">xr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">W</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">s</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">dxr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">has_residual</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+    <span class="n">dx</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">xr</span><span class="p">)</span>
+    <span class="n">dr</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">xr</span><span class="p">)</span> <span class="k">if</span> <span class="n">has_residual</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="n">dW</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">W</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">Accelerator</span><span class="o">.</span><span class="n">get_sm_count</span><span class="p">(</span><span class="n">dx</span><span class="o">.</span><span class="n">device</span><span class="p">),</span> <span class="o">*</span><span class="n">W</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">dx</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">has_residual</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">dxr</span> <span class="ow">is</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">eps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">dy</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span>
+
+    <span class="n">_fused_residual_add_rmsnorm_backward_triton</span><span class="p">(</span>
+        <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span>
+        <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span>
+        <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span>
+        <span class="n">dxr</span><span class="o">=</span><span class="n">dxr</span><span class="p">,</span>
+        <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">,</span>
+        <span class="n">dx</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span>
+        <span class="n">dr</span><span class="o">=</span><span class="n">dr</span><span class="p">,</span>
+        <span class="n">dW</span><span class="o">=</span><span class="n">dW</span><span class="p">,</span>
+        <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span>
+        <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">dW</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dW</span> <span class="o">=</span> <span class="n">dW</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">dW</span> <span class="o">=</span> <span class="n">dW</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">W</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dr</span><span class="p">,</span> <span class="n">dW</span></div>
+
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_FusedResidualAddRMSNorm</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>
@@ -315,20 +391,17 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
         <span class="k">assert</span> <span class="n">kernel_backend</span> <span class="ow">in</span> <span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">,</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">triton</span><span class="p">]</span>
 
-        <span class="k">if</span> <span class="n">eps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">eps</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span>
+        <span class="n">y</span><span class="p">,</span> <span class="n">xr</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">fused_residual_add_rmsnorm_forward</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span>
+            <span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span>
+            <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span>
+            <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span>
+            <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span>
+            <span class="n">output_std</span><span class="o">=</span><span class="n">ctx_needs_gradients</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">memory_efficient</span><span class="p">,</span>
+            <span class="n">kernel_backend</span><span class="o">=</span><span class="n">kernel_backend</span><span class="p">,</span>
+        <span class="p">)</span>
 
-        <span class="n">B</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">has_residual</span> <span class="o">=</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-
-        <span class="n">y</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">xr</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="n">has_residual</span> <span class="k">else</span> <span class="kc">None</span>
-
-        <span class="n">s</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">ctx_needs_gradients</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">memory_efficient</span><span class="p">:</span>
-            <span class="n">s</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-
-        <span class="n">_fused_residual_add_rmsnorm_forward_triton</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
 
         <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">xr</span> <span class="k">if</span> <span class="n">has_residual</span> <span class="k">else</span> <span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
         <span class="n">ctx</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">eps</span>
@@ -339,39 +412,13 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">backward</span><span class="p">(</span>
-        <span class="n">ctx</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dxr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+        <span class="n">ctx</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dxr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
-        <span class="n">has_residual</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">has_residual</span>
-
         <span class="n">xr</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span>
-        <span class="n">dx</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">xr</span><span class="p">)</span>
-        <span class="n">dr</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">xr</span><span class="p">)</span> <span class="k">if</span> <span class="n">has_residual</span> <span class="k">else</span> <span class="kc">None</span>
 
-        <span class="n">dW</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="kc">None</span>
-            <span class="k">if</span> <span class="n">W</span> <span class="ow">is</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">Accelerator</span><span class="o">.</span><span class="n">get_sm_count</span><span class="p">(</span><span class="n">dx</span><span class="o">.</span><span class="n">device</span><span class="p">),</span> <span class="o">*</span><span class="n">W</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">dx</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">dx</span><span class="p">,</span> <span class="n">dr</span><span class="p">,</span> <span class="n">dW</span> <span class="o">=</span> <span class="n">fused_residual_add_rmsnorm_backward</span><span class="p">(</span>
+            <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">dxr</span><span class="o">=</span><span class="n">dxr</span><span class="p">,</span> <span class="n">has_residual</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">has_residual</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">eps</span>
         <span class="p">)</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_residual</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">dxr</span> <span class="ow">is</span> <span class="kc">None</span>
-
-        <span class="n">_fused_residual_add_rmsnorm_backward_triton</span><span class="p">(</span>
-            <span class="n">xr</span><span class="o">=</span><span class="n">xr</span><span class="p">,</span>
-            <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span>
-            <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span>
-            <span class="n">dxr</span><span class="o">=</span><span class="n">dxr</span><span class="p">,</span>
-            <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">,</span>
-            <span class="n">dx</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span>
-            <span class="n">dr</span><span class="o">=</span><span class="n">dr</span><span class="p">,</span>
-            <span class="n">dW</span><span class="o">=</span><span class="n">dW</span><span class="p">,</span>
-            <span class="n">eps</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span>
-            <span class="n">multiplier</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">multiplier</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">dW</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">dW</span> <span class="o">=</span> <span class="n">dW</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">dW</span> <span class="o">=</span> <span class="n">dW</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">W</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dr</span><span class="p">,</span> <span class="n">dW</span><span class="p">,</span> <span class="o">*</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span>
 
