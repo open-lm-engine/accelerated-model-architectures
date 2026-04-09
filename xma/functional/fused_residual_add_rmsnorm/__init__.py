@@ -146,7 +146,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
             xr=xr, W=W, s=s, dy=dy, dxr=dxr, has_residual=ctx.has_residual, multiplier=ctx.multiplier
         )
 
-        return dx, dr, dW, *[None] * 4
+        return dx, dr, dW, *[None] * 5
 
 
 def fused_residual_add_rmsnorm(
