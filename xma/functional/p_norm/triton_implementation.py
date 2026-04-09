@@ -20,14 +20,13 @@ def _p_norm_triton_kernel(
     y_ptr,
     y_stride,
     multiplier,
-    B,
-    H,
+    H: tl.constexpr,
     eps,
     is_P_inf: tl.constexpr,
     P: tl.constexpr,
-    P_inv: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
+    P_inv: tl.constexpr = 1 / P
     BLOCK_ID_B = tl.program_id(0)
 
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
@@ -55,7 +54,6 @@ def _p_norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p
         y_ptr=y,
         y_stride=y.stride(),
         multiplier=multiplier,
-        B=B,
         H=H,
         eps=torch.finfo(torch.float32).eps,
         is_P_inf=is_p_inf,
