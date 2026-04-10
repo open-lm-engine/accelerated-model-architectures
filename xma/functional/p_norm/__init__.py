@@ -4,12 +4,51 @@
 
 import torch
 
-from ...accelerator import Accelerator, KernelBackend
+from ...accelerator import KernelBackend
+from ...custom_op import CustomOp
 from ...utils import is_triton_available
 
 
 if is_triton_available():
     from .triton_implementation import _p_norm_triton
+
+
+class _P_Norm(CustomOp):
+    @staticmethod
+    def forward_backward_torch(
+        x: torch.Tensor, multiplier: float | None, p: int | str, output_dtype: torch.dtype
+    ) -> torch.Tensor:
+        if multiplier not in [None, 1]:
+            x = x * multiplier
+
+        if p == "inf":
+            y = x.abs().max(dim=-1)[0]
+        else:
+            y = torch.norm(x, p=p, dim=-1)
+
+        y = y.to(output_dtype)
+
+        return y
+
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        multiplier: float | None,
+        p: int | str,
+        output_dtype: torch.dtype,
+        kernel_backend: KernelBackend,
+    ) -> torch.Tensor:
+        B = x.size(0)
+        is_p_inf = p == "inf"
+
+        y = torch.empty(B, device=x.device, dtype=output_dtype)
+
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
+            _p_norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
+        else:
+            raise NotImplementedError(f"unexpected kernel_backend ({kernel_backend})")
+
+        return y
 
 
 def p_norm(
@@ -39,28 +78,4 @@ def p_norm(
 
     assert x.dim() == 2
 
-    if kernel_backend is None:
-        kernel_backend = Accelerator.get_kernel_backend()
-    else:
-        assert kernel_backend.verify_accelerator()
-
-    if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        B = x.size(0)
-        is_p_inf = p == "inf"
-
-        y = torch.empty(B, device=x.device, dtype=output_dtype)
-        _p_norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
-    elif kernel_backend == KernelBackend.torch:
-        if multiplier not in [None, 1]:
-            x = x * multiplier
-
-        if p == "inf":
-            y = x.abs().max(dim=-1)[0]
-        else:
-            y = torch.norm(x, p=p, dim=-1)
-
-        y = y.to(output_dtype)
-    else:
-        raise NotImplementedError(f"unexpected kernel_backend ({kernel_backend})")
-
-    return y
+    return _P_Norm.run(x=x, multiplier=multiplier, p=p, output_dtype=output_dtype, kernel_backend=kernel_backend)
