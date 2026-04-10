@@ -27,7 +27,7 @@ def compute_p_norm(x, P, P_inv, is_P_inf, eps, axis):
         x = tl.log2(x)
         x *= P
         x = tl.exp2(x)
-        x = tl.sum(x, axis=axis) + eps
+        x = tl.sum(x, axis=axis)
         x = tl.log2(x)
         x *= P_inv
         x = tl.exp2(x)
