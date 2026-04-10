@@ -14,7 +14,7 @@ from ....triton_utils import compute_p_norm
 
 @triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 16)], key=[])
 @triton.jit
-def _p_norm_triton_kernel(
+def _p_norm_forward_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -43,13 +43,15 @@ def _p_norm_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def _p_norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | None, is_p_inf: bool) -> None:
+def _p_norm_forward_triton(
+    x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | None, is_p_inf: bool
+) -> None:
     B, H = x.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-    _p_norm_triton_kernel[B,](
+    _p_norm_forward_triton_kernel[B,](
         x_ptr=x,
         x_stride=x.stride(),
         y_ptr=y,

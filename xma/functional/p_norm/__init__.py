@@ -5,12 +5,12 @@
 import torch
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp
+from ...custom_op import CustomOp, ctx_save_for_backward
 from ...utils import is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import _p_norm_triton
+    from .triton_implementation import _p_norm_forward_triton
 
 
 class _P_Norm(CustomOp):
@@ -30,12 +30,14 @@ class _P_Norm(CustomOp):
 
         return y
 
+    @staticmethod
     def forward(
         ctx,
         x: torch.Tensor,
         multiplier: float | None,
         p: int | str,
         output_dtype: torch.dtype,
+        memory_efficient: bool,
         kernel_backend: KernelBackend,
     ) -> torch.Tensor:
         B = x.size(0)
@@ -44,11 +46,24 @@ class _P_Norm(CustomOp):
         y = torch.empty(B, device=x.device, dtype=output_dtype)
 
         if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-            _p_norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
+            _p_norm_forward_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
         else:
             raise NotImplementedError(f"unexpected kernel_backend ({kernel_backend})")
 
+        if not memory_efficient:
+            ctx_save_for_backward(ctx, x)
+
+        ctx.memory_efficient = memory_efficient
+
         return y
+
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None, None]:
+        memory_efficient = ctx.memory_efficient
+
+        if not memory_efficient:
+            x = ctx.saved_tensors[0]
+
+        return dx, [None] * 5
 
 
 def p_norm(
