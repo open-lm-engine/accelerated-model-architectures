@@ -121,7 +121,7 @@ def _single_tensor_sgd_triton(
         N=N,
         lr=lr,
         weight_decay=None if weight_decay == 0 else weight_decay,
-        dampening=None if dampening is None else dampening,
+        dampening=None if dampening == 0 else dampening,
         momentum=None if momentum == 0 else momentum,
         MAXIMIZE=maximize,
     )
