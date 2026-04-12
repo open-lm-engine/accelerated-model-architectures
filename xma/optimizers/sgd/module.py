@@ -26,7 +26,7 @@ class SGD(_TorchSGD):
             gradients = []
             momentum_buffer = []
 
-            self._init_group(group=group, grads=gradients, momentum_buffer_list=momentum_buffer)
+            self._init_group(group=group, params=parameters, grads=gradients, momentum_buffer_list=momentum_buffer)
 
             sgd(
                 parameters=parameters,
