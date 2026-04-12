@@ -25,7 +25,7 @@ def _multi_tensor_sgd_triton_kernel(
 
     W_ptr = tl.load(W_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
     dW_ptr = tl.load(dW_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
-    M_ptr = tl.load(M_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
+    M_ptr = None if M_ptr_ptr is None else tl.load(M_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
     N = tl.load(N_ptr + BLOCK_ID)
 
     for START in range(0, N, BLOCK_SIZE):
@@ -34,7 +34,7 @@ def _multi_tensor_sgd_triton_kernel(
 
         W = tl.load(W_ptr + BLOCK, mask=MASK)
         dW = tl.load(dW_ptr + BLOCK, mask=MASK)
-        M = tl.load(M_ptr + BLOCK, mask=MASK)
+        M = None if M_ptr is None else tl.load(M_ptr + BLOCK, mask=MASK)
 
         W, M = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
 

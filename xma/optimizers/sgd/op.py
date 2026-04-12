@@ -44,10 +44,6 @@ def sgd(
         assert dampening == 0
         assert not nesterov
 
-        # populate momentum for initial state
-        if len(momentum_buffer) == 0:
-            momentum_buffer = [None] * len(parameters)
-
         if horizontal_fusion:
             device = parameters[0].device
             NUM_WARPS = 8
@@ -55,7 +51,11 @@ def sgd(
             _multi_tensor_sgd_triton_kernel[len(parameters),](
                 W_ptr_ptr=torch.tensor([W.data_ptr() for W in parameters], dtype=torch.int64, device=device),
                 dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in gradients], dtype=torch.int64, device=device),
-                M_ptr_ptr=torch.tensor([M.data_ptr() for M in momentum_buffer], dtype=torch.int64, device=device),
+                M_ptr_ptr=(
+                    None
+                    if len(momentum_buffer) == 0
+                    else torch.tensor([M.data_ptr() for M in momentum_buffer], dtype=torch.int64, device=device)
+                ),
                 N_ptr=torch.tensor([W.numel() for W in parameters], dtype=torch.int64, device=device),
                 lr=lr,
                 weight_decay=None if weight_decay == 0 else weight_decay,
@@ -66,6 +66,9 @@ def sgd(
                 num_warps=NUM_WARPS,
             )
         else:
+            if len(momentum_buffer) == 0:
+                momentum_buffer = [None] * len(parameters)
+
             for W, dW, M in zip(parameters, gradients, momentum_buffer):
                 assert W.is_contiguous()
                 dW = dW.contiguous()
