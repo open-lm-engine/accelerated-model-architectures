@@ -73,10 +73,12 @@ def _single_tensor_sgd_triton_kernel(
         W = _sgd_step(W=W, dW=dW, M=None, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
     else:
         M = tl.load(M_ptr + BLOCK, mask=MASK)
+
         W, M = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
 
+        tl.store(M_ptr + BLOCK, M, mask=MASK)
+
     tl.store(W_ptr + BLOCK, W, mask=MASK)
-    tl.store(M_ptr + BLOCK, M, mask=MASK)
 
 
 @xma_op(mutates_args={"W", "M"})
