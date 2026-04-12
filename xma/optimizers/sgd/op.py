@@ -74,7 +74,7 @@ def sgd(
                 num_warps=NUM_WARPS,
             )
         else:
-            if len(momentum_buffer) == 0:
+            if momentum_buffer is None:
                 momentum_buffer = [None] * len(parameters)
 
             for W, dW, M in zip(parameters, gradients, momentum_buffer):
