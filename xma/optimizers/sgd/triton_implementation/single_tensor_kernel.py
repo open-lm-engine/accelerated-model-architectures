@@ -70,13 +70,9 @@ def _single_tensor_sgd_triton_kernel(
 
     if momentum is None:
         tl.static_assert(M_ptr is None)
-        M = None
+        W = _sgd_step(W=W, dW=dW, M=None, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
     else:
         M = tl.load(M_ptr + BLOCK, mask=MASK)
-
-    if M is None:
-        W = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
-    else:
         W, M = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
 
     tl.store(W_ptr + BLOCK, W, mask=MASK)
