@@ -24,6 +24,7 @@ if is_triton_available():
 def sgd(
     parameters: list[torch.Tensor],
     gradients: list[torch.Tensor],
+    momentum_buffer: list[torch.Tensor],
     lr: float,
     maximize: bool,
     horizontal_fusion: bool,
@@ -40,7 +41,6 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        assert momentum == 0
         assert dampening == 0
         assert not nesterov
 
@@ -51,25 +51,29 @@ def sgd(
             _multi_tensor_sgd_triton_kernel[len(parameters),](
                 W_ptr_ptr=torch.tensor([W.data_ptr() for W in parameters], dtype=torch.int64, device=device),
                 dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in gradients], dtype=torch.int64, device=device),
+                M_ptr_ptr=torch.tensor([M.data_ptr() for M in momentum_buffer], dtype=torch.int64, device=device),
                 N_ptr=torch.tensor([W.numel() for W in parameters], dtype=torch.int64, device=device),
                 lr=lr,
                 weight_decay=None if weight_decay == 0 else weight_decay,
+                momentum=None if momentum == 0 else momentum,
                 BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // parameters[0].dtype.itemsize),
                 MAXIMIZE=maximize,
                 DTYPE=_TORCH_TO_TRITON_DTYPE[parameters[0].dtype],
                 num_warps=NUM_WARPS,
             )
         else:
-            for W, dW in zip(parameters, gradients):
+            for W, dW, M in zip(parameters, gradients, momentum_buffer):
                 assert W.is_contiguous()
                 dW = dW.contiguous()
 
-                _single_tensor_sgd_triton(W=W, dW=dW, lr=lr, weight_decay=weight_decay, maximize=maximize)
+                _single_tensor_sgd_triton(
+                    W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, maximize=maximize
+                )
     elif kernel_backend == KernelBackend.torch:
         (_multi_tensor_sgd if horizontal_fusion else _single_tensor_sgd)(
             params=parameters,
             grads=gradients,
-            momentum_buffer_list=[None] * len(parameters),
+            momentum_buffer_list=momentum_buffer,
             grad_scale=None,
             found_inf=None,
             weight_decay=weight_decay,
