@@ -35,7 +35,7 @@ class SGD(_TorchSGD):
                 gradients.append(p.grad)
 
                 if momentum != 0:
-                    momentum_buffer.append(self.state[p].get("momentum_buffer"))
+                    momentum_buffer.append(self.state[p].get("momentum_buffer", None))
 
             sgd(
                 parameters=parameters,
