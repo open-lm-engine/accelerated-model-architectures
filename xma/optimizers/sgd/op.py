@@ -41,7 +41,6 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        assert dampening == 0
         assert not nesterov
 
         if momentum == 0:
@@ -68,6 +67,7 @@ def sgd(
                 lr=lr,
                 weight_decay=None if weight_decay == 0 else weight_decay,
                 momentum=None if momentum == 0 else momentum,
+                dampening=None if dampening == 0 else dampening,
                 BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // parameters[0].dtype.itemsize),
                 MAXIMIZE=maximize,
                 DTYPE=_TORCH_TO_TRITON_DTYPE[parameters[0].dtype],
@@ -85,7 +85,14 @@ def sgd(
                     assert M.is_contiguous()
 
                 _single_tensor_sgd_triton(
-                    W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, maximize=maximize
+                    W=W,
+                    dW=dW,
+                    M=M,
+                    lr=lr,
+                    weight_decay=weight_decay,
+                    momentum=momentum,
+                    dampening=dampening,
+                    maximize=maximize,
                 )
     elif kernel_backend == KernelBackend.torch:
         (_multi_tensor_sgd if horizontal_fusion else _single_tensor_sgd)(

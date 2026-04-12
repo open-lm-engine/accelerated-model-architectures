@@ -20,7 +20,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 
 @triton.jit
-def _sgd_step(W, dW, M, lr, weight_decay, momentum, MAXIMIZE):
+def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, MAXIMIZE):
     W = W.to(tl.float32)
     dW = dW.to(tl.float32)
 
@@ -35,7 +35,7 @@ def _sgd_step(W, dW, M, lr, weight_decay, momentum, MAXIMIZE):
             M = dW
         else:
             M = M.to(tl.float32)
-            M = momentum * M + dW
+            M = momentum * M + (1 - dampening) * dW
 
         dW = M
 
@@ -57,6 +57,7 @@ def _single_tensor_sgd_triton_kernel(
     lr,
     weight_decay,
     momentum,
+    dampening,
     BLOCK_SIZE: tl.constexpr,
     MAXIMIZE: tl.constexpr,
 ):
@@ -70,11 +71,29 @@ def _single_tensor_sgd_triton_kernel(
 
     if momentum is None:
         tl.static_assert(M_ptr is None)
-        W = _sgd_step(W=W, dW=dW, M=None, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
+        W = _sgd_step(
+            W=W,
+            dW=dW,
+            M=None,
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            dampening=dampening,
+            MAXIMIZE=MAXIMIZE,
+        )
     else:
         M = tl.load(M_ptr + BLOCK, mask=MASK)
 
-        W, M = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
+        W, M = _sgd_step(
+            W=W,
+            dW=dW,
+            M=M,
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            dampening=dampening,
+            MAXIMIZE=MAXIMIZE,
+        )
 
         tl.store(M_ptr + BLOCK, M, mask=MASK)
 
@@ -89,6 +108,7 @@ def _single_tensor_sgd_triton(
     lr: float,
     weight_decay: float,
     momentum: float,
+    dampening: float,
     maximize: bool,
 ) -> None:
     N = W.numel()
@@ -101,6 +121,7 @@ def _single_tensor_sgd_triton(
         N=N,
         lr=lr,
         weight_decay=None if weight_decay == 0 else weight_decay,
+        dampening=None if dampening is None else dampening,
         momentum=None if momentum == 0 else momentum,
         MAXIMIZE=maximize,
     )

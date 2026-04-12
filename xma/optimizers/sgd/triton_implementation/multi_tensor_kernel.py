@@ -17,6 +17,7 @@ def _multi_tensor_sgd_triton_kernel(
     lr,
     weight_decay,
     momentum,
+    dampening,
     BLOCK_SIZE: tl.constexpr,
     MAXIMIZE: tl.constexpr,
     DTYPE: tl.constexpr,
@@ -42,11 +43,29 @@ def _multi_tensor_sgd_triton_kernel(
         dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
         if M_ptr is None:
-            W = _sgd_step(W=W, dW=dW, M=None, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
+            W = _sgd_step(
+                W=W,
+                dW=dW,
+                M=None,
+                lr=lr,
+                weight_decay=weight_decay,
+                momentum=momentum,
+                dampening=dampening,
+                MAXIMIZE=MAXIMIZE,
+            )
         else:
             M = tl.load(M_ptr + BLOCK, mask=MASK)
 
-            W, M = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
+            W, M = _sgd_step(
+                W=W,
+                dW=dW,
+                M=M,
+                lr=lr,
+                weight_decay=weight_decay,
+                momentum=momentum,
+                dampening=dampening,
+                MAXIMIZE=MAXIMIZE,
+            )
 
             tl.store(M_ptr + BLOCK, M, mask=MASK)
 
