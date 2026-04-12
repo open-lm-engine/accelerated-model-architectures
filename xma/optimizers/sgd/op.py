@@ -53,7 +53,7 @@ def sgd(
                 dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in gradients], dtype=torch.int64, device=device),
                 N_ptr=torch.tensor([W.numel() for W in parameters], dtype=torch.int64, device=device),
                 lr=lr,
-                weight_decay=weight_decay,
+                weight_decay=None if weight_decay == 0 else weight_decay,
                 BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // parameters[0].dtype.itemsize),
                 MAXIMIZE=maximize,
                 DTYPE=_TORCH_TO_TRITON_DTYPE[parameters[0].dtype],
