@@ -24,6 +24,8 @@ class SGD(_TorchSGD):
         for group in self.param_groups:
             parameters = []
             gradients = []
+            momentum_buffer = []
+            momentum = group["momentum"]
 
             for p in group["params"]:
                 if p.grad is None:
@@ -32,9 +34,13 @@ class SGD(_TorchSGD):
                 parameters.append(p)
                 gradients.append(p.grad)
 
+                if momentum != 0:
+                    momentum_buffer.append(self.state[p].get("momentum_buffer"))
+
             sgd(
                 parameters=parameters,
                 gradients=gradients,
+                momentum_buffer=momentum_buffer,
                 lr=group["lr"],
                 maximize=False,
                 horizontal_fusion=group["foreach"],
