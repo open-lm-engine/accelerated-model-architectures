@@ -25,17 +25,8 @@ class SGD(_TorchSGD):
             parameters = []
             gradients = []
             momentum_buffer = []
-            momentum = group["momentum"]
 
-            for p in group["params"]:
-                if p.grad is None:
-                    continue
-
-                parameters.append(p)
-                gradients.append(p.grad)
-
-                if momentum != 0:
-                    momentum_buffer.append(self.state[p].get("momentum_buffer", None))
+            self._init_group(group=group, grads=gradients, momentum_buffer_list=momentum_buffer)
 
             sgd(
                 parameters=parameters,
