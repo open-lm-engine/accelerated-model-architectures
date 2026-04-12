@@ -19,6 +19,7 @@ _LEARNING_RATE = 1e-3
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("horizontal_fusion", [True, False])
 @pytest.mark.parametrize("maximize", [True, False])
+@pytest.mark.parametrize("weight_decay", [2, 0])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 def test_sgd(
     size: int, dtype: torch.dtype, horizontal_fusion: bool, maximize: bool, kernel_backend: KernelBackend

@@ -20,33 +20,56 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 
 @triton.jit
-def _sgd_step(W, dW, lr, MAXIMIZE):
+def _sgd_step(W, dW, lr, weight_decay, MAXIMIZE):
+    W = W.to(tl.float32)
+    dW = dW.to(tl.float32)
+
     if MAXIMIZE:
         dW = -dW
 
-    W -= lr * dW.to(W.dtype)
+    if weight_decay is not None:
+        dW += weight_decay * W
+
+    W -= lr * dW
 
     return W
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr"])
 @triton.jit
-def single_tensor_sgd_triton_kernel(W_ptr, dW_ptr, N, lr, BLOCK_SIZE: tl.constexpr, MAXIMIZE: tl.constexpr):
+def _single_tensor_sgd_triton_kernel(
+    W_ptr,
+    dW_ptr,
+    N,
+    lr,
+    weight_decay,
+    BLOCK_SIZE: tl.constexpr,
+    MAXIMIZE: tl.constexpr,
+):
     BLOCK_ID = tl.program_id(0)
 
     BLOCK = BLOCK_ID * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     MASK = BLOCK < N
 
-    W = tl.load(W_ptr + BLOCK, mask=MASK)
-    dW = tl.load(dW_ptr + BLOCK, mask=MASK)
+    W = tl.load(W_ptr + BLOCK, mask=MASK).to(tl.float32)
+    dW = tl.load(dW_ptr + BLOCK, mask=MASK).to(tl.float32)
 
-    W = _sgd_step(W=W, dW=dW, lr=lr, MAXIMIZE=MAXIMIZE)
+    W = _sgd_step(W=W, dW=dW, lr=lr, weight_decay=weight_decay, MAXIMIZE=MAXIMIZE)
     tl.store(W_ptr + BLOCK, W, mask=MASK)
 
 
 @xma_op(mutates_args={"W"})
-def single_tensor_sgd_triton(W: torch.Tensor, dW: torch.Tensor, lr: float, maximize: bool) -> None:
+def _single_tensor_sgd_triton(
+    W: torch.Tensor, dW: torch.Tensor, lr: float, weight_decay: float, maximize: bool
+) -> None:
     N = W.numel()
     GRID = lambda kwargs: (ceil_divide(N, kwargs["BLOCK_SIZE"]),)
 
-    single_tensor_sgd_triton_kernel[GRID](W_ptr=W, dW_ptr=dW, N=N, lr=lr, MAXIMIZE=maximize)
+    _single_tensor_sgd_triton_kernel[GRID](
+        W_ptr=W,
+        dW_ptr=dW,
+        N=N,
+        lr=lr,
+        weight_decay=None if weight_decay == 0 else weight_decay,
+        MAXIMIZE=maximize,
+    )
