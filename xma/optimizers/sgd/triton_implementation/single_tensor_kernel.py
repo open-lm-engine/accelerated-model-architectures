@@ -64,7 +64,12 @@ def _single_tensor_sgd_triton_kernel(
 
     W = tl.load(W_ptr + BLOCK, mask=MASK)
     dW = tl.load(dW_ptr + BLOCK, mask=MASK)
-    M = None if momentum is None else tl.load(M_ptr + BLOCK, mask=MASK)
+
+    if momentum is None:
+        tl.static_assert(M_ptr is None)
+        M = None
+    else:
+        M = tl.load(M_ptr + BLOCK, mask=MASK)
 
     W, M = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
 
@@ -74,7 +79,13 @@ def _single_tensor_sgd_triton_kernel(
 
 @xma_op(mutates_args={"W", "M"})
 def _single_tensor_sgd_triton(
-    W: torch.Tensor, dW: torch.Tensor, M: torch.Tensor, lr: float, weight_decay: float, momentum: float, maximize: bool
+    W: torch.Tensor,
+    dW: torch.Tensor,
+    M: torch.Tensor | None,
+    lr: float,
+    weight_decay: float,
+    momentum: float,
+    maximize: bool,
 ) -> None:
     N = W.numel()
     GRID = lambda kwargs: (ceil_divide(N, kwargs["BLOCK_SIZE"]),)
