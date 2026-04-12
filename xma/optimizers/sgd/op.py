@@ -81,6 +81,9 @@ def sgd(
                 assert W.is_contiguous()
                 dW = dW.contiguous()
 
+                if M is not None:
+                    assert M.is_contiguous()
+
                 _single_tensor_sgd_triton(
                     W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, maximize=maximize
                 )
