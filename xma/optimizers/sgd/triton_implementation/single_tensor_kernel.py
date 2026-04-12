@@ -30,22 +30,19 @@ def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, MAXIMIZE):
     if weight_decay is not None:
         dW += weight_decay * W
 
-    if momentum is not None:
-        if M is None:
-            M = dW
-        else:
-            M = M.to(tl.float32)
+    if momentum is None or M is None:
+        M = dW
+    else:
+        M = M.to(tl.float32)
 
-            if dampening is not None:
-                dW *= 1 - dampening
+        if dampening is not None:
+            dW *= 1 - dampening
 
-            M = momentum * M + dW
+        M = momentum * M + dW
 
-        dW = M
+    W -= lr * M
 
-    W -= lr * dW
-
-    if M is None:
+    if momentum is None:
         return W
     else:
         return W, M
