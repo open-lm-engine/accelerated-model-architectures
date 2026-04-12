@@ -51,8 +51,8 @@ def _single_tensor_sgd_triton_kernel(
     BLOCK = BLOCK_ID * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     MASK = BLOCK < N
 
-    W = tl.load(W_ptr + BLOCK, mask=MASK).to(tl.float32)
-    dW = tl.load(dW_ptr + BLOCK, mask=MASK).to(tl.float32)
+    W = tl.load(W_ptr + BLOCK, mask=MASK)
+    dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
     W = _sgd_step(W=W, dW=dW, lr=lr, weight_decay=weight_decay, MAXIMIZE=MAXIMIZE)
     tl.store(W_ptr + BLOCK, W, mask=MASK)
