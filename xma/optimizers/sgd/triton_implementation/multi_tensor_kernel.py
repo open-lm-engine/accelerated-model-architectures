@@ -5,11 +5,9 @@
 import triton
 import triton.language as tl
 
-from ....math import get_powers_of_2
 from .single_tensor_kernel import _sgd_step
 
 
-# @triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 32)], key=[])
 @triton.jit
 def _multi_tensor_sgd_triton_kernel(
     W_ptr_ptr,
