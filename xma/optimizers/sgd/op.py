@@ -44,6 +44,10 @@ def sgd(
         assert dampening == 0
         assert not nesterov
 
+        # populate momentum for initial state
+        if len(momentum_buffer) == 0:
+            momentum_buffer = [None] * len(parameters)
+
         if horizontal_fusion:
             device = parameters[0].device
             NUM_WARPS = 8
