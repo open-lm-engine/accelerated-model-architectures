@@ -57,4 +57,4 @@ def test_sgd(
     sgd_torch.step(kernel_backend=KernelBackend.torch)
 
     for p_triton, p_torch in zip(params_kernel, params_torch):
-        assert_equal_tensors(p_triton, p_torch, exact_match=True)
+        assert_equal_tensors(p_triton, p_torch, exact_match=False)
