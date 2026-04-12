@@ -12,6 +12,7 @@ from .single_tensor_kernel import _sgd_step
 def _multi_tensor_sgd_triton_kernel(
     W_ptr_ptr,
     dW_ptr_ptr,
+    M_ptr_ptr,
     N_ptr,
     lr,
     weight_decay,
@@ -24,6 +25,7 @@ def _multi_tensor_sgd_triton_kernel(
 
     W_ptr = tl.load(W_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
     dW_ptr = tl.load(dW_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
+    M_ptr = tl.load(M_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
     N = tl.load(N_ptr + BLOCK_ID)
 
     for START in range(0, N, BLOCK_SIZE):
@@ -32,6 +34,7 @@ def _multi_tensor_sgd_triton_kernel(
 
         W = tl.load(W_ptr + BLOCK, mask=MASK)
         dW = tl.load(dW_ptr + BLOCK, mask=MASK)
+        M = tl.load(M_ptr + BLOCK, mask=MASK)
 
-        W = _sgd_step(W=W, dW=dW, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
+        W = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
         tl.store(W_ptr + BLOCK, W, mask=MASK)

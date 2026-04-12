@@ -20,7 +20,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 
 @triton.jit
-def _sgd_step(W, dW, M, lr, weight_decay, MAXIMIZE):
+def _sgd_step(W, dW, M, lr, weight_decay, momentum, MAXIMIZE):
     W = W.to(tl.float32)
     dW = dW.to(tl.float32)
 
@@ -29,6 +29,13 @@ def _sgd_step(W, dW, M, lr, weight_decay, MAXIMIZE):
 
     if weight_decay is not None:
         dW += weight_decay * W
+
+    if momentum is not None:
+        if M is None:
+            M = dW
+        else:
+            M = M.to(tl.float32)
+            M = momentum * M + dW
 
     W -= lr * dW
 
@@ -57,7 +64,7 @@ def _single_tensor_sgd_triton_kernel(
     dW = tl.load(dW_ptr + BLOCK, mask=MASK)
     M = None if momentum is None else tl.load(M_ptr + BLOCK, mask=MASK)
 
-    W = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, MAXIMIZE=MAXIMIZE)
+    W = _sgd_step(W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, MAXIMIZE=MAXIMIZE)
     tl.store(W_ptr + BLOCK, W, mask=MASK)
 
 
