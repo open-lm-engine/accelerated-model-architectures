@@ -9,7 +9,7 @@ from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
 
 from ...accelerator import Accelerator, KernelBackend
 from ...constants import LOG_WARP_SIZE
-from ...utils import empty_like_contiguous, is_triton_available
+from ...utils import is_triton_available, zeros_like_contiguous
 
 
 if is_triton_available():
@@ -49,7 +49,7 @@ def sgd(
         elif momentum_buffer[0] is None:
             assert all([m is None for m in momentum_buffer])
             for i, p in enumerate(parameters):
-                momentum_buffer[i] = empty_like_contiguous(p, dtype=torch.float32)
+                momentum_buffer[i] = zeros_like_contiguous(p, dtype=torch.float32)
 
         if horizontal_fusion:
             device = parameters[0].device
