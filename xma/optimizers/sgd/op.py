@@ -74,6 +74,9 @@ def sgd(
                 num_warps=NUM_WARPS,
             )
         else:
+            if len(momentum_buffer) == 0:
+                momentum_buffer = [None] * len(parameters)
+
             for W, dW, M in zip(parameters, gradients, momentum_buffer):
                 assert W.is_contiguous()
                 dW = dW.contiguous()
