@@ -20,6 +20,7 @@ _LEARNING_RATE = 1e-3
 @pytest.mark.parametrize("horizontal_fusion", [True, False])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("weight_decay", [0, 0.7])
+@pytest.mark.parametrize("momentum", [0, 0.7])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 def test_sgd(
     size: int,
@@ -27,6 +28,7 @@ def test_sgd(
     horizontal_fusion: bool,
     maximize: bool,
     weight_decay: float,
+    momentum: float,
     kernel_backend: KernelBackend,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
@@ -44,13 +46,19 @@ def test_sgd(
     sgd_kernel = SGD(
         params=params_kernel,
         lr=_LEARNING_RATE,
+        momentum=momentum,
         weight_decay=weight_decay,
         maximize=maximize,
         foreach=horizontal_fusion,
     )
 
     sgd_torch = SGD(
-        params=params_torch, lr=_LEARNING_RATE, weight_decay=weight_decay, maximize=maximize, foreach=horizontal_fusion
+        params=params_torch,
+        lr=_LEARNING_RATE,
+        momentum=momentum,
+        weight_decay=weight_decay,
+        maximize=maximize,
+        foreach=horizontal_fusion,
     )
 
     sgd_kernel.step(kernel_backend=kernel_backend)
