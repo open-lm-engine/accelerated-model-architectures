@@ -53,7 +53,7 @@ def sgd(
                 dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in gradients], dtype=torch.int64, device=device),
                 M_ptr_ptr=(
                     None
-                    if len(momentum_buffer) == 0
+                    if momentum == 0
                     else torch.tensor([M.data_ptr() for M in momentum_buffer], dtype=torch.int64, device=device)
                 ),
                 N_ptr=torch.tensor([W.numel() for W in parameters], dtype=torch.int64, device=device),
