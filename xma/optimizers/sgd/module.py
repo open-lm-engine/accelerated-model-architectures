@@ -26,7 +26,11 @@ class SGD(_TorchSGD):
             gradients = []
             momentum_buffer = []
 
-            self._init_group(group=group, params=parameters, grads=gradients, momentum_buffer_list=momentum_buffer)
+            has_sparse_grad = self._init_group(
+                group=group, params=parameters, grads=gradients, momentum_buffer_list=momentum_buffer
+            )
+
+            assert not has_sparse_grad
 
             sgd(
                 parameters=parameters,
