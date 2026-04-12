@@ -9,7 +9,7 @@ from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
 
 from ...accelerator import Accelerator, KernelBackend
 from ...constants import LOG_WARP_SIZE
-from ...utils import is_triton_available
+from ...utils import empty_like_contiguous, is_triton_available
 
 
 if is_triton_available():
@@ -44,6 +44,14 @@ def sgd(
         assert dampening == 0
         assert not nesterov
 
+        if momentum == 0:
+            assert len(momentum_buffer) == 0
+            momentum_buffer = None
+        elif momentum_buffer[0] is None:
+            assert all([m is None for m in momentum_buffer])
+            for i, p in enumerate(parameters):
+                momentum_buffer[i] = empty_like_contiguous(p, dtype=torch.float32)
+
         if horizontal_fusion:
             device = parameters[0].device
             NUM_WARPS = 8
@@ -66,9 +74,6 @@ def sgd(
                 num_warps=NUM_WARPS,
             )
         else:
-            if len(momentum_buffer) == 0:
-                momentum_buffer = [None] * len(parameters)
-
             for W, dW, M in zip(parameters, gradients, momentum_buffer):
                 assert W.is_contiguous()
                 dW = dW.contiguous()
