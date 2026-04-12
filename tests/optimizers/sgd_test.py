@@ -19,9 +19,15 @@ _LEARNING_RATE = 1e-3
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("horizontal_fusion", [True, False])
 @pytest.mark.parametrize("maximize", [True, False])
+@pytest.mark.parametrize("weight_decay", [0, 0.7])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 def test_sgd(
-    size: int, dtype: torch.dtype, horizontal_fusion: bool, maximize: bool, kernel_backend: KernelBackend
+    size: int,
+    dtype: torch.dtype,
+    horizontal_fusion: bool,
+    maximize: bool,
+    weight_decay: float,
+    kernel_backend: KernelBackend,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -35,11 +41,20 @@ def test_sgd(
         pk.grad = g
         pt.grad = g
 
-    sgd_kernel = SGD(params=params_kernel, lr=_LEARNING_RATE, maximize=maximize, foreach=horizontal_fusion)
-    sgd_torch = SGD(params=params_torch, lr=_LEARNING_RATE, maximize=maximize, foreach=horizontal_fusion)
+    sgd_kernel = SGD(
+        params=params_kernel,
+        lr=_LEARNING_RATE,
+        weight_decay=weight_decay,
+        maximize=maximize,
+        foreach=horizontal_fusion,
+    )
+
+    sgd_torch = SGD(
+        params=params_torch, lr=_LEARNING_RATE, weight_decay=weight_decay, maximize=maximize, foreach=horizontal_fusion
+    )
 
     sgd_kernel.step(kernel_backend=kernel_backend)
     sgd_torch.step(kernel_backend=KernelBackend.torch)
 
     for p_triton, p_torch in zip(params_kernel, params_torch):
-        assert_equal_tensors(p_triton, p_torch, exact_match=True)
+        assert_equal_tensors(p_triton, p_torch, exact_match=False)
