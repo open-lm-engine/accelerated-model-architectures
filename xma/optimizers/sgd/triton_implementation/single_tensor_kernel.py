@@ -62,7 +62,6 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
     N,
     lr,
     weight_decay,
-    NESTEROV: tl.constexpr,
     MAXIMIZE: tl.constexpr,
     IS_FIRST_STEP: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
@@ -83,7 +82,7 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
         weight_decay=weight_decay,
         momentum=None,
         dampening=None,
-        NESTEROV=NESTEROV,
+        NESTEROV=False,
         MAXIMIZE=MAXIMIZE,
         IS_FIRST_STEP=IS_FIRST_STEP,
     )
