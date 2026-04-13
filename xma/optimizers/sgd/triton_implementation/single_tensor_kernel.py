@@ -63,7 +63,6 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
     lr,
     weight_decay,
     MAXIMIZE: tl.constexpr,
-    IS_FIRST_STEP: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
@@ -84,7 +83,7 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
         dampening=None,
         NESTEROV=False,
         MAXIMIZE=MAXIMIZE,
-        IS_FIRST_STEP=IS_FIRST_STEP,
+        IS_FIRST_STEP=False,
     )
 
     tl.store(W_ptr + BLOCK, W, mask=MASK)
@@ -155,12 +154,16 @@ def _single_tensor_sgd_triton(
         "lr": lr,
         "weight_decay": None if weight_decay == 0 else weight_decay,
         "MAXIMIZE": maximize,
-        "IS_FIRST_STEP": is_first_step,
     }
 
     if M is None:
         _single_tensor_sgd_triton_kernel_no_momentum[GRID](**kwargs)
     else:
         _single_tensor_sgd_triton_kernel_with_momentum[GRID](
-            **kwargs, M_ptr=M, momentum=momentum, dampening=None if dampening == 0 else dampening, NESTEROV=nesterov
+            **kwargs,
+            M_ptr=M,
+            momentum=momentum,
+            dampening=None if dampening == 0 else dampening,
+            NESTEROV=nesterov,
+            IS_FIRST_STEP=is_first_step,
         )
