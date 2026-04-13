@@ -20,7 +20,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 
 @triton.jit
-def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, MAXIMIZE, IS_FIRST_STEP):
+def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, NESTEROV, MAXIMIZE, IS_FIRST_STEP):
     W = W.to(tl.float32)
     dW = dW.to(tl.float32)
 
@@ -33,12 +33,18 @@ def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, MAXIMIZE, IS_FIRS
     if momentum is None or M is None:
         M = dW
     else:
+        _dW = dW
         if dampening is not None and not IS_FIRST_STEP:
-            dW *= 1 - dampening
+            _dW *= 1 - dampening
 
         M = M.to(tl.float32)
         M *= momentum
-        M += dW
+        M += _dW
+
+    if NESTEROV:
+        dW = M * momentum + dW
+    else:
+        dW = M
 
     W -= lr * M
 
@@ -56,9 +62,10 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
     N,
     lr,
     weight_decay,
-    BLOCK_SIZE: tl.constexpr,
+    NESTEROV: tl.constexpr,
     MAXIMIZE: tl.constexpr,
     IS_FIRST_STEP: tl.constexpr,
+    BLOCK_SIZE: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
 
@@ -76,6 +83,7 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
         weight_decay=weight_decay,
         momentum=None,
         dampening=None,
+        NESTEROV=NESTEROV,
         MAXIMIZE=MAXIMIZE,
         IS_FIRST_STEP=IS_FIRST_STEP,
     )
@@ -95,6 +103,7 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
     momentum,
     dampening,
     BLOCK_SIZE: tl.constexpr,
+    NESTEROV: tl.constexpr,
     MAXIMIZE: tl.constexpr,
     IS_FIRST_STEP: tl.constexpr,
 ):
@@ -115,6 +124,7 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
         weight_decay=weight_decay,
         momentum=momentum,
         dampening=dampening,
+        NESTEROV=NESTEROV,
         MAXIMIZE=MAXIMIZE,
         IS_FIRST_STEP=IS_FIRST_STEP,
     )
@@ -132,6 +142,7 @@ def _single_tensor_sgd_triton(
     weight_decay: float,
     momentum: float,
     dampening: float,
+    nesterov: bool,
     maximize: bool,
     is_first_step: bool,
 ) -> None:
@@ -152,5 +163,5 @@ def _single_tensor_sgd_triton(
         _single_tensor_sgd_triton_kernel_no_momentum[GRID](**kwargs)
     else:
         _single_tensor_sgd_triton_kernel_with_momentum[GRID](
-            **kwargs, M_ptr=M, momentum=momentum, dampening=None if dampening == 0 else dampening
+            **kwargs, M_ptr=M, momentum=momentum, dampening=None if dampening == 0 else dampening, NESTEROV=nesterov
         )

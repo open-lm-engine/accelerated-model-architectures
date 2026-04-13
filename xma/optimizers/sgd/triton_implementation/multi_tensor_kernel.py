@@ -21,6 +21,7 @@ def _multi_tensor_sgd_triton_kernel(
     weight_decay,
     momentum,
     dampening,
+    NESTEROV: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
     MAXIMIZE: tl.constexpr,
     IS_FIRST_STEP: tl.constexpr,
@@ -56,6 +57,7 @@ def _multi_tensor_sgd_triton_kernel(
             weight_decay=weight_decay,
             momentum=momentum,
             dampening=dampening,
+            NESTEROV=NESTEROV,
             MAXIMIZE=MAXIMIZE,
             IS_FIRST_STEP=IS_FIRST_STEP,
         )
