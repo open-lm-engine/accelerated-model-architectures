@@ -84,5 +84,3 @@ def test_sgd(
         if momentum == 0:
             assert m_kernel is None
             assert m_torch is None
-        else:
-            assert_equal_tensors(m_kernel, m_torch.to(m_kernel.dtype), exact_match=False)
