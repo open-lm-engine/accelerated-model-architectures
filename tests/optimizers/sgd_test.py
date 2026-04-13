@@ -79,7 +79,8 @@ def test_sgd(
         assert_equal_tensors(p_kernel, p_torch, exact_match=True)
 
         for p, m_kernel in sgd_kernel.state.items():
-            m_torch = sgd_torch.state[p]
+            m_kernel = m_kernel.get("momentum_buffer")
+            m_torch = sgd_torch.state[p].get("momentum_buffer")
 
             if momentum == 0:
                 assert m_kernel is None
