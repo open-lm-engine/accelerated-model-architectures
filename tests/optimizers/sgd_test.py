@@ -22,6 +22,7 @@ _LEARNING_RATE = 1e-3
 @pytest.mark.parametrize("weight_decay", [0, 0.7])
 @pytest.mark.parametrize("momentum", [0, 0.7])
 @pytest.mark.parametrize("dampening", [0, 0.7])
+@pytest.mark.parametrize("nesterov", [True, False])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 def test_sgd(
     size: int,
@@ -31,6 +32,7 @@ def test_sgd(
     weight_decay: float,
     momentum: float,
     dampening: float,
+    nesterov: bool,
     kernel_backend: KernelBackend,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
@@ -52,6 +54,7 @@ def test_sgd(
         dampening=dampening,
         weight_decay=weight_decay,
         maximize=maximize,
+        nesterov=nesterov,
         foreach=horizontal_fusion,
     )
 
@@ -62,6 +65,7 @@ def test_sgd(
         dampening=dampening,
         weight_decay=weight_decay,
         maximize=maximize,
+        nesterov=nesterov,
         foreach=horizontal_fusion,
     )
 
