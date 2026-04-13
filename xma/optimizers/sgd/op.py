@@ -41,9 +41,7 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        assert not nesterov
         is_first_step = True
-
         if momentum == 0:
             assert len(momentum_buffer) == 0
             momentum_buffer = None
