@@ -290,21 +290,22 @@
                 <span class="n">loss</span> <span class="o">=</span> <span class="n">closure</span><span class="p">()</span>
 
         <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_groups</span><span class="p">:</span>
-            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">gradients</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">grads</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">momentum_buffer_list</span> <span class="o">=</span> <span class="p">[]</span>
 
-            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">group</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span>
-                <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">grad</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="k">continue</span>
+            <span class="n">has_sparse_grad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_group</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">grads</span><span class="o">=</span><span class="n">grads</span><span class="p">,</span> <span class="n">momentum_buffer_list</span><span class="o">=</span><span class="n">momentum_buffer_list</span>
+            <span class="p">)</span>
 
-                <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
-                <span class="n">gradients</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">has_sparse_grad</span>
 
             <span class="n">sgd</span><span class="p">(</span>
-                <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">,</span>
-                <span class="n">gradients</span><span class="o">=</span><span class="n">gradients</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+                <span class="n">grads</span><span class="o">=</span><span class="n">grads</span><span class="p">,</span>
+                <span class="n">momentum_buffer_list</span><span class="o">=</span><span class="n">momentum_buffer_list</span><span class="p">,</span>
                 <span class="n">lr</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;lr&quot;</span><span class="p">],</span>
-                <span class="n">maximize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">maximize</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;maximize&quot;</span><span class="p">],</span>
                 <span class="n">horizontal_fusion</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;foreach&quot;</span><span class="p">],</span>
                 <span class="n">weight_decay</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;weight_decay&quot;</span><span class="p">],</span>
                 <span class="n">momentum</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;momentum&quot;</span><span class="p">],</span>
@@ -312,6 +313,10 @@
                 <span class="n">nesterov</span><span class="o">=</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;nesterov&quot;</span><span class="p">],</span>
                 <span class="n">kernel_backend</span><span class="o">=</span><span class="n">kernel_backend</span><span class="p">,</span>
             <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">group</span><span class="p">[</span><span class="s2">&quot;momentum&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">momentum_buffer_list</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s2">&quot;momentum_buffer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">m</span>
 
         <span class="k">return</span> <span class="n">loss</span></div>
 </div>
