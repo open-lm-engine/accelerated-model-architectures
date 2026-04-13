@@ -103,6 +103,10 @@ def sgd(
                     is_first_step=is_first_step,
                 )
     elif kernel_backend == KernelBackend.torch:
+        if momentum != 0 and momentum_buffer and momentum_buffer[0] is None:
+            for i, p in enumerate(parameters):
+                momentum_buffer[i] = zeros_like_contiguous(p, dtype=torch.float32)
+
         (_multi_tensor_sgd if horizontal_fusion else _single_tensor_sgd)(
             params=parameters,
             grads=gradients,
