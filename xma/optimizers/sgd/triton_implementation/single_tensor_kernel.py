@@ -42,7 +42,7 @@ def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, NESTEROV, MAXIMIZ
         M += _dW
 
     if NESTEROV:
-        dW = M * momentum + dW
+        dW += M * momentum
     else:
         dW = M
 
