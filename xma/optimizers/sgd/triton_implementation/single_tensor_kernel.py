@@ -20,7 +20,7 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 
 @triton.jit
-def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, MAXIMIZE):
+def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, MAXIMIZE, IS_FIRST_STEP):
     W = W.to(tl.float32)
     dW = dW.to(tl.float32)
 
@@ -33,7 +33,7 @@ def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, MAXIMIZE):
     if momentum is None or M is None:
         M = dW
     else:
-        if dampening is not None:
+        if dampening is not None and not IS_FIRST_STEP:
             dW *= 1 - dampening
 
         M = M.to(tl.float32)
@@ -58,6 +58,7 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
     weight_decay,
     BLOCK_SIZE: tl.constexpr,
     MAXIMIZE: tl.constexpr,
+    IS_FIRST_STEP: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
 
@@ -68,7 +69,15 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
     dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
     W = _sgd_step(
-        W=W, dW=dW, M=None, lr=lr, weight_decay=weight_decay, momentum=None, dampening=None, MAXIMIZE=MAXIMIZE
+        W=W,
+        dW=dW,
+        M=None,
+        lr=lr,
+        weight_decay=weight_decay,
+        momentum=None,
+        dampening=None,
+        MAXIMIZE=MAXIMIZE,
+        IS_FIRST_STEP=IS_FIRST_STEP,
     )
 
     tl.store(W_ptr + BLOCK, W, mask=MASK)
@@ -87,6 +96,7 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
     dampening,
     BLOCK_SIZE: tl.constexpr,
     MAXIMIZE: tl.constexpr,
+    IS_FIRST_STEP: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
 
@@ -98,7 +108,15 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
     M = tl.load(M_ptr + BLOCK, mask=MASK)
 
     W, M = _sgd_step(
-        W=W, dW=dW, M=M, lr=lr, weight_decay=weight_decay, momentum=momentum, dampening=dampening, MAXIMIZE=MAXIMIZE
+        W=W,
+        dW=dW,
+        M=M,
+        lr=lr,
+        weight_decay=weight_decay,
+        momentum=momentum,
+        dampening=dampening,
+        MAXIMIZE=MAXIMIZE,
+        IS_FIRST_STEP=IS_FIRST_STEP,
     )
 
     tl.store(M_ptr + BLOCK, M, mask=MASK)
@@ -115,6 +133,7 @@ def _single_tensor_sgd_triton(
     momentum: float,
     dampening: float,
     maximize: bool,
+    is_first_step: bool,
 ) -> None:
     N = W.numel()
     GRID = lambda kwargs: (ceil_divide(N, kwargs["BLOCK_SIZE"]),)
@@ -126,6 +145,7 @@ def _single_tensor_sgd_triton(
         "lr": lr,
         "weight_decay": None if weight_decay == 0 else weight_decay,
         "MAXIMIZE": maximize,
+        "IS_FIRST_STEP": is_first_step,
     }
 
     if M is None:

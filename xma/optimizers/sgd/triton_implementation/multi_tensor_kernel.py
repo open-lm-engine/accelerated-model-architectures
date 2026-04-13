@@ -23,6 +23,7 @@ def _multi_tensor_sgd_triton_kernel(
     dampening,
     BLOCK_SIZE: tl.constexpr,
     MAXIMIZE: tl.constexpr,
+    IS_FIRST_STEP: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
 
@@ -54,6 +55,7 @@ def _multi_tensor_sgd_triton_kernel(
                 momentum=momentum,
                 dampening=dampening,
                 MAXIMIZE=MAXIMIZE,
+                IS_FIRST_STEP=IS_FIRST_STEP,
             )
         else:
             M = tl.load(M_ptr + BLOCK, mask=MASK)
@@ -67,6 +69,7 @@ def _multi_tensor_sgd_triton_kernel(
                 momentum=momentum,
                 dampening=dampening,
                 MAXIMIZE=MAXIMIZE,
+                IS_FIRST_STEP=IS_FIRST_STEP,
             )
 
             tl.store(M_ptr + BLOCK, M, mask=MASK)

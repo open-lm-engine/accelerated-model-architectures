@@ -42,12 +42,16 @@ def sgd(
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
         assert not nesterov
+        is_first_step = True
 
         if momentum == 0:
             assert len(momentum_buffer) == 0
             momentum_buffer = None
+            is_first_step = False
         elif momentum_buffer[0] is None:
             assert all([m is None for m in momentum_buffer])
+            is_first_step = True
+
             for i, p in enumerate(parameters):
                 momentum_buffer[i] = zeros_like_contiguous(p, dtype=torch.float32)
 
@@ -73,6 +77,7 @@ def sgd(
                 dampening=None if dampening == 0 else dampening,
                 BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // parameters[0].dtype.itemsize),
                 MAXIMIZE=maximize,
+                IS_FIRST_STEP=is_first_step,
                 num_warps=NUM_WARPS,
             )
         else:
@@ -95,6 +100,7 @@ def sgd(
                     momentum=momentum,
                     dampening=dampening,
                     maximize=maximize,
+                    is_first_step=is_first_step,
                 )
     elif kernel_backend == KernelBackend.torch:
         (_multi_tensor_sgd if horizontal_fusion else _single_tensor_sgd)(
