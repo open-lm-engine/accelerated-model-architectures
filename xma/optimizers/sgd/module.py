@@ -17,7 +17,7 @@ class SGD(_TorchSGD):
     def __init__(
         self,
         params,
-        lr: float = 0.001,
+        lr: float = 1e-3,
         momentum: float = 0,
         dampening: float = 0,
         weight_decay: float = 0,
