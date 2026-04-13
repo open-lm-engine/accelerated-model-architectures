@@ -24,7 +24,7 @@ if is_triton_available():
 def sgd(
     parameters: list[torch.Tensor],
     gradients: list[torch.Tensor],
-    momentum_buffer: list[torch.Tensor],
+    momentum_buffer_list: list[torch.Tensor],
     lr: float,
     maximize: bool,
     horizontal_fusion: bool,
@@ -43,14 +43,14 @@ def sgd(
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
         is_first_step = False
         if momentum == 0:
-            assert len(momentum_buffer) == 0
-            momentum_buffer = None
-        elif momentum_buffer[0] is None:
-            assert all([m is None for m in momentum_buffer])
+            assert len(momentum_buffer_list) == 0
+            momentum_buffer_list = None
+        elif momentum_buffer_list[0] is None:
+            assert all([m is None for m in momentum_buffer_list])
             is_first_step = True
 
             for i, p in enumerate(parameters):
-                momentum_buffer[i] = zeros_like_contiguous(p, dtype=torch.float32)
+                momentum_buffer_list[i] = zeros_like_contiguous(p, dtype=torch.float32)
 
         if horizontal_fusion:
             device = parameters[0].device
@@ -64,9 +64,9 @@ def sgd(
                 M_ptr_ptr=(
                     None
                     if momentum == 0
-                    else torch.tensor([M.data_ptr() for M in momentum_buffer], dtype=torch.int64, device=device)
+                    else torch.tensor([M.data_ptr() for M in momentum_buffer_list], dtype=torch.int64, device=device)
                 ),
-                M_dtype=None if momentum == 0 else _TORCH_TO_TRITON_DTYPE[momentum_buffer[0].dtype],
+                M_dtype=None if momentum == 0 else _TORCH_TO_TRITON_DTYPE[momentum_buffer_list[0].dtype],
                 N_ptr=torch.tensor([W.numel() for W in parameters], dtype=torch.int64, device=device),
                 lr=lr,
                 weight_decay=None if weight_decay == 0 else weight_decay,
@@ -79,10 +79,10 @@ def sgd(
                 num_warps=NUM_WARPS,
             )
         else:
-            if momentum_buffer is None:
-                momentum_buffer = [None] * len(parameters)
+            if momentum_buffer_list is None:
+                momentum_buffer_list = [None] * len(parameters)
 
-            for W, dW, M in zip(parameters, gradients, momentum_buffer):
+            for W, dW, M in zip(parameters, gradients, momentum_buffer_list):
                 assert W.is_contiguous()
                 dW = dW.contiguous()
 
@@ -105,7 +105,7 @@ def sgd(
         (_multi_tensor_sgd if horizontal_fusion else _single_tensor_sgd)(
             params=parameters,
             grads=gradients,
-            momentum_buffer_list=momentum_buffer,
+            momentum_buffer_list=momentum_buffer_list,
             grad_scale=None,
             found_inf=None,
             weight_decay=weight_decay,
