@@ -57,12 +57,15 @@ def sgd(
 
             _multi_tensor_sgd_triton_kernel[len(parameters),](
                 W_ptr_ptr=torch.tensor([W.data_ptr() for W in parameters], dtype=torch.int64, device=device),
+                W_dtype=_TORCH_TO_TRITON_DTYPE[parameters[0].dtype],
                 dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in gradients], dtype=torch.int64, device=device),
+                dW_dtype=_TORCH_TO_TRITON_DTYPE[gradients[0].dtype],
                 M_ptr_ptr=(
                     None
                     if momentum == 0
                     else torch.tensor([M.data_ptr() for M in momentum_buffer], dtype=torch.int64, device=device)
                 ),
+                M_dtype=None if momentum == 0 else _TORCH_TO_TRITON_DTYPE[momentum_buffer[0].dtype],
                 N_ptr=torch.tensor([W.numel() for W in parameters], dtype=torch.int64, device=device),
                 lr=lr,
                 weight_decay=None if weight_decay == 0 else weight_decay,
@@ -70,7 +73,6 @@ def sgd(
                 dampening=None if dampening == 0 else dampening,
                 BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // parameters[0].dtype.itemsize),
                 MAXIMIZE=maximize,
-                DTYPE=_TORCH_TO_TRITON_DTYPE[parameters[0].dtype],
                 num_warps=NUM_WARPS,
             )
         else:

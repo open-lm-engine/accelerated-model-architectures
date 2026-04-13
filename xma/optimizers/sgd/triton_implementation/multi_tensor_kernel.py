@@ -11,8 +11,11 @@ from .single_tensor_kernel import _sgd_step
 @triton.jit
 def _multi_tensor_sgd_triton_kernel(
     W_ptr_ptr,
+    W_dtype: tl.constexpr,
     dW_ptr_ptr,
+    dW_dtype: tl.constexpr,
     M_ptr_ptr,
+    M_dtype: tl.constexpr,
     N_ptr,
     lr,
     weight_decay,
@@ -20,18 +23,17 @@ def _multi_tensor_sgd_triton_kernel(
     dampening,
     BLOCK_SIZE: tl.constexpr,
     MAXIMIZE: tl.constexpr,
-    DTYPE: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
 
-    W_ptr = tl.load(W_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
-    dW_ptr = tl.load(dW_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
+    W_ptr = tl.load(W_ptr_ptr + BLOCK_ID).to(tl.pointer_type(W_dtype))
+    dW_ptr = tl.load(dW_ptr_ptr + BLOCK_ID).to(tl.pointer_type(dW_dtype))
 
     if momentum is None:
         tl.static_assert(M_ptr_ptr is None)
         M_ptr = None
     else:
-        M_ptr = tl.load(M_ptr_ptr + BLOCK_ID).to(tl.pointer_type(tl.float32))
+        M_ptr = tl.load(M_ptr_ptr + BLOCK_ID).to(tl.pointer_type(M_dtype))
 
     N = tl.load(N_ptr + BLOCK_ID)
 

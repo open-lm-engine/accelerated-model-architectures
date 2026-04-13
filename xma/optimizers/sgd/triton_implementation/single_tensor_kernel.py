@@ -48,7 +48,7 @@ def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, MAXIMIZE):
         return W, M
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr"])
+@triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr", "M_ptr"])
 @triton.jit
 def _single_tensor_sgd_triton_kernel(
     W_ptr,
