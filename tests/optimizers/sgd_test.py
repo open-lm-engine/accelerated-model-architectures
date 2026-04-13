@@ -85,4 +85,4 @@ def test_sgd(
             assert m_kernel is None
             assert m_torch is None
         else:
-            assert_equal_tensors(m_kernel, m_torch, exact_match=False)
+            assert_equal_tensors(m_kernel, m_torch.to(m_kernel.dtype), exact_match=False)
