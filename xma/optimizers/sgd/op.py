@@ -100,6 +100,7 @@ def sgd(
                     weight_decay=weight_decay,
                     momentum=momentum,
                     dampening=dampening,
+                    nesterov=nesterov,
                     maximize=maximize,
                     is_first_step=is_first_step,
                 )
