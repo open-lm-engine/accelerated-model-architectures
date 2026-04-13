@@ -21,7 +21,7 @@ _LEARNING_RATE = 1e-3
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("weight_decay", [0, 0.7])
 @pytest.mark.parametrize("momentum", [0, 0.7])
-@pytest.mark.parametrize("dampening", [0])
+@pytest.mark.parametrize("dampening", [0, 0.7])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 def test_sgd(
     size: int,
