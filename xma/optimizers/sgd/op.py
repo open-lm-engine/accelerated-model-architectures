@@ -41,6 +41,12 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
+        for W, M in zip(params, momentum_buffer_list):
+            assert W.is_contiguous()
+
+            if M is not None:
+                assert M.is_contiguous()
+
         is_first_step = False
         if momentum == 0:
             assert len(momentum_buffer_list) == 0
@@ -53,6 +59,9 @@ def sgd(
                 momentum_buffer_list[i] = torch.empty_like(p, dtype=torch.float32)
 
         if horizontal_fusion:
+            for dW in grads:
+                assert dW.is_contiguous()
+
             device = params[0].device
             NUM_WARPS = 8
 
@@ -83,11 +92,7 @@ def sgd(
                 momentum_buffer_list = [None] * len(params)
 
             for W, dW, M in zip(params, grads, momentum_buffer_list):
-                assert W.is_contiguous()
                 dW = dW.contiguous()
-
-                if M is not None:
-                    assert M.is_contiguous()
 
                 _single_tensor_sgd_triton(
                     W=W,
