@@ -50,7 +50,7 @@ def sgd(
             is_first_step = True
 
             for i, p in enumerate(params):
-                momentum_buffer_list[i] = empty_like_contiguous(p, dtype=torch.float32)
+                momentum_buffer_list[i] = torch.empty_like(p, dtype=torch.float32)
 
         if horizontal_fusion:
             device = params[0].device

@@ -14,36 +14,6 @@ from .op import sgd
 
 
 class SGD(_TorchSGD):
-    def __init__(
-        self,
-        params,
-        lr: float = 1e-3,
-        momentum: float = 0,
-        dampening: float = 0,
-        weight_decay: float = 0,
-        nesterov: bool = False,
-        *,
-        maximize: bool = False,
-        foreach: bool = None,
-        differentiable: bool = False,
-        fused: bool = None,
-        momentum_dtype: torch.dtype | None = None,
-    ) -> SGD:
-        super().__init__(
-            params=params,
-            lr=lr,
-            momentum=momentum,
-            dampening=dampening,
-            weight_decay=weight_decay,
-            nesterov=nesterov,
-            maximize=maximize,
-            foreach=foreach,
-            differentiable=differentiable,
-            fused=fused,
-        )
-
-        self.momentum_dtype = momentum_dtype
-
     @torch.no_grad()
     def step(self, closure: Callable | None = None, *, kernel_backend: KernelBackend | None = None) -> None:
         loss = None
