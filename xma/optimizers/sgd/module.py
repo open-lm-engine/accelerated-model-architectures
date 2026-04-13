@@ -47,7 +47,7 @@ class SGD(_TorchSGD):
             )
 
             if group["momentum"] != 0:
-                for p, buf in zip(parameters, momentum_buffer, strict=True):
-                    self.state[p]["momentum_buffer"] = buf
+                for p, m in zip(parameters, momentum_buffer, strict=True):
+                    self.state[p]["momentum_buffer"] = m
 
         return loss
