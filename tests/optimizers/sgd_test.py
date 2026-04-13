@@ -38,7 +38,7 @@ def test_sgd(
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-    if nesterov and dampening != 0 and momentum == 0:
+    if nesterov and (dampening != 0 or momentum == 0):
         pytest.skip(f"invalid config")
 
     params_kernel = [torch.randn(size, device=device, dtype=dtype) for _ in range(3)]
