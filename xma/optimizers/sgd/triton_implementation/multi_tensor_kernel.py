@@ -46,13 +46,15 @@ def _multi_tensor_sgd_triton_kernel(
         W = tl.load(W_ptr + BLOCK, mask=MASK)
         dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
-        if M_ptr is not None:
+        if M_ptr is not None and not IS_FIRST_STEP:
             M = tl.load(M_ptr + BLOCK, mask=MASK)
+        else:
+            M = None
 
         output = _sgd_step(
             W=W,
             dW=dW,
-            M=None if M_ptr is None else M,
+            M=M,
             lr=lr,
             weight_decay=weight_decay,
             momentum=momentum,

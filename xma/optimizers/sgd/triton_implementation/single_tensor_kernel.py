@@ -114,7 +114,7 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
 
     W = tl.load(W_ptr + BLOCK, mask=MASK)
     dW = tl.load(dW_ptr + BLOCK, mask=MASK)
-    M = tl.load(M_ptr + BLOCK, mask=MASK)
+    M = None if IS_FIRST_STEP else tl.load(M_ptr + BLOCK, mask=MASK)
 
     W, M = _sgd_step(
         W=W,
