@@ -22,19 +22,19 @@ class SGD(_TorchSGD):
                 loss = closure()
 
         for group in self.param_groups:
-            parameters = []
-            gradients = []
+            params = []
+            grads = []
             momentum_buffer_list = []
 
             has_sparse_grad = self._init_group(
-                group=group, params=parameters, grads=gradients, momentum_buffer_list=momentum_buffer_list
+                group=group, params=params, grads=grads, momentum_buffer_list=momentum_buffer_list
             )
 
             assert not has_sparse_grad
 
             sgd(
-                parameters=parameters,
-                gradients=gradients,
+                params=params,
+                grads=grads,
                 momentum_buffer_list=momentum_buffer_list,
                 lr=group["lr"],
                 maximize=group["maximize"],
@@ -47,7 +47,7 @@ class SGD(_TorchSGD):
             )
 
             if group["momentum"] != 0:
-                for p, m in zip(parameters, momentum_buffer_list, strict=True):
+                for p, m in zip(params, momentum_buffer_list, strict=True):
                     self.state[p]["momentum_buffer"] = m
 
         return loss
