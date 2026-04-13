@@ -41,10 +41,10 @@ def test_sgd(
     if nesterov and (dampening != 0 or momentum == 0):
         pytest.skip(f"invalid config")
 
-    params_kernel = [torch.randn(size, device=device, dtype=dtype) for _ in range(3)]
+    params_kernel = [torch.randint(-8, 8, size, device=device, dtype=dtype) for _ in range(3)]
     params_torch = [p.clone() for p in params_kernel]
 
-    grads = [torch.randn(size, device=device, dtype=dtype) for _ in range(3)]
+    grads = [torch.randint(-8, 8, size, device=device, dtype=dtype) for _ in range(3)]
 
     for pk, pt, g in zip(params_kernel, params_torch, grads):
         pk.grad = g
