@@ -20,6 +20,9 @@ _LEARNING_RATE = 1e-3
 @pytest.mark.parametrize("horizontal_fusion", [True, False])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("weight_decay", [0, 0.7])
+@pytest.mark.parametrize("momentum", [0, 0.7])
+@pytest.mark.parametrize("dampening", [0, 0.7])
+@pytest.mark.parametrize("nesterov", [True, False])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 def test_sgd(
     size: int,
@@ -27,15 +30,21 @@ def test_sgd(
     horizontal_fusion: bool,
     maximize: bool,
     weight_decay: float,
+    momentum: float,
+    dampening: float,
+    nesterov: bool,
     kernel_backend: KernelBackend,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-    params_kernel = [torch.randn(size, device=device, dtype=dtype) for _ in range(3)]
+    if nesterov and (dampening != 0 or momentum == 0):
+        pytest.skip(f"invalid config")
+
+    params_kernel = [torch.randint(-8, 8, (size,), device=device, dtype=dtype) for _ in range(3)]
     params_torch = [p.clone() for p in params_kernel]
 
-    grads = [torch.randn(size, device=device, dtype=dtype) for _ in range(3)]
+    grads = [torch.randint(-8, 8, (size,), device=device, dtype=dtype) for _ in range(3)]
 
     for pk, pt, g in zip(params_kernel, params_torch, grads):
         pk.grad = g
@@ -44,17 +53,34 @@ def test_sgd(
     sgd_kernel = SGD(
         params=params_kernel,
         lr=_LEARNING_RATE,
+        momentum=momentum,
+        dampening=dampening,
         weight_decay=weight_decay,
         maximize=maximize,
+        nesterov=nesterov,
         foreach=horizontal_fusion,
     )
 
     sgd_torch = SGD(
-        params=params_torch, lr=_LEARNING_RATE, weight_decay=weight_decay, maximize=maximize, foreach=horizontal_fusion
+        params=params_torch,
+        lr=_LEARNING_RATE,
+        momentum=momentum,
+        dampening=dampening,
+        weight_decay=weight_decay,
+        maximize=maximize,
+        nesterov=nesterov,
+        foreach=horizontal_fusion,
     )
 
     sgd_kernel.step(kernel_backend=kernel_backend)
     sgd_torch.step(kernel_backend=KernelBackend.torch)
 
-    for p_triton, p_torch in zip(params_kernel, params_torch):
-        assert_equal_tensors(p_triton, p_torch, exact_match=False)
+    for param_kernel, param_torch in zip(params_kernel, params_torch):
+        assert_equal_tensors(param_kernel, param_torch, exact_match=False)
+
+        m_kernel = sgd_kernel.state[param_kernel].get("momentum_buffer")
+        m_torch = sgd_torch.state[param_torch].get("momentum_buffer")
+
+        if momentum == 0:
+            assert m_kernel is None
+            assert m_torch is None

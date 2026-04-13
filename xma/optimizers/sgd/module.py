@@ -22,21 +22,22 @@ class SGD(_TorchSGD):
                 loss = closure()
 
         for group in self.param_groups:
-            parameters = []
-            gradients = []
+            params = []
+            grads = []
+            momentum_buffer_list = []
 
-            for p in group["params"]:
-                if p.grad is None:
-                    continue
+            has_sparse_grad = self._init_group(
+                group=group, params=params, grads=grads, momentum_buffer_list=momentum_buffer_list
+            )
 
-                parameters.append(p)
-                gradients.append(p.grad)
+            assert not has_sparse_grad
 
             sgd(
-                parameters=parameters,
-                gradients=gradients,
+                params=params,
+                grads=grads,
+                momentum_buffer_list=momentum_buffer_list,
                 lr=group["lr"],
-                maximize=False,
+                maximize=group["maximize"],
                 horizontal_fusion=group["foreach"],
                 weight_decay=group["weight_decay"],
                 momentum=group["momentum"],
@@ -44,5 +45,9 @@ class SGD(_TorchSGD):
                 nesterov=group["nesterov"],
                 kernel_backend=kernel_backend,
             )
+
+            if group["momentum"] != 0:
+                for p, m in zip(params, momentum_buffer_list, strict=True):
+                    self.state[p]["momentum_buffer"] = m
 
         return loss
