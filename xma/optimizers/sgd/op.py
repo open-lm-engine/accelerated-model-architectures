@@ -49,8 +49,8 @@ def sgd(
             assert all([m is None for m in momentum_buffer_list])
             is_first_step = True
 
-            for i, g in enumerate(grads):
-                momentum_buffer_list[i] = empty_like_contiguous(g)
+            for i, p in enumerate(params):
+                momentum_buffer_list[i] = empty_like_contiguous(p, dtype=torch.float32)
 
         if horizontal_fusion:
             device = params[0].device
