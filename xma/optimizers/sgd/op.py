@@ -41,11 +41,10 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        is_first_step = True
+        is_first_step = False
         if momentum == 0:
             assert len(momentum_buffer) == 0
             momentum_buffer = None
-            is_first_step = False
         elif momentum_buffer[0] is None:
             assert all([m is None for m in momentum_buffer])
             is_first_step = True
