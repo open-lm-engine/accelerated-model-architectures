@@ -75,11 +75,11 @@ def test_sgd(
     sgd_kernel.step(kernel_backend=kernel_backend)
     sgd_torch.step(kernel_backend=KernelBackend.torch)
 
-    for pk, pt in zip(params_kernel, params_torch):
-        assert_equal_tensors(pk, pt, exact_match=False)
+    for param_kernel, param_torch in zip(params_kernel, params_torch):
+        assert_equal_tensors(param_kernel, param_torch, exact_match=False)
 
-        m_kernel = sgd_kernel.state[pk].get("momentum_buffer")
-        m_torch = sgd_torch.state[pt].get("momentum_buffer")
+        m_kernel = sgd_kernel.state[param_kernel].get("momentum_buffer")
+        m_torch = sgd_torch.state[param_torch].get("momentum_buffer")
 
         if momentum == 0:
             assert m_kernel is None
