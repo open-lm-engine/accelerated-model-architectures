@@ -119,24 +119,18 @@ def _single_tensor_sgd_triton(
     N = W.numel()
     GRID = lambda kwargs: (ceil_divide(N, kwargs["BLOCK_SIZE"]),)
 
+    kwargs = {
+        "W_ptr": W,
+        "dW_ptr": dW,
+        "N": N,
+        "lr": lr,
+        "weight_decay": None if weight_decay == 0 else weight_decay,
+        "MAXIMIZE": maximize,
+    }
+
     if M is None:
-        _single_tensor_sgd_triton_kernel_no_momentum[GRID](
-            W_ptr=W,
-            dW_ptr=dW,
-            N=N,
-            lr=lr,
-            weight_decay=None if weight_decay == 0 else weight_decay,
-            MAXIMIZE=maximize,
-        )
+        _single_tensor_sgd_triton_kernel_no_momentum[GRID](**kwargs)
     else:
         _single_tensor_sgd_triton_kernel_with_momentum[GRID](
-            W_ptr=W,
-            dW_ptr=dW,
-            M_ptr=M,
-            N=N,
-            lr=lr,
-            weight_decay=None if weight_decay == 0 else weight_decay,
-            momentum=momentum,
-            dampening=None if dampening == 0 else dampening,
-            MAXIMIZE=maximize,
+            **kwargs, M_ptr=M, momentum=momentum, dampening=None if dampening == 0 else dampening
         )
