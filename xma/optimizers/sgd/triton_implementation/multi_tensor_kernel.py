@@ -45,33 +45,22 @@ def _multi_tensor_sgd_triton_kernel(
         W = tl.load(W_ptr + BLOCK, mask=MASK)
         dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
-        if M_ptr is None:
-            W = _sgd_step(
-                W=W,
-                dW=dW,
-                M=None,
-                lr=lr,
-                weight_decay=weight_decay,
-                momentum=momentum,
-                dampening=dampening,
-                MAXIMIZE=MAXIMIZE,
-                IS_FIRST_STEP=IS_FIRST_STEP,
-            )
-        else:
+        if M_ptr is not None:
             M = tl.load(M_ptr + BLOCK, mask=MASK)
 
-            W, M = _sgd_step(
-                W=W,
-                dW=dW,
-                M=M,
-                lr=lr,
-                weight_decay=weight_decay,
-                momentum=momentum,
-                dampening=dampening,
-                MAXIMIZE=MAXIMIZE,
-                IS_FIRST_STEP=IS_FIRST_STEP,
-            )
+        W = _sgd_step(
+            W=W,
+            dW=dW,
+            M=None if M_ptr is None else M,
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            dampening=dampening,
+            MAXIMIZE=MAXIMIZE,
+            IS_FIRST_STEP=IS_FIRST_STEP,
+        )
 
+        if M_ptr is not None:
             tl.store(M_ptr + BLOCK, M, mask=MASK)
 
         tl.store(W_ptr + BLOCK, W, mask=MASK)
