@@ -75,5 +75,14 @@ def test_sgd(
     sgd_kernel.step(kernel_backend=kernel_backend)
     sgd_torch.step(kernel_backend=KernelBackend.torch)
 
-    for p_triton, p_torch in zip(params_kernel, params_torch):
-        assert_equal_tensors(p_triton, p_torch, exact_match=False)
+    for p_kernel, p_torch in zip(params_kernel, params_torch):
+        assert_equal_tensors(p_kernel, p_torch, exact_match=True)
+
+        for p, m_kernel in sgd_kernel.state.items():
+            m_torch = sgd_torch.state[p]
+
+            if momentum == 0:
+                assert m_kernel is None
+                assert m_torch is None
+            else:
+                assert_equal_tensors(m_kernel, m_torch, exact_match=True)
