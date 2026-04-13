@@ -102,10 +102,10 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
     weight_decay,
     momentum,
     dampening,
-    BLOCK_SIZE: tl.constexpr,
     NESTEROV: tl.constexpr,
     MAXIMIZE: tl.constexpr,
     IS_FIRST_STEP: tl.constexpr,
+    BLOCK_SIZE: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
 

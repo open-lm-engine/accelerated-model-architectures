@@ -75,9 +75,10 @@ def sgd(
                 weight_decay=None if weight_decay == 0 else weight_decay,
                 momentum=None if momentum == 0 else momentum,
                 dampening=None if dampening == 0 else dampening,
-                BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // parameters[0].dtype.itemsize),
+                NESTEROV=nesterov,
                 MAXIMIZE=maximize,
                 IS_FIRST_STEP=is_first_step,
+                BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // parameters[0].dtype.itemsize),
                 num_warps=NUM_WARPS,
             )
         else:

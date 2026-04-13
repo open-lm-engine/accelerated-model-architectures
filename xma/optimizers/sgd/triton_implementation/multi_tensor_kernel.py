@@ -22,9 +22,9 @@ def _multi_tensor_sgd_triton_kernel(
     momentum,
     dampening,
     NESTEROV: tl.constexpr,
-    BLOCK_SIZE: tl.constexpr,
     MAXIMIZE: tl.constexpr,
     IS_FIRST_STEP: tl.constexpr,
+    BLOCK_SIZE: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
 
