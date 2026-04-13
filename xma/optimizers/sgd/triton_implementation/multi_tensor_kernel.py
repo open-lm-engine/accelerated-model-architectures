@@ -31,7 +31,7 @@ def _multi_tensor_sgd_triton_kernel(
         tl.static_assert(M_ptr_ptr is None)
         M_ptr = None
     else:
-        M_ptr = tl.load(M_ptr_ptr + BLOCK_ID).to(tl.pointer_type(DTYPE))
+        M_ptr = tl.load(M_ptr_ptr + BLOCK_ID).to(tl.pointer_type(tl.float32))
 
     N = tl.load(N_ptr + BLOCK_ID)
 
