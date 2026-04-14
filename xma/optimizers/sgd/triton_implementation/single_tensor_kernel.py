@@ -173,31 +173,7 @@ def _single_tensor_sgd_triton(
         )
 
 
-@register_op_strategy(
-    op=torch.ops.xma._single_tensor_sgd_triton.default,
-    # static_argnum=3: scalar args at index ≥ 3 do not affect sharding and
-    # are excluded from the cache key used to decide whether to recompute
-    # the strategy for a given call site.
-    schema_info=RuntimeSchemaInfo(3),
-)
+@register_op_strategy(op=torch.ops.xma._single_tensor_sgd_triton.default, schema_info=RuntimeSchemaInfo(3))
 def _sgd_dtensor_strategy(op_schema: OpSchema) -> OpStrategy:
-    """DTensor sharding strategy for the XMA SGD triton kernel.
-
-    The SGD update is purely element-wise (no reduction across device
-    boundaries), so we follow W's (arg 0) placement and require dW (arg 1)
-    and the optional momentum buffer M (arg 2) to carry the same placement.
-    DTensor will automatically insert redistributions when inputs do not
-    already match the required placement.
-
-    Supported placements: Replicate, Shard(d) for any tensor dimension d.
-    Partial placements are not supported (gradient accumulation must be
-    finalised before the optimizer step).
-    """
-    # common_pointwise_strategy enumerates every candidate placement stored
-    # in W's OpStrategy (Replicate, Shard(0), Shard(1), …) and, for each
-    # one, produces an OpSpec that requires every other tensor arg to carry
-    # the same placement.  Redistribute costs are computed automatically so
-    # the DTensor planner can choose the cheapest resharding when dW or M
-    # do not already match W.
     W_strategy: OpStrategy = op_schema.args_schema[0]
     return common_pointwise_strategy(op_schema.args_schema, followed_strategy=W_strategy, followed_strategy_index=0)
