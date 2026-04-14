@@ -5,6 +5,8 @@
 import torch
 import triton
 import triton.language as tl
+from torch.distributed.tensor._op_schema import OpSchema, OpStrategy, RuntimeSchemaInfo
+from torch.distributed.tensor._ops import common_pointwise_strategy, register_op_strategy
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_powers_of_2
@@ -133,30 +135,7 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
     tl.store(W_ptr + BLOCK, W, mask=MASK)
 
 
-def _fake_single_tensor_sgd_triton(
-    W: torch.Tensor,
-    dW: torch.Tensor,
-    M: torch.Tensor | None,
-    lr: float,
-    weight_decay: float,
-    momentum: float,
-    dampening: float,
-    nesterov: bool,
-    maximize: bool,
-    is_first_step: bool,
-) -> None:
-    # Abstract / FakeTensor implementation required by torch.compile and
-    # DTensor's abstract-interpretation pass.  The op mutates W and M
-    # in-place (tracked via mutates_args) and returns None, so nothing
-    # needs to be done here beyond satisfying the framework's type contract.
-    pass
-
-
-# register_fake exposes _fake_single_tensor_sgd_triton to torch.compile's
-# FakeTensor machinery so that the compiler can reason about tensor shapes
-# and dtypes without executing the actual Triton kernel.
-# DTensor's sharding strategy is registered separately in sharding.py.
-@xma_op(mutates_args={"W", "M"}, fake_func=_fake_single_tensor_sgd_triton)
+@xma_op(mutates_args={"W", "M"})
 def _single_tensor_sgd_triton(
     W: torch.Tensor,
     dW: torch.Tensor,
@@ -192,3 +171,33 @@ def _single_tensor_sgd_triton(
             NESTEROV=nesterov,
             IS_FIRST_STEP=is_first_step,
         )
+
+
+@register_op_strategy(
+    op=torch.ops.xma._single_tensor_sgd_triton.default,
+    # static_argnum=3: scalar args at index ≥ 3 do not affect sharding and
+    # are excluded from the cache key used to decide whether to recompute
+    # the strategy for a given call site.
+    schema_info=RuntimeSchemaInfo(3),
+)
+def _sgd_dtensor_strategy(op_schema: OpSchema) -> OpStrategy:
+    """DTensor sharding strategy for the XMA SGD triton kernel.
+
+    The SGD update is purely element-wise (no reduction across device
+    boundaries), so we follow W's (arg 0) placement and require dW (arg 1)
+    and the optional momentum buffer M (arg 2) to carry the same placement.
+    DTensor will automatically insert redistributions when inputs do not
+    already match the required placement.
+
+    Supported placements: Replicate, Shard(d) for any tensor dimension d.
+    Partial placements are not supported (gradient accumulation must be
+    finalised before the optimizer step).
+    """
+    # common_pointwise_strategy enumerates every candidate placement stored
+    # in W's OpStrategy (Replicate, Shard(0), Shard(1), …) and, for each
+    # one, produces an OpSpec that requires every other tensor arg to carry
+    # the same placement.  Redistribute costs are computed automatically so
+    # the DTensor planner can choose the cheapest resharding when dW or M
+    # do not already match W.
+    W_strategy: OpStrategy = op_schema.args_schema[0]
+    return common_pointwise_strategy(op_schema.args_schema, followed_strategy=W_strategy, followed_strategy_index=0)
