@@ -175,5 +175,5 @@ def _single_tensor_sgd_triton(
 
 @register_op_strategy(op=torch.ops.xma._single_tensor_sgd_triton.default, schema_info=RuntimeSchemaInfo(3))
 def _sgd_dtensor_strategy(op_schema: OpSchema) -> OpStrategy:
-    W_strategy: OpStrategy = op_schema.args_schema[0]
+    W_strategy = op_schema.args_schema[0]
     return common_pointwise_strategy(op_schema.args_schema, followed_strategy=W_strategy, followed_strategy_index=0)
