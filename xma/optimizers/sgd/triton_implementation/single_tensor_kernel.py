@@ -133,7 +133,30 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
     tl.store(W_ptr + BLOCK, W, mask=MASK)
 
 
-@xma_op(mutates_args={"W", "M"})
+def _fake_single_tensor_sgd_triton(
+    W: torch.Tensor,
+    dW: torch.Tensor,
+    M: torch.Tensor | None,
+    lr: float,
+    weight_decay: float,
+    momentum: float,
+    dampening: float,
+    nesterov: bool,
+    maximize: bool,
+    is_first_step: bool,
+) -> None:
+    # Abstract / FakeTensor implementation required by torch.compile and
+    # DTensor's abstract-interpretation pass.  The op mutates W and M
+    # in-place (tracked via mutates_args) and returns None, so nothing
+    # needs to be done here beyond satisfying the framework's type contract.
+    pass
+
+
+# register_fake exposes _fake_single_tensor_sgd_triton to torch.compile's
+# FakeTensor machinery so that the compiler can reason about tensor shapes
+# and dtypes without executing the actual Triton kernel.
+# DTensor's sharding strategy is registered separately in sharding.py.
+@xma_op(mutates_args={"W", "M"}, fake_func=_fake_single_tensor_sgd_triton)
 def _single_tensor_sgd_triton(
     W: torch.Tensor,
     dW: torch.Tensor,
