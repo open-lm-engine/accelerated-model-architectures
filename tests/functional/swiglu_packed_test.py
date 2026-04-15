@@ -11,7 +11,7 @@ from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if
 from .swiglu_test import _generate_args
 
 
-@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(add_mps=False))
+@pytest.mark.parametrize("size,dtype,kernel_backend", _generate_args(add_mps=False))
 def test_swiglu_packed(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()

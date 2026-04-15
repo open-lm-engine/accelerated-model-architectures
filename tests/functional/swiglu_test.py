@@ -35,7 +35,7 @@ def _generate_args(add_mps: bool) -> list:
     return args
 
 
-@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(add_mps=True))
+@pytest.mark.parametrize("size,dtype,kernel_backend", _generate_args(add_mps=True))
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
