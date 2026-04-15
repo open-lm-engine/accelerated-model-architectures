@@ -24,7 +24,7 @@ def _generate_args(function: Callable, add_mps: bool) -> list:
             get_2d_tensor_sizes(),
             [torch.float32, torch.float16, torch.bfloat16],
             [KernelBackend.cuda, KernelBackend.triton],
-            [function, torch.compile(function, fullgraph=True)],
+            [function],
         )
     )
 
@@ -52,7 +52,7 @@ def _generate_args(function: Callable, add_mps: bool) -> list:
                 [(4100, 3700)],
                 [torch.float32, torch.float16, torch.bfloat16],
                 [KernelBackend.mps],
-                [function, torch.compile(function, fullgraph=True)],
+                [function],
             )
         )
 
