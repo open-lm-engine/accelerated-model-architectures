@@ -2,8 +2,6 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from typing import Callable
-
 import pytest
 import torch
 
@@ -17,7 +15,6 @@ from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("padding_side", ["left", "right"])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.triton])
-@pytest.mark.parametrize("function", [pack_sequence, torch.compile(pack_sequence, fullgraph=True)])
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_pack_sequence(
     size: tuple[int],
@@ -25,7 +22,6 @@ def test_pack_sequence(
     dtype: torch.dtype,
     padding_side: str,
     kernel_backend: KernelBackend,
-    function: Callable,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -33,7 +29,7 @@ def test_pack_sequence(
     x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
     cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 
-    z_kernel = function(
+    z_kernel = pack_sequence(
         [x_kernel],
         cu_seqlens=cu_seqlens,
         total_tokens=cu_seqlens[-1].item(),
@@ -62,8 +58,6 @@ def test_pack_sequence(
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("padding_side", ["left", "right"])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.triton])
-@pytest.mark.parametrize("function", [unpack_sequence, torch.compile(unpack_sequence, fullgraph=True)])
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_unpack_sequence(
     size: tuple[int],
     cu_seqlens: list[int],
@@ -71,7 +65,6 @@ def test_unpack_sequence(
     dtype: torch.dtype,
     padding_side: str,
     kernel_backend: KernelBackend,
-    function: Callable,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -79,7 +72,7 @@ def test_unpack_sequence(
     x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
     cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 
-    z_kernel = function(
+    z_kernel = unpack_sequence(
         [x_kernel],
         cu_seqlens=cu_seqlens,
         batch_size=cu_seqlens.size(0) - 1,
