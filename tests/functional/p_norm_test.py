@@ -21,7 +21,6 @@ _SEED = 42
 @pytest.mark.parametrize("dtype", [torch.float32])
 @pytest.mark.parametrize("p", [1, 2, 3, "inf"])
 @pytest.mark.parametrize("multiplier", [None, 0.9])
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_p_norm(
     size: tuple[int],
     kernel_backend: KernelBackend,

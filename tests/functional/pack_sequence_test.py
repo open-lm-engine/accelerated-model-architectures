@@ -15,7 +15,6 @@ from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("padding_side", ["left", "right"])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.triton])
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_pack_sequence(
     size: tuple[int],
     cu_seqlens: list[int],

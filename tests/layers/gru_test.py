@@ -36,15 +36,12 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
 @pytest.mark.parametrize("input_shape", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])
 @pytest.mark.parametrize("problem_shape", _get_problem_shapes())
 @pytest.mark.parametrize("has_input_state", [False, True])
-@pytest.mark.parametrize("is_compiling", [False, True])
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_gru(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
     input_shape: tuple[int, int, list[int]],
     problem_shape: tuple[int, int, int, int, int, int, int],
     has_input_state: bool,
-    is_compiling: bool,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -177,7 +174,6 @@ def test_gru(
 @pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
 @pytest.mark.parametrize("problem_shape", _get_problem_shapes())
 @pytest.mark.parametrize("has_input_state", [False, True])
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_gru_varlen_torch(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,

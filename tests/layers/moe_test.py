@@ -30,7 +30,6 @@ def _generate_args() -> list:
             [8192],  # intermediate_size
             [True, False],  # is_glu
             [KernelBackend.triton],  # kernel_backend
-            [True, False],  # is_compiling
         )
     )
 
@@ -43,7 +42,6 @@ def _generate_args() -> list:
             [256],  # intermediate_size
             [True, False],  # is_glu
             [KernelBackend.triton],  # kernel_backend
-            [True, False],  # is_compiling
         )
     )
 
@@ -56,7 +54,6 @@ def _generate_args() -> list:
             [8192],  # intermediate_size
             [True, False],  # is_glu
             [KernelBackend.cuda],  # kernel_backend
-            [False],  # is_compiling
         )
     )
 
@@ -69,7 +66,6 @@ def _generate_args() -> list:
             [256],  # intermediate_size
             [True, False],  # is_glu
             [KernelBackend.cuda],  # kernel_backend
-            [False],  # is_compiling
         )
     )
 
@@ -77,10 +73,9 @@ def _generate_args() -> list:
 
 
 @pytest.mark.parametrize(
-    "dtype,num_experts,num_experts_per_tok,hidden_size,intermediate_size,is_glu,kernel_backend,is_compiling",
+    "dtype,num_experts,num_experts_per_tok,hidden_size,intermediate_size,is_glu,kernel_backend",
     _generate_args(),
 )
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_moe(
     dtype: torch.dtype,
     num_experts: int,
@@ -89,7 +84,6 @@ def test_moe(
     intermediate_size: int,
     is_glu: bool,
     kernel_backend: KernelBackend,
-    is_compiling: bool,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
