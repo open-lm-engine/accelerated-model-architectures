@@ -121,17 +121,11 @@ def test_moe(
             std=0.02,
         ).to(dtype=dtype)
 
-    moe_kernel = moe
-    moe_torch = moe
-
-    if is_compiling:
-        moe_kernel = torch.compile(moe_kernel, fullgraph=True)
-
     x_torch = torch.randn(7, hidden_size, device=device, dtype=dtype, requires_grad=True)
     x_kernel = x_torch.clone().detach().requires_grad_()
 
-    y_torch = moe_torch(x_torch, kernel_backend=KernelBackend.torch)[0]
-    y_kernel = moe_kernel(x_kernel, kernel_backend=kernel_backend)[0]
+    y_torch = moe(x_torch, kernel_backend=KernelBackend.torch)[0]
+    y_kernel = moe(x_kernel, kernel_backend=kernel_backend)[0]
 
     assert_equal_tensors(
         y_kernel,

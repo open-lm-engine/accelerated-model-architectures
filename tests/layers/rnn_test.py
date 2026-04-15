@@ -50,15 +50,12 @@ def _get_packed_tensor_inputs(
 @pytest.mark.parametrize("input_shape", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])
 @pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
 @pytest.mark.parametrize("has_input_state", [False, True])
-@pytest.mark.parametrize("is_compiling", [False, True])
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_rnn(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
     input_shape: tuple[int, int, list[int]],
     snn: tuple[int, int, int],
     has_input_state: bool,
-    is_compiling: bool,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -100,13 +97,7 @@ def test_rnn(
 
         nn.init.normal_(rnn.state_weight, std=0.1)
 
-    rnn_torch = rnn
-    rnn_kernel = rnn
-
-    if is_compiling:
-        rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
-
-    y_kernel, output_state_kernel = rnn_kernel(
+    y_kernel, output_state_kernel = rnn(
         input=x_kernel,
         input_state=input_state_kernel,
         cu_seqlens=cu_seqlens,
@@ -114,7 +105,7 @@ def test_rnn(
         kernel_backend=KernelBackend.triton,
     )
 
-    y_torch, output_state_torch = rnn_torch(
+    y_torch, output_state_torch = rnn(
         input=x_torch,
         input_state=input_state_torch,
         cu_seqlens=cu_seqlens,

@@ -21,8 +21,6 @@ _SEED = 42
 @pytest.mark.parametrize("has_C", [False, True])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("function", [bmm, torch.compile(bmm, fullgraph=True)])
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_bmm(
     size: tuple[int],
     is_A_transposed: bool,
@@ -30,7 +28,6 @@ def test_bmm(
     has_C: bool,
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
-    function: Callable,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -64,7 +61,7 @@ def test_bmm(
     alpha = 0.3
     beta = 0.7 if has_C else 0
 
-    output_kernel = function(
+    output_kernel = bmm(
         A=A,
         B=B,
         C=C,

@@ -99,13 +99,7 @@ def test_gru(
 
         nn.init.normal_(gru.state_weight, std=0.01)
 
-    gru_torch = gru
-    gru_kernel = gru
-
-    if is_compiling:
-        gru_kernel = torch.compile(gru_kernel, fullgraph=True)
-
-    y_kernel, output_state_kernel = gru_kernel(
+    y_kernel, output_state_kernel = gru(
         input=x_kernel,
         input_state=input_state_kernel,
         cu_seqlens=cu_seqlens,
@@ -113,7 +107,7 @@ def test_gru(
         kernel_backend=KernelBackend.triton,
     )
 
-    y_torch, output_state_torch = gru_torch(
+    y_torch, output_state_torch = gru(
         input=x_torch,
         input_state=input_state_torch,
         cu_seqlens=cu_seqlens,

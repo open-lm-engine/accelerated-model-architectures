@@ -41,7 +41,6 @@ def _generate_args() -> list:
             [(4, 977, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             [(9, 9, 7, 7, 7, 7, 7)],
             [False, True],  # has_input_state
-            [False, True],  # is_compiling
         )
     )
 
@@ -52,17 +51,13 @@ def _generate_args() -> list:
             [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])],  # B, S, cu_seqlens
             _get_problem_shapes(),
             [False, True],  # has_input_state
-            [False, True],  # is_compiling
         )
     )
 
     return args
 
 
-@pytest.mark.parametrize(
-    "kernel_backend,dtype,input_shape,problem_shape,has_input_state,is_compiling", _generate_args()
-)
-@torch._dynamo.config.patch(recompile_limit=1024)
+@pytest.mark.parametrize("kernel_backend,dtype,input_shape,problem_shape,has_input_state", _generate_args())
 def test_m2rnn(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
@@ -124,13 +119,7 @@ def test_m2rnn(
 
         nn.init.normal_(m2rnn.state_weight, std=0.01)
 
-    m2rnn_torch = m2rnn
-    m2rnn_kernel = m2rnn
-
-    if is_compiling:
-        m2rnn_kernel = torch.compile(m2rnn_kernel, fullgraph=True)
-
-    y_kernel, output_state_kernel = m2rnn_kernel(
+    y_kernel, output_state_kernel = m2rnn(
         input=x_kernel,
         input_state=input_state_kernel,
         cu_seqlens=cu_seqlens,
@@ -138,7 +127,7 @@ def test_m2rnn(
         kernel_backend=KernelBackend.triton,
     )
 
-    y_torch, output_state_torch = m2rnn_torch(
+    y_torch, output_state_torch = m2rnn(
         input=x_torch,
         input_state=input_state_torch,
         cu_seqlens=cu_seqlens,

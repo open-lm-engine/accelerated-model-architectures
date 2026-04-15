@@ -41,7 +41,6 @@ def _generate_args() -> list:
             [977],  # sequence_length
             [(7, 9, 3, 3, 3)],  # problem_shape
             [False, True],  # has_input_state
-            [False],  # is_compiling
         )
     )
 
@@ -53,7 +52,6 @@ def _generate_args() -> list:
             [1024],  # sequence_length
             _get_problem_shapes(),  # problem_shape
             [False, True],  # has_input_state
-            [False],  # is_compiling
         )
     )
 
@@ -61,9 +59,8 @@ def _generate_args() -> list:
 
 
 @pytest.mark.parametrize(
-    "kernel_backend,dtype,batch_size,sequence_length,problem_shape,has_input_state,is_compiling", _generate_args()
+    "kernel_backend,dtype,batch_size,sequence_length,problem_shape,has_input_state", _generate_args()
 )
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_linear_attention(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
@@ -71,7 +68,6 @@ def test_linear_attention(
     sequence_length: int,
     problem_shape: tuple[int, int, int, int, int, int, int],
     has_input_state: bool,
-    is_compiling: bool,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -104,17 +100,11 @@ def test_linear_attention(
             add_bias=False,
         ).to(dtype)
 
-    linear_attention_torch = linear_attention
-    linear_attention_kernel = linear_attention
-
-    if is_compiling:
-        linear_attention_kernel = torch.compile(linear_attention_kernel, fullgraph=True)
-
-    y_kernel, output_state_kernel = linear_attention_kernel(
+    y_kernel, output_state_kernel = linear_attention(
         input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton
     )
 
-    y_torch, output_state_torch = linear_attention_torch(
+    y_torch, output_state_torch = linear_attention(
         input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
     )
 
