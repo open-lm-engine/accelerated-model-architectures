@@ -2,8 +2,6 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from typing import Callable
-
 import pytest
 import torch
 

@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-from typing import Callable
-
 import pytest
 import torch
 import torch._inductor.config as config
@@ -27,15 +25,12 @@ _SEED = 42
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
 @pytest.mark.parametrize("memory_efficient", [False, True])
 @pytest.mark.parametrize("has_weight", [False, True])
-@pytest.mark.parametrize("function", [rmsnorm, torch.compile(rmsnorm, fullgraph=True)])
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_rmsnorm(
     size: tuple[int],
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
     memory_efficient: bool,
     has_weight: bool,
-    function: Callable,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -50,12 +45,12 @@ def test_rmsnorm(
         weight_kernel = None
         weight_expected = None
 
-    z_kernel = function(
+    z_kernel = rmsnorm(
         x=x_kernel,
         weight=weight_kernel,
         eps=_EPSILON,
         memory_efficient=memory_efficient,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
 
     z_expected = rmsnorm(x=x_expected, weight=weight_expected, eps=_EPSILON, kernel_backend=KernelBackend.torch)

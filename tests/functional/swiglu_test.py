@@ -3,7 +3,6 @@
 # **************************************************
 
 from itertools import product
-from typing import Callable
 
 import pytest
 import torch
@@ -18,50 +17,27 @@ from ..utils import (
 )
 
 
-def _generate_args(function: Callable, add_mps: bool) -> list:
+def _generate_args(add_mps: bool) -> list:
     args = list(
         product(
             get_2d_tensor_sizes(),
             [torch.float32, torch.float16, torch.bfloat16],
             [KernelBackend.cuda, KernelBackend.triton],
-            [function],
         )
     )
 
-    args += list(
-        product(
-            [(4100, 3700)],
-            [torch.float32, torch.float16, torch.bfloat16],
-            [KernelBackend.nki],
-            [function],
-        )
-    )
-
-    args += list(
-        product(
-            [(4100, 3700)],
-            [torch.float32, torch.bfloat16],
-            [KernelBackend.pallas],
-            [function],
-        )
-    )
+    args += list(product([(4100, 3700)], [torch.float32, torch.float16, torch.bfloat16], [KernelBackend.nki]))
+    args += list(product([(4100, 3700)], [torch.float32, torch.bfloat16], [KernelBackend.pallas]))
 
     if add_mps:
-        args += list(
-            product(
-                [(4100, 3700)],
-                [torch.float32, torch.float16, torch.bfloat16],
-                [KernelBackend.mps],
-                [function],
-            )
-        )
+        args += list(product([(4100, 3700)], [torch.float32, torch.float16, torch.bfloat16], [KernelBackend.mps]))
 
     return args
 
 
-@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(swiglu, add_mps=True))
+@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(add_mps=True))
 @torch._dynamo.config.patch(recompile_limit=1024)
-def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend, function: Callable) -> None:
+def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
 
@@ -72,7 +48,7 @@ def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBack
     x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
     y_kernel, y_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-    z_kernel = function(x_kernel, y_kernel, kernel_backend=kernel_backend)
+    z_kernel = swiglu(x_kernel, y_kernel, kernel_backend=kernel_backend)
     z_expected = swiglu(x_expected, y_expected, kernel_backend=KernelBackend.torch)
 
     assert_equal_tensors(z_kernel, z_expected, False, atol_float32=5.4e-5, rtol_float32=0)
