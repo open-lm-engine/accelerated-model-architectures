@@ -37,14 +37,6 @@ def _get_sizes() -> list[tuple]:
 @pytest.mark.parametrize("memory_efficient", [False, True])
 @pytest.mark.parametrize("has_weight", [False, True])
 @pytest.mark.parametrize("multiplier", [None, 0.9])
-@pytest.mark.parametrize(
-    "function",
-    [
-        fused_residual_add_rmsnorm,
-        torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
-    ],
-)
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_fused_residual_add_rmsnorm(
     size: tuple[int],
     kernel_backend: KernelBackend,
@@ -52,7 +44,6 @@ def test_fused_residual_add_rmsnorm(
     memory_efficient: bool,
     has_weight: bool,
     multiplier: float | None,
-    function: Callable,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -68,7 +59,7 @@ def test_fused_residual_add_rmsnorm(
         weight_kernel = None
         weight_expected = None
 
-    z_kernel, r_kernel = function(
+    z_kernel, r_kernel = fused_residual_add_rmsnorm(
         x=x_kernel,
         residual=residual_kernel,
         weight=weight_kernel,

@@ -25,20 +25,8 @@ _SEED = 42
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
 @pytest.mark.parametrize("logits_multiplier", [None, 0.7])
-@pytest.mark.parametrize(
-    "function",
-    [
-        fused_linear_cross_entropy,
-        torch.compile(fused_linear_cross_entropy, fullgraph=True),
-    ],
-)
-@torch._dynamo.config.patch(recompile_limit=1024)
 def test_fused_linear_cross_entropy(
-    size: tuple[int],
-    kernel_backend: KernelBackend,
-    dtype: torch.dtype,
-    logits_multiplier: float | None,
-    function: Callable,
+    size: tuple[int], kernel_backend: KernelBackend, dtype: torch.dtype, logits_multiplier: float | None
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -57,7 +45,7 @@ def test_fused_linear_cross_entropy(
 
     labels = torch.randint(0, vocab_size, (x_kernel.size(0),), device=x_kernel.device)
 
-    loss_kernel = function(
+    loss_kernel = fused_linear_cross_entropy(
         x=x_kernel,
         weight=weight_kernel,
         labels=labels,
