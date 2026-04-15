@@ -60,7 +60,7 @@ def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, NESTEROV, MAXIMIZ
 
 @triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr"])
 @triton.jit
-def _single_tensor_sgd_triton_kernel_no_momentum(
+def _sgd_triton_kernel_no_momentum(
     W_ptr,
     dW_ptr,
     N,
@@ -95,7 +95,7 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
 
 @triton.autotune(configs=_get_autotune_configs(), key=[], restore_value=["W_ptr", "M_ptr"])
 @triton.jit
-def _single_tensor_sgd_triton_kernel_with_momentum(
+def _sgd_triton_kernel_with_momentum(
     W_ptr,
     dW_ptr,
     M_ptr,
@@ -136,7 +136,7 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
 
 
 @xma_op(mutates_args={"W", "M"})
-def _single_tensor_sgd_triton(
+def _sgd_triton(
     W: torch.Tensor,
     dW: torch.Tensor,
     M: torch.Tensor | None,
@@ -161,9 +161,9 @@ def _single_tensor_sgd_triton(
     }
 
     if M is None:
-        _single_tensor_sgd_triton_kernel_no_momentum[GRID](**kwargs)
+        _sgd_triton_kernel_no_momentum[GRID](**kwargs)
     else:
-        _single_tensor_sgd_triton_kernel_with_momentum[GRID](
+        _sgd_triton_kernel_with_momentum[GRID](
             **kwargs,
             M_ptr=M,
             momentum=momentum,
@@ -173,7 +173,7 @@ def _single_tensor_sgd_triton(
         )
 
 
-@register_op_strategy(op=torch.ops.xma._single_tensor_sgd_triton.default, schema_info=RuntimeSchemaInfo(3))
+@register_op_strategy(op=torch.ops.xma._sgd_triton.default, schema_info=RuntimeSchemaInfo(3))
 def _sgd_dtensor_strategy(op_schema: OpSchema) -> OpStrategy:
     W_strategy = op_schema.args_schema[0]
     return common_pointwise_strategy(

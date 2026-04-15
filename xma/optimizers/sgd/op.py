@@ -12,11 +12,7 @@ from ...utils import is_triton_available
 
 
 if is_triton_available():
-    import triton.language as tl
-
-    from .triton_implementation import _single_tensor_sgd_triton
-
-    _TORCH_TO_TRITON_DTYPE = {torch.float32: tl.float32, torch.float16: tl.float16, torch.bfloat16: tl.bfloat16}
+    from .triton_implementation import _sgd_triton
 
 
 @torch.no_grad()
@@ -65,7 +61,7 @@ def sgd(
         for W, dW, M in zip(params, grads, momentum_buffer_list):
             dW = dW.contiguous()
 
-            _single_tensor_sgd_triton(
+            _sgd_triton(
                 W=W,
                 dW=dW,
                 M=M,
