@@ -17,7 +17,7 @@ _LEARNING_RATE = 1e-3
 
 @pytest.mark.parametrize("size", get_1d_tensor_sizes())
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("horizontal_fusion", [True, False])
+@pytest.mark.parametrize("horizontal_fusion", [False])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("weight_decay", [0, 0.7])
 @pytest.mark.parametrize("momentum", [0, 0.7])

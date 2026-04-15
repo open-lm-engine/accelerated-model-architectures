@@ -9,7 +9,27 @@ from ....math import get_powers_of_2
 from .single_tensor_kernel import _sgd_step
 
 
+# restore_value can't be used here because W_ptr_ptr / M_ptr_ptr are int64 pointer arrays —
+# Triton would only save/restore the pointer addresses (which are never modified), not the
+# actual tensor data those pointers reference.  Instead we autotune on a read-only probe
+# kernel, then pass the winning num_warps to the real kernel below.
 @triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(2, 16)], key=[])
+@triton.jit
+def _multi_tensor_sgd_autotune_probe(
+    W_ptr_ptr,
+    W_dtype: tl.constexpr,
+    N_ptr,
+    BLOCK_SIZE: tl.constexpr,
+):
+    """Read-only probe used solely to determine the best num_warps without modifying tensors."""
+    BLOCK_ID = tl.program_id(0)
+    W_ptr = tl.load(W_ptr_ptr + BLOCK_ID).to(tl.pointer_type(W_dtype))
+    N = tl.load(N_ptr + BLOCK_ID)
+    for START in range(0, N, BLOCK_SIZE):
+        BLOCK = START + tl.arange(0, BLOCK_SIZE)
+        tl.load(W_ptr + BLOCK, mask=BLOCK < N)
+
+
 @triton.jit
 def _multi_tensor_sgd_triton_kernel(
     W_ptr_ptr,
