@@ -64,7 +64,6 @@ def test_m2rnn(
     input_shape: tuple[int, int, list[int]],
     problem_shape: tuple[int, int, int, int, int, int, int],
     has_input_state: bool,
-    is_compiling: bool,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
