@@ -67,7 +67,7 @@ def test_bmm(
         is_B_transposed=is_B_transposed,
         alpha=alpha,
         beta=beta,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
 
     output_expected = bmm(
