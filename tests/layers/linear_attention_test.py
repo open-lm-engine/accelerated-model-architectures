@@ -101,7 +101,7 @@ def test_linear_attention(
         ).to(dtype)
 
     y_kernel, output_state_kernel = linear_attention(
-        input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton
+        input=x_kernel, input_state=input_state_kernel, kernel_backend=kernel_backend
     )
 
     y_torch, output_state_torch = linear_attention(
