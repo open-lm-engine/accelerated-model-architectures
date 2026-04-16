@@ -37,7 +37,7 @@ def test_cross_entropy(
     labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
 
     loss_kernel = cross_entropy(
-        x=x_kernel, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.triton
+        x=x_kernel, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend
     )
 
     loss_expected = cross_entropy(
