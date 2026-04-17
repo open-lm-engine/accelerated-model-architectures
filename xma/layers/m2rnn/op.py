@@ -326,7 +326,9 @@ def m2rnn(
         "max_seqlen": max_seqlen,
     }
 
-    output, input_state = (m2rnn_torch if kernel_backend == KernelBackend.torch else _M2RNN.run)(**kwargs)
+    output, input_state = (m2rnn_torch if kernel_backend == KernelBackend.torch else _M2RNN.apply)(
+        **kwargs, kernel_backend=kernel_backend
+    )
 
     # output, input_state = _M2RNN.run(
     #     q=query,
