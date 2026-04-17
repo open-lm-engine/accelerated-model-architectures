@@ -2,13 +2,13 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from functools import partial
-
 import torch
 
 from ...accelerator import KernelBackend
+from ...math import ceil_divide, get_next_power_of_2
 from ...torch_utils import clip_gradients, tanh
 from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
+from .triton_implementation.backward import _m2rnn_backward_triton_kernel
 from .utils import _get_num_heads
 
 
@@ -195,8 +195,6 @@ class _M2RNN(torch.autograd.Function):
             N=N,
         )
 
-        function = partial(zeros_like_contiguous, dtype=torch.float32)
-
         dq = zeros_like_contiguous(q, dtype=torch.float32)
         dk = zeros_like_contiguous(k, dtype=torch.float32)
         dv = zeros_like_contiguous(v, dtype=torch.float32)
@@ -204,23 +202,64 @@ class _M2RNN(torch.autograd.Function):
         dxf = zeros_like_contiguous(xf, dtype=torch.float32)
         dh0 = None if h0 is None else empty_like_contiguous(h0)
 
-        _m2rnn_backward_triton(
-            q=q,
-            k=k,
-            v=v,
-            W=W,
-            xf=xf,
-            h0=h0,
-            dy=dy,
-            h=h,
-            dq=dq,
-            dk=dk,
-            dv=dv,
-            dW=dW,
-            dxf=dxf,
-            dh0=dh0,
-            cu_seqlens=cu_seqlens,
+        Nq, Nk, Nv, Nw, Nxf, N = _get_num_heads(q=q, k=k, v=v, W=W, xf=xf, run_check=False)
+
+        if cu_seqlens is None:
+            B, S, _, K, V = h.size()
+        else:
+            B = cu_seqlens.size(0) - 1
+            S = None
+            _, _, K, V = h.size()
+
+        BLOCK_SIZE_K = get_next_power_of_2(K)
+        BLOCK_SIZE_K = max(16, BLOCK_SIZE_K)
+        BLOCK_SIZE_K = min(64, BLOCK_SIZE_K)
+
+        BLOCK_SIZE_V = get_next_power_of_2(V)
+        BLOCK_SIZE_V = max(16, BLOCK_SIZE_V)
+
+        _m2rnn_backward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
+            q_ptr=q,
+            q_stride=q.stride(),
+            k_ptr=k,
+            k_stride=k.stride(),
+            v_ptr=v,
+            v_stride=v.stride(),
+            W_ptr=W,
+            W_stride=W.stride(),
+            h_ptr=h,
+            h_stride=h.stride(),
+            xf_ptr=xf,
+            xf_stride=xf.stride(),
+            dxf_ptr=dxf,
+            dxf_stride=dxf.stride(),
+            h0_ptr=h0,
+            h0_stride=None if h0 is None else h0.stride(),
+            dy_ptr=dy,
+            dy_stride=dy.stride(),
+            dq_ptr=dq,
+            dq_stride=dq.stride(),
+            dk_ptr=dk,
+            dk_stride=dk.stride(),
+            dv_ptr=dv,
+            dv_stride=dv.stride(),
+            dW_ptr=dW,
+            dW_stride=dW.stride(),
+            dh0_ptr=dh0,
+            dh0_stride=None if dh0 is None else dh0.stride(),
+            cu_seqlens_ptr=cu_seqlens,
+            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
             gradient_clipping=ctx.gradient_clipping,
+            S=S,
+            K=K,
+            V=V,
+            Gq=N // Nq,
+            Gk=N // Nk,
+            Gv=N // Nv,
+            Gw=N // Nw,
+            Gxf=N // Nxf,
+            BLOCK_SIZE_K=BLOCK_SIZE_K,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
         )
 
         dq = dq.type_as(q)
