@@ -17,93 +17,93 @@ if is_triton_available():
     from .triton_implementation import _m2rnn_backward_triton, _m2rnn_forward_triton
 
 
-class _M2RNN(CustomOp):
-    @staticmethod
-    def forward_backward_torch(
-        q: torch.Tensor,
-        k: torch.Tensor,
-        v: torch.Tensor,
-        W: torch.Tensor,
-        xf: torch.Tensor,
-        h0: torch.Tensor | None,
-        gradient_clipping: float | None,
-        cu_seqlens: torch.Tensor | None,
-        max_seqlen: int | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        Nq, Nk, Nv, Nw, Nxf, N = _get_num_heads(q=q, k=k, v=v, W=W, xf=xf, run_check=False)
+def m2rnn_torch(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    W: torch.Tensor,
+    xf: torch.Tensor,
+    h0: torch.Tensor | None,
+    gradient_clipping: float | None,
+    cu_seqlens: torch.Tensor | None,
+    max_seqlen: int | None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    Nq, Nk, Nv, Nw, Nxf, N = _get_num_heads(q=q, k=k, v=v, W=W, xf=xf, run_check=False)
 
-        V = v.size(-1)
+    V = v.size(-1)
+
+    if cu_seqlens is None:
+        B, S, _, K = q.size()
+        y = torch.empty(B, S, N, K, V, device=q.device, dtype=q.dtype)
+    else:
+        B = cu_seqlens.size(0) - 1
+        S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+        T, _, K = q.size()
+
+        y = torch.empty(T, N, K, V, device=q.device, dtype=q.dtype)
+
+    if h0 is None:
+        h0 = torch.zeros(B, N, K, V, device=k.device, dtype=k.dtype)
+
+    Gq = N // Nq
+    Gk = N // Nk
+    Gv = N // Nv
+
+    Gw = N // Nw
+    Gxf = N // Nxf
+
+    q = q.repeat_interleave(Gq, dim=-2)
+    k = k.repeat_interleave(Gk, dim=-2)
+    v = v.repeat_interleave(Gv, dim=-2)
+    W = W.repeat_interleave(Gw, dim=0)
+    xf = xf.repeat_interleave(Gxf, dim=-1)
+
+    # (B, S, N, K, V) = (B, S, N, K, 1) * (B, S, N, 1, V)
+    x = k[..., None] * v[..., None, :]
+    W = W[None, ...]
+
+    if cu_seqlens is not None:
+        h0 = h0.clone()
+        start = cu_seqlens[:-1]
+        end = cu_seqlens[1:]
+
+    for s in range(S):
+        if cu_seqlens is None:
+            f = xf[:, s, :, None, None]
+            # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
+            h = h0 @ W + x[:, s]
+        else:
+            offset = start + s
+            unfinished = offset < end
+            offset_unfinished = offset[unfinished]
+
+            f = xf[offset_unfinished, :, None, None]
+            # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
+            h = h0[unfinished] @ W + x[offset_unfinished]
+
+        h = tanh(h)
 
         if cu_seqlens is None:
-            B, S, _, K = q.size()
-            y = torch.empty(B, S, N, K, V, device=q.device, dtype=q.dtype)
+            h = f * h0 + (1 - f) * h
         else:
-            B = cu_seqlens.size(0) - 1
-            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
-            T, _, K = q.size()
+            h = f * h0[unfinished] + (1 - f) * h
 
-            y = torch.empty(T, N, K, V, device=q.device, dtype=q.dtype)
+        h = clip_gradients(h, gradient_clipping)
 
-        if h0 is None:
-            h0 = torch.zeros(B, N, K, V, device=k.device, dtype=k.dtype)
+        if cu_seqlens is None:
+            y[:, s] = h
+            h0 = h
+        else:
+            y[offset_unfinished] = h
+            h0[unfinished] = h
 
-        Gq = N // Nq
-        Gk = N // Nk
-        Gv = N // Nv
+    y = q[..., None, :] @ y
+    y = y.squeeze(-2)
 
-        Gw = N // Nw
-        Gxf = N // Nxf
+    return y, h0
 
-        q = q.repeat_interleave(Gq, dim=-2)
-        k = k.repeat_interleave(Gk, dim=-2)
-        v = v.repeat_interleave(Gv, dim=-2)
-        W = W.repeat_interleave(Gw, dim=0)
-        xf = xf.repeat_interleave(Gxf, dim=-1)
 
-        # (B, S, N, K, V) = (B, S, N, K, 1) * (B, S, N, 1, V)
-        x = k[..., None] * v[..., None, :]
-        W = W[None, ...]
-
-        if cu_seqlens is not None:
-            h0 = h0.clone()
-            start = cu_seqlens[:-1]
-            end = cu_seqlens[1:]
-
-        for s in range(S):
-            if cu_seqlens is None:
-                f = xf[:, s, :, None, None]
-                # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
-                h = h0 @ W + x[:, s]
-            else:
-                offset = start + s
-                unfinished = offset < end
-                offset_unfinished = offset[unfinished]
-
-                f = xf[offset_unfinished, :, None, None]
-                # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
-                h = h0[unfinished] @ W + x[offset_unfinished]
-
-            h = tanh(h)
-
-            if cu_seqlens is None:
-                h = f * h0 + (1 - f) * h
-            else:
-                h = f * h0[unfinished] + (1 - f) * h
-
-            h = clip_gradients(h, gradient_clipping)
-
-            if cu_seqlens is None:
-                y[:, s] = h
-                h0 = h
-            else:
-                y[offset_unfinished] = h
-                h0[unfinished] = h
-
-        y = q[..., None, :] @ y
-        y = y.squeeze(-2)
-
-        return y, h0
-
+class _M2RNN(CustomOp):
     @staticmethod
     def forward(
         ctx,
@@ -314,17 +314,31 @@ def m2rnn(
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
 
-    output, input_state = _M2RNN.run(
-        q=query,
-        k=key,
-        v=value,
-        W=weight,
-        xf=forget_input,
-        h0=input_state,
-        gradient_clipping=gradient_clipping,
-        cu_seqlens=cu_seqlens,
-        max_seqlen=max_seqlen,
-        kernel_backend=kernel_backend,
-    )
+    kwargs = {
+        "q": query,
+        "k": key,
+        "v": value,
+        "W": weight,
+        "xf": forget_input,
+        "h0": input_state,
+        "gradient_clipping": gradient_clipping,
+        "cu_seqlens": cu_seqlens,
+        "max_seqlen": max_seqlen,
+    }
+
+    output, input_state = (m2rnn_torch if kernel_backend == KernelBackend.torch else _M2RNN.run)(**kwargs)
+
+    # output, input_state = _M2RNN.run(
+    #     q=query,
+    #     k=key,
+    #     v=value,
+    #     W=weight,
+    #     xf=forget_input,
+    #     h0=input_state,
+    #     gradient_clipping=gradient_clipping,
+    #     cu_seqlens=cu_seqlens,
+    #     max_seqlen=max_seqlen,
+    #     kernel_backend=kernel_backend,
+    # )
 
     return output, input_state
