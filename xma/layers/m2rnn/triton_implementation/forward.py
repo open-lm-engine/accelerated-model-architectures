@@ -5,8 +5,8 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
-from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....triton_utils import matmul, tanh
 
@@ -173,7 +173,7 @@ def _m2rnn_forward_triton_kernel(
         )
 
 
-@xma_op(mutates_args={"h", "ht", "y"})
+@custom_op("xma::_m2rnn_forward_triton", mutates_args={"h", "ht", "y"})
 def _m2rnn_forward_triton(
     q: torch.Tensor | None,
     k: torch.Tensor,

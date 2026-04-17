@@ -5,8 +5,8 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
-from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_utils import clamp, matmul, sigmoid_backward, tanh_backward
 from ..utils import _get_num_heads
@@ -260,7 +260,7 @@ def _m2rnn_backward_triton_kernel(
     )
 
 
-@xma_op(mutates_args={"dq", "dk", "dv", "dW", "dxf", "dh0"})
+@custom_op("xma::_m2rnn_backward_triton", mutates_args={"dq", "dk", "dv", "dW", "dxf", "dh0"})
 def _m2rnn_backward_triton(
     q: torch.Tensor,
     k: torch.Tensor,
