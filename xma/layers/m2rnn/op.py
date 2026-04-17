@@ -7,7 +7,7 @@ from functools import partial
 import torch
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp, ctx_save_for_backward
+from ...custom_op import CustomOp
 from ...torch_utils import clip_gradients, tanh
 from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 from .utils import _get_num_heads
@@ -155,8 +155,7 @@ class _M2RNN(CustomOp):
             N=N,
         )
 
-        ctx_save_for_backward(ctx, q, k, v, W, xf, h0, cu_seqlens)
-
+        ctx.save_for_backward(q, k, v, W, xf, h0, cu_seqlens)
         ctx.gradient_clipping = gradient_clipping
         ctx.num_heads = Nq, Nk, Nv, Nw, Nxf, N
 
