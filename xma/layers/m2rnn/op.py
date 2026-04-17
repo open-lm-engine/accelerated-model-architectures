@@ -329,7 +329,7 @@ def m2rnn(
     if kernel_backend == KernelBackend.torch:
         output, input_state = m2rnn_torch(**kwargs)
     else:
-        output, input_state = _M2RNN.apply(*list(kwargs.values()))
+        output, input_state = _M2RNN.apply(*list(kwargs.values()), kernel_backend)
 
     # output, input_state = _M2RNN.run(
     #     q=query,
