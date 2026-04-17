@@ -7,7 +7,6 @@ from functools import partial
 import torch
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp
 from ...torch_utils import clip_gradients, tanh
 from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 from .utils import _get_num_heads
@@ -103,7 +102,7 @@ def m2rnn_torch(
     return y, h0
 
 
-class _M2RNN(CustomOp):
+class _M2RNN(torch.autograd.Function):
     @staticmethod
     def forward(
         ctx,
