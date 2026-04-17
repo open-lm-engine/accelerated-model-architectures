@@ -202,9 +202,7 @@ class _M2RNN(torch.autograd.Function):
         dv = zeros_like_contiguous(v, dtype=torch.float32)
         dW = zeros_like_contiguous(W, dtype=torch.float32)
         dxf = zeros_like_contiguous(xf, dtype=torch.float32)
-
-        if h0 is not None:
-            dh0 = empty_like_contiguous(h0)
+        dh0 = None if h0 is None else empty_like_contiguous(h0)
 
         _m2rnn_backward_triton(
             q=q,
