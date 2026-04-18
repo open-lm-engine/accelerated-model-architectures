@@ -42,6 +42,12 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
+        if isinstance(W, DTensor):
+            assert isinstance(dW, DTensor)
+            assert W.placements == dW.placements
+            W = W._local_tensor
+            dW = dW._local_tensor
+
         is_first_step = False
         if momentum == 0:
             assert len(momentum_buffer_list) == 0
@@ -89,12 +95,6 @@ def sgd(
 
                 if M is not None:
                     assert M.is_contiguous()
-
-                if isinstance(W, DTensor):
-                    assert isinstance(dW, DTensor)
-                    assert W.placements == dW.placements
-                    W = W._local_tensor
-                    dW = dW._local_tensor
 
                 _single_tensor_sgd_triton(
                     W=W,
