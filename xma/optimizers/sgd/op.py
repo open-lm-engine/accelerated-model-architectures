@@ -5,11 +5,12 @@
 from __future__ import annotations
 
 import torch
+from torch.distributed.tensor import DTensor
 from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
 
 from ...accelerator import Accelerator, KernelBackend
 from ...constants import LOG_WARP_SIZE
-from ...utils import empty_like_contiguous, is_triton_available
+from ...utils import is_triton_available
 
 
 if is_triton_available():
@@ -90,8 +91,8 @@ def sgd(
                     assert M.is_contiguous()
 
                 _single_tensor_sgd_triton(
-                    W=W,
-                    dW=dW,
+                    W=W._local_tensor if isinstance(W, DTensor) else W,
+                    dW=dW._local_tensor if isinstance(dW, DTensor) else dW,
                     M=M,
                     lr=lr,
                     weight_decay=weight_decay,
