@@ -42,12 +42,6 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        if isinstance(W, DTensor):
-            assert isinstance(dW, DTensor)
-            assert W.placements == dW.placements
-            W = W._local_tensor
-            dW = dW._local_tensor
-
         is_first_step = False
         if momentum == 0:
             assert len(momentum_buffer_list) == 0
@@ -59,19 +53,39 @@ def sgd(
             for i, p in enumerate(params):
                 momentum_buffer_list[i] = torch.empty_like(p, dtype=torch.float32)
 
+        is_dtensor = isinstance(params[0], DTensor)
+
+        if is_dtensor:
+            for W, dW, M in zip(params, grads, momentum_buffer_list):
+                assert isinstance(dW, DTensor)
+                assert isinstance(M, DTensor)
+
+                assert W.placements == dW.placements
+                assert W.placements == M.placements
+
         if horizontal_fusion:
             device = params[0].device
             NUM_WARPS = 8
 
             _multi_tensor_sgd_triton_kernel[len(params),](
-                W_ptr_ptr=torch.tensor([W.data_ptr() for W in params], dtype=torch.int64, device=device),
+                W_ptr_ptr=torch.tensor(
+                    [(W.to_local() if is_dtensor else W).data_ptr() for W in params], dtype=torch.int64, device=device
+                ),
                 W_dtype=_TORCH_TO_TRITON_DTYPE[params[0].dtype],
-                dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in grads], dtype=torch.int64, device=device),
+                dW_ptr_ptr=torch.tensor(
+                    [(dW.to_local() if is_dtensor else dW).data_ptr() for dW in grads],
+                    dtype=torch.int64,
+                    device=device,
+                ),
                 dW_dtype=_TORCH_TO_TRITON_DTYPE[grads[0].dtype],
                 M_ptr_ptr=(
                     None
                     if momentum == 0
-                    else torch.tensor([M.data_ptr() for M in momentum_buffer_list], dtype=torch.int64, device=device)
+                    else torch.tensor(
+                        [(M.to_local() if is_dtensor else M).data_ptr() for M in momentum_buffer_list],
+                        dtype=torch.int64,
+                        device=device,
+                    )
                 ),
                 M_dtype=None if momentum == 0 else _TORCH_TO_TRITON_DTYPE[momentum_buffer_list[0].dtype],
                 N_ptr=torch.tensor([W.numel() for W in params], dtype=torch.int64, device=device),
@@ -95,6 +109,11 @@ def sgd(
 
                 if M is not None:
                     assert M.is_contiguous()
+
+                if is_dtensor:
+                    W = W.to_local()
+                    dW = dW.to_local()
+                    M = M.to_local()
 
                 _single_tensor_sgd_triton(
                     W=W,
