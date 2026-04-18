@@ -90,9 +90,15 @@ def sgd(
                 if M is not None:
                     assert M.is_contiguous()
 
+                if isinstance(W, DTensor):
+                    assert isinstance(dW, DTensor)
+                    assert W.placements == dW.placements
+                    W = W._local_tensor
+                    dW = dW._local_tensor
+
                 _single_tensor_sgd_triton(
-                    W=W._local_tensor if isinstance(W, DTensor) else W,
-                    dW=dW._local_tensor if isinstance(dW, DTensor) else dW,
+                    W=W,
+                    dW=dW,
                     M=M,
                     lr=lr,
                     weight_decay=weight_decay,
