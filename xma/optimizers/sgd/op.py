@@ -24,12 +24,12 @@ def sgd(
     grads: list[torch.Tensor],
     momentum_buffer_list: list[torch.Tensor],
     lr: float,
-    maximize: bool,
-    horizontal_fusion: bool,
     weight_decay: float,
     momentum: float,
     dampening: float,
     nesterov: bool,
+    maximize: bool,
+    foreach: bool,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> None:
@@ -39,7 +39,7 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        assert not horizontal_fusion
+        assert not foreach
 
         is_first_step = False
         if momentum == 0:
@@ -90,7 +90,7 @@ def sgd(
                 is_first_step=is_first_step,
             )
     elif kernel_backend == KernelBackend.torch:
-        (_multi_tensor_sgd if horizontal_fusion else _single_tensor_sgd)(
+        (_multi_tensor_sgd if foreach else _single_tensor_sgd)(
             params=params,
             grads=grads,
             momentum_buffer_list=momentum_buffer_list,

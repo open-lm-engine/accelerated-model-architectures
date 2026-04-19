@@ -37,12 +37,12 @@ class SGD(_TorchSGD):
                 grads=grads,
                 momentum_buffer_list=momentum_buffer_list,
                 lr=group["lr"],
-                maximize=group["maximize"],
-                horizontal_fusion=group["foreach"],
                 weight_decay=group["weight_decay"],
                 momentum=group["momentum"],
                 dampening=group["dampening"],
                 nesterov=group["nesterov"],
+                maximize=group["maximize"],
+                foreach=group["foreach"],
                 kernel_backend=kernel_backend,
             )
 
