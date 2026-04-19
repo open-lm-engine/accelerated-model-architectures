@@ -13,8 +13,6 @@ from ...utils import is_triton_available
 
 
 if is_triton_available():
-    import triton.language as tl
-
     from .triton_implementation import _single_tensor_sgd_triton
 
 
