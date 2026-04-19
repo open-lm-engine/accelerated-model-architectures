@@ -17,7 +17,6 @@ _LEARNING_RATE = 1e-3
 
 @pytest.mark.parametrize("size", get_1d_tensor_sizes())
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("horizontal_fusion", [True, False])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("weight_decay", [0, 0.7])
 @pytest.mark.parametrize("momentum", [0, 0.7])
@@ -27,7 +26,6 @@ _LEARNING_RATE = 1e-3
 def test_sgd(
     size: int,
     dtype: torch.dtype,
-    horizontal_fusion: bool,
     maximize: bool,
     weight_decay: float,
     momentum: float,
@@ -58,7 +56,6 @@ def test_sgd(
         weight_decay=weight_decay,
         maximize=maximize,
         nesterov=nesterov,
-        foreach=horizontal_fusion,
     )
 
     sgd_torch = SGD(
@@ -69,7 +66,6 @@ def test_sgd(
         weight_decay=weight_decay,
         maximize=maximize,
         nesterov=nesterov,
-        foreach=horizontal_fusion,
     )
 
     sgd_kernel.step(kernel_backend=kernel_backend)

@@ -31,7 +31,6 @@ def sgd(
     dampening: float,
     nesterov: bool,
     *,
-    chunk_size: int | None = None,
     kernel_backend: KernelBackend | None = None,
 ) -> None:
     if kernel_backend is None:
@@ -40,6 +39,8 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
+        assert not horizontal_fusion
+
         is_first_step = False
         if momentum == 0:
             assert len(momentum_buffer_list) == 0
