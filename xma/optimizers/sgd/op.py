@@ -34,6 +34,7 @@ def sgd(
     dampening: float,
     nesterov: bool,
     *,
+    chunk_size: int | None = None,
     kernel_backend: KernelBackend | None = None,
 ) -> None:
     if kernel_backend is None:
@@ -67,13 +68,16 @@ def sgd(
         if horizontal_fusion:
             device = params[0].device
             NUM_WARPS = 8
+            num_tensors = len(params)
+            CHUNK_SIZE = 65536 if chunk_size is None else chunk_size
+            num_chunks = (num_tensors + CHUNK_SIZE - 1) // CHUNK_SIZE
 
             if is_dtensor:
                 params = [W.to_local() for W in params]
                 grads = [dW.to_local() for dW in grads]
                 momentum_buffer_list = None if momentum == 0 else [M.to_local() for M in momentum_buffer_list]
 
-            _multi_tensor_sgd_triton_kernel[len(params),](
+            _multi_tensor_sgd_triton_kernel[num_chunks,](
                 W_ptr_ptr=torch.tensor([W.data_ptr() for W in params], dtype=torch.int64, device=device),
                 W_dtype=_TORCH_TO_TRITON_DTYPE[params[0].dtype],
                 dW_ptr_ptr=torch.tensor([dW.data_ptr() for dW in grads], dtype=torch.int64, device=device),
@@ -93,6 +97,8 @@ def sgd(
                 MAXIMIZE=maximize,
                 IS_FIRST_STEP=is_first_step,
                 BLOCK_SIZE=(NUM_WARPS << LOG_WARP_SIZE) * (16 // params[0].dtype.itemsize),
+                CHUNK_SIZE=CHUNK_SIZE,
+                num_tensors=num_tensors,
                 num_warps=NUM_WARPS,
             )
         else:

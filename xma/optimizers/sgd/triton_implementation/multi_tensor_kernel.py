@@ -25,49 +25,54 @@ def _multi_tensor_sgd_triton_kernel(
     MAXIMIZE: tl.constexpr,
     IS_FIRST_STEP: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
+    CHUNK_SIZE: tl.constexpr,
+    num_tensors,
 ):
-    BLOCK_ID = tl.program_id(0)
+    CHUNK_ID = tl.program_id(0)
 
-    W_ptr = tl.load(W_ptr_ptr + BLOCK_ID).to(tl.pointer_type(W_dtype))
-    dW_ptr = tl.load(dW_ptr_ptr + BLOCK_ID).to(tl.pointer_type(dW_dtype))
+    for i in tl.static_range(CHUNK_SIZE):
+        tensor_idx = CHUNK_ID * CHUNK_SIZE + i
+        if tensor_idx < num_tensors:
+            W_ptr = tl.load(W_ptr_ptr + tensor_idx).to(tl.pointer_type(W_dtype))
+            dW_ptr = tl.load(dW_ptr_ptr + tensor_idx).to(tl.pointer_type(dW_dtype))
 
-    if momentum is None:
-        tl.static_assert(M_ptr_ptr is None)
-        M_ptr = None
-    else:
-        M_ptr = tl.load(M_ptr_ptr + BLOCK_ID).to(tl.pointer_type(M_dtype))
+            if momentum is None:
+                tl.static_assert(M_ptr_ptr is None)
+                M_ptr = None
+            else:
+                M_ptr = tl.load(M_ptr_ptr + tensor_idx).to(tl.pointer_type(M_dtype))
 
-    N = tl.load(N_ptr + BLOCK_ID)
+            N = tl.load(N_ptr + tensor_idx)
 
-    for START in range(0, N, BLOCK_SIZE):
-        BLOCK = START + tl.arange(0, BLOCK_SIZE)
-        MASK = BLOCK < N
+            for START in range(0, N, BLOCK_SIZE):
+                BLOCK = START + tl.arange(0, BLOCK_SIZE)
+                MASK = BLOCK < N
 
-        W = tl.load(W_ptr + BLOCK, mask=MASK)
-        dW = tl.load(dW_ptr + BLOCK, mask=MASK)
+                W = tl.load(W_ptr + BLOCK, mask=MASK)
+                dW = tl.load(dW_ptr + BLOCK, mask=MASK)
 
-        if M_ptr is not None and not IS_FIRST_STEP:
-            M = tl.load(M_ptr + BLOCK, mask=MASK)
-        else:
-            M = None
+                if M_ptr is not None and not IS_FIRST_STEP:
+                    M = tl.load(M_ptr + BLOCK, mask=MASK)
+                else:
+                    M = None
 
-        output = _sgd_step(
-            W=W,
-            dW=dW,
-            M=M,
-            lr=lr,
-            weight_decay=weight_decay,
-            momentum=momentum,
-            dampening=dampening,
-            NESTEROV=NESTEROV,
-            MAXIMIZE=MAXIMIZE,
-            IS_FIRST_STEP=IS_FIRST_STEP,
-        )
+                output = _sgd_step(
+                    W=W,
+                    dW=dW,
+                    M=M,
+                    lr=lr,
+                    weight_decay=weight_decay,
+                    momentum=momentum,
+                    dampening=dampening,
+                    NESTEROV=NESTEROV,
+                    MAXIMIZE=MAXIMIZE,
+                    IS_FIRST_STEP=IS_FIRST_STEP,
+                )
 
-        if M_ptr is None:
-            W = output
-        else:
-            W, M = output
-            tl.store(M_ptr + BLOCK, M, mask=MASK)
+                if M_ptr is None:
+                    W = output
+                else:
+                    W, M = output
+                    tl.store(M_ptr + BLOCK, M, mask=MASK)
 
-        tl.store(W_ptr + BLOCK, W, mask=MASK)
+                tl.store(W_ptr + BLOCK, W, mask=MASK)

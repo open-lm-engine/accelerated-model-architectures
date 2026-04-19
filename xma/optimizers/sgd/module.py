@@ -15,7 +15,13 @@ from .op import sgd
 
 class SGD(_TorchSGD):
     @torch.no_grad()
-    def step(self, closure: Callable | None = None, *, kernel_backend: KernelBackend | None = None) -> None:
+    def step(
+        self,
+        closure: Callable | None = None,
+        *,
+        chunk_size: int | None = None,
+        kernel_backend: KernelBackend | None = None,
+    ) -> None:
         loss = None
         if closure is not None:
             with torch.enable_grad():
@@ -43,6 +49,7 @@ class SGD(_TorchSGD):
                 momentum=group["momentum"],
                 dampening=group["dampening"],
                 nesterov=group["nesterov"],
+                chunk_size=chunk_size,
                 kernel_backend=kernel_backend,
             )
 
