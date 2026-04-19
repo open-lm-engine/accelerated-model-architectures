@@ -6,8 +6,8 @@ import torch
 import triton
 import triton.language as tl
 
-from ....custom_op import xma_op
-from ....math import ceil_divide, get_powers_of_2
+from ...custom_op import xma_op
+from ...math import ceil_divide, get_powers_of_2
 
 
 def _get_autotune_configs() -> list[triton.Config]:
