@@ -9,7 +9,6 @@ from torch.distributed.tensor import DTensor
 from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
 
 from ...accelerator import Accelerator, KernelBackend
-from ...constants import LOG_WARP_SIZE
 from ...utils import is_triton_available
 
 
