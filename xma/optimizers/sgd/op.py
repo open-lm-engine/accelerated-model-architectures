@@ -71,7 +71,7 @@ def sgd(
             if is_dtensor:
                 params = [W.to_local() for W in params]
                 grads = [dW.to_local() for dW in grads]
-                momentum_buffer_list = [M.to_local() for M in momentum_buffer_list]
+                momentum_buffer_list = None if momentum == 0 else [M.to_local() for M in momentum_buffer_list]
 
             _multi_tensor_sgd_triton_kernel[len(params),](
                 W_ptr_ptr=torch.tensor([W.data_ptr() for W in params], dtype=torch.int64, device=device),
@@ -80,7 +80,7 @@ def sgd(
                 dW_dtype=_TORCH_TO_TRITON_DTYPE[grads[0].dtype],
                 M_ptr_ptr=(
                     None
-                    if momentum == 0
+                    if momentum_buffer_list is None
                     else torch.tensor([M.data_ptr() for M in momentum_buffer_list], dtype=torch.int64, device=device)
                 ),
                 M_dtype=None if momentum == 0 else _TORCH_TO_TRITON_DTYPE[momentum_buffer_list[0].dtype],
