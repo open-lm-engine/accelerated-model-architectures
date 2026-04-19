@@ -106,7 +106,9 @@ def sgd(
                 if is_dtensor:
                     W = W.to_local()
                     dW = dW.to_local()
-                    M = M.to_local()
+
+                    if M is not None:
+                        M = M.to_local()
 
                 _single_tensor_sgd_triton(
                     W=W,
