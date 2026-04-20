@@ -2,5 +2,5 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .hyperball_adam import HyperballAdamW, hyperball_adam
-from .sgd import SGD, sgd
+from .module import HyperballAdamW
+from .op import hyperball_adam
