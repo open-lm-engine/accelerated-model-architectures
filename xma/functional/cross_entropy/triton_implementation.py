@@ -81,7 +81,7 @@ def _cross_entropy_forward_backward_triton_kernel(
     if reduction == "mean":
         l /= B
 
-    tl.atomic_add(l_ptr + tl.arange(0, 1), l, sem="relaxed")
+    tl.atomic_add(l_ptr, l, sem="relaxed")
 
     if dx_ptr is not None:
         BLOCK_V = tl.arange(0, BLOCK_SIZE_V)
