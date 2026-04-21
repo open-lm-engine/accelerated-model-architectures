@@ -42,13 +42,13 @@ class XTunedFunction:
         self.benchmark_iterations = benchmark_iterations
 
         self.signature = inspect.getfullargspec(function)
-        self.xtuneable_parameters = set(self.configs[0].get_key_values().keys())
+        self.tuneable_parameters = set(self.configs[0].get_key_values().keys())
 
         self._setup_trigger_map(triggers)
 
         for config in self.configs:
             assert (
-                set(config.get_key_values().keys()) == self.xtuneable_parameters
+                set(config.get_key_values().keys()) == self.tuneable_parameters
             ), "xtune configs don't match the expected function signature"
 
         self.functional_triggers = functional_triggers
@@ -95,7 +95,7 @@ class XTunedFunction:
 
         for i in range(len(args)):
             variable_name = self.signature.args[i]
-            is_tuneable_variable = variable_name in self.xtuneable_parameters
+            is_tuneable_variable = variable_name in self.tuneable_parameters
 
             if isinstance(args[i], XTuneParameter):
                 assert is_tuneable_variable, "argument with XTuneParameter() value should be a tuned parameter"
@@ -105,7 +105,7 @@ class XTunedFunction:
 
         # accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function
         for variable_name in kwargs:
-            is_tuneable_variable = variable_name in self.xtuneable_parameters
+            is_tuneable_variable = variable_name in self.tuneable_parameters
 
             if isinstance(kwargs.get(variable_name), XTuneParameter):
                 assert is_tuneable_variable, "argument with XTuneParameter() value should be a tuned parameter"
@@ -113,7 +113,7 @@ class XTunedFunction:
             elif is_tuneable_variable:
                 num_specified_parameters_found += 1
 
-        n = len(self.xtuneable_parameters)
+        n = len(self.tuneable_parameters)
 
         if num_xtune_parameters_found == 0:
             assert num_specified_parameters_found in [0, n]
@@ -280,7 +280,7 @@ class XTunedFunction:
                 variable_name in self.signature.args
             ), f"unexpected variable_name ({variable_name}) found in triggers"
 
-        for variable_name in self.xtuneable_parameters:
+        for variable_name in self.tuneable_parameters:
             assert (
                 variable_name not in self.variable_name_trigger_map
             ), "trigger can't be an instance of XTuneParameter"
@@ -321,7 +321,7 @@ class XTunedFunction:
     configs = {self.configs}
     warmup iterations = {self.warmup_iterations}
     benchmark iterations = {self.benchmark_iterations}
-    xtuneable parameters = {self.xtuneable_parameters}
+    tuneable parameters = {self.tuneable_parameters}
     functional triggers = {self.functional_triggers}
     reset to zero = {self.reset_to_zero}
     function hash = {self.function_hash}
