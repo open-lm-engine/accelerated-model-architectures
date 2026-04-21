@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from functools import partial
+
 import torch
 import torch.nn.functional as F
 
@@ -14,6 +16,7 @@ from ...utils import (
     is_torch_xla_available,
     is_triton_available,
 )
+from ...xtuner import XTuneParameter
 from .mps_implementation import _swiglu_backward_mps, _swiglu_forward_mps
 
 
@@ -23,7 +26,10 @@ _FUNCTIONS = {KernelBackend.mps: (_swiglu_forward_mps, _swiglu_backward_mps)}
 if is_cute_dsl_available():
     from .cuda_implementation import _swiglu_backward_cuda, _swiglu_forward_cuda
 
-    _FUNCTIONS[KernelBackend.cuda] = (_swiglu_forward_cuda, _swiglu_backward_cuda)
+    _FUNCTIONS[KernelBackend.cuda] = (
+        partial(_swiglu_forward_cuda, BLOCK_SIZE=XTuneParameter()),
+        _swiglu_backward_cuda,
+    )
 
 if is_torch_neuronx_available():
     from .nki_implementation import _swiglu_backward_nki, _swiglu_forward_nki

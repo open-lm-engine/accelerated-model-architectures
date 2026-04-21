@@ -16,7 +16,7 @@ from ....constants import LOG_WARP_SIZE, WARP_SIZE
 from ....custom_op import xma_op
 from ....cute_dsl_utils import get_fake_cute_tensor, sigmoid
 from ....math import get_powers_of_2
-from ....xtuner import XTuneConfig, XTuneParameter, xtune
+from ....xtuner import XTuneConfig, xtune
 
 
 class _SwiGLUForwardCUDAKernel:
