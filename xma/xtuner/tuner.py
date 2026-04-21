@@ -49,7 +49,7 @@ class XTunedFunction:
         for config in self.configs:
             assert (
                 set(config.get_key_values().keys()) == self.tuneable_parameters
-            ), "xtune configs don't match the expected function signature"
+            ), "configs don't match the expected function signature"
 
         self.functional_triggers = functional_triggers
         self.reset_to_zero = reset_to_zero
