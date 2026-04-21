@@ -41,7 +41,7 @@ def test_cross_entropy(
     if isinstance(size, int):
         size = (size,)
 
-    x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
+    x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
     labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
 
     loss_kernel = function(
