@@ -358,7 +358,7 @@ def xtune(
     """
 
     def inner(function: Callable) -> Callable:
-        return XTunedFunction(
+        output = XTunedFunction(
             function=function,
             configs=configs,
             triggers=triggers,
@@ -368,7 +368,9 @@ def xtune(
             reset_to_zero=reset_to_zero,
         )
 
-    inner.__signature__ = inspect.signature(function)
-    inner.__name__ = function.__name__
+        output.__signature__ = inspect.signature(function)
+        output.__name__ = function.__name__
+
+        return output
 
     return inner
