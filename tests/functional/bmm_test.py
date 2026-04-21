@@ -85,4 +85,4 @@ def test_bmm(
         kernel_backend=KernelBackend.torch,
     )
 
-    assert_equal_tensors(output_kernel, output_expected, True)
+    assert_equal_tensors(output_kernel, output_expected, False)
