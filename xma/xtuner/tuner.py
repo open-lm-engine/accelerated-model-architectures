@@ -283,7 +283,7 @@ class XTunedFunction:
         for variable_name in self.tuneable_parameters:
             assert (
                 variable_name not in self.variable_name_trigger_map
-            ), "trigger can't be an instance of XTuneParameter"
+            ), "trigger can't be an instance of a tuneable parameter"
 
     def _parse_trigger(self, trigger: str) -> tuple[str, str, Callable]:
         split_trigger = trigger.split(_SEPARATOR)
