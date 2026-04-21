@@ -15,10 +15,12 @@ from cutlass import Boolean, Float32, range_constexpr
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
 from ....custom_op import xma_op
 from ....cute_dsl_utils import get_fake_cute_tensor, sigmoid
+from ....math import get_powers_of_2
+from ....xtuner import XTuneConfig, XTuneParameter, xtune
 
 
-class SwiGLUForwardCUDAKernel:
-    def __init__(self, BLOCK_SIZE: int = 128) -> SwiGLUForwardCUDAKernel:
+class _SwiGLUForwardCUDAKernel:
+    def __init__(self, BLOCK_SIZE: int) -> _SwiGLUForwardCUDAKernel:
         self.BLOCK_SIZE = BLOCK_SIZE
 
     @cute.kernel
@@ -110,11 +112,12 @@ _CACHE = {}
 
 
 @xma_op(mutates_args={"y"})
-def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+@xtune(configs=[XTuneConfig(config={"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)])
+def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor, BLOCK_SIZE: int) -> None:
     N = g.size(1)
     div = math.gcd(16 // g.dtype.itemsize, N)
 
-    key = (g.dtype, div)
+    key = (g.dtype, div, BLOCK_SIZE)
     function = _CACHE.get(key, None)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
@@ -127,7 +130,7 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> N
             for i in (g, u, y)
         ]
 
-        function = SwiGLUForwardCUDAKernel()
+        function = _SwiGLUForwardCUDAKernel(BLOCK_SIZE=BLOCK_SIZE)
         function = cute.compile(function, _g, _u, _y, stream, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
