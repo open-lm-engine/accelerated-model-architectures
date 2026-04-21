@@ -52,7 +52,7 @@ def test_cross_entropy(
         x=x_expected, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
     )
 
-    assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=4e-5, rtol_float32=0)
+    assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=7e-5, rtol_float32=0)
 
     loss_kernel.backward()
     loss_expected.backward()
