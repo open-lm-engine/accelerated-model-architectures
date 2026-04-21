@@ -370,6 +370,7 @@ def xtune(
 
         output.__signature__ = inspect.signature(function)
         output.__name__ = function.__name__
+        output.__globals__ = function.__globals__
 
         return output
 
