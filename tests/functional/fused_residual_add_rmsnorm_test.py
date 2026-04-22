@@ -75,7 +75,7 @@ def test_fused_residual_add_rmsnorm(
         eps=_EPSILON,
         multiplier=multiplier,
         memory_efficient=memory_efficient,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
     z_kernel = z_kernel * 2 + r_kernel * 3
 
