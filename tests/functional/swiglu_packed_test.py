@@ -34,9 +34,9 @@ def test_swiglu_packed(
     z_kernel = function(x_kernel, kernel_backend=kernel_backend)
     z_expected = swiglu_packed(x_expected, kernel_backend=KernelBackend.torch)
 
-    assert_equal_tensors(z_kernel, z_expected, False, atol_float32=4.9e-5, rtol_float32=0)
+    assert_equal_tensors(z_kernel, z_expected, False)
 
     z_kernel.mean().backward()
     z_expected.mean().backward()
 
-    assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=5e-6, rtol_float32=0)
+    assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
