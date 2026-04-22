@@ -63,7 +63,7 @@ def test_fused_residual_add_rmsnorm(
     residual_kernel, residual_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
     if has_weight:
-        weight_kernel, weight_expected = get_random_duplicated_tensors(size[-1], device=device, dtype=dtype)
+        weight_kernel, weight_expected = get_random_duplicated_tensors((size[-1],), device=device, dtype=dtype)
     else:
         weight_kernel = None
         weight_expected = None
