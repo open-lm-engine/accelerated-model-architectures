@@ -86,6 +86,7 @@ def test_rnn(
         total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
         state_size=state_size,
         has_input_state=has_input_state,
+        std=1,
         dtype=dtype,
         device=device,
     )
