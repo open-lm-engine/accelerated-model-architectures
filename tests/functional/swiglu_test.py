@@ -65,10 +65,6 @@ def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBack
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-    if kernel_backend == KernelBackend.cuda:
-        multiple = 16 // dtype.itemsize
-        size = (size[0], ceil_divide(size[1], multiple) * multiple)
-
     x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
     y_kernel, y_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
