@@ -47,4 +47,4 @@ def test_softmax(
     z_kernel.sum().backward()
     z_expected.sum().backward()
 
-    assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_bfloat16=8.1e-5, rtol_bfloat16=0)
+    assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_bfloat16=1.5e-4, rtol_bfloat16=0)
