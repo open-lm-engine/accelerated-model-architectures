@@ -39,7 +39,7 @@ def test_softmax(
 
     x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
 
-    z_kernel = function(x_kernel, logits_multiplier, kernel_backend=KernelBackend.triton)
+    z_kernel = function(x_kernel, logits_multiplier, kernel_backend=kernel_backend)
     z_expected = softmax(x_expected, logits_multiplier, kernel_backend=KernelBackend.torch)
 
     assert_equal_tensors(z_kernel, z_expected, False)
@@ -47,12 +47,4 @@ def test_softmax(
     z_kernel.sum().backward()
     z_expected.sum().backward()
 
-    assert_equal_tensors(
-        x_kernel.grad,
-        x_expected.grad,
-        False,
-        atol_float32=4e-5,
-        rtol_float32=0,
-        atol_bfloat16=1.1e-3,
-        rtol_bfloat16=0,
-    )
+    assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
