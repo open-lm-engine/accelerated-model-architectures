@@ -60,7 +60,7 @@ def test_fused_linear_cross_entropy(
         weight=weight_kernel,
         labels=labels,
         logits_multiplier=logits_multiplier,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
 
     loss_expected = fused_linear_cross_entropy(
