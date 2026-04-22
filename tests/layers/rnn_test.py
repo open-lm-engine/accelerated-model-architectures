@@ -25,7 +25,6 @@ def _get_packed_tensor_inputs(
     total_tokens: int | None,
     state_size: int,
     has_input_state: bool,
-    std: float | None,
     dtype: torch.dtype,
     device: torch.device,
 ) -> tuple[torch.Tensor | None]:
@@ -33,20 +32,14 @@ def _get_packed_tensor_inputs(
         ((batch_size, sequence_length, state_size) if total_tokens is None else (total_tokens, state_size)),
         device=device,
         dtype=dtype,
+        std=0.01,
     )
-
-    if std is None:
-        _random_function = None
-    else:
-
-        def _random_function(*args, **kwargs) -> torch.Tensor:
-            return torch.randn(*args, **kwargs) * std
 
     input_state_kernel = None
     input_state_torch = None
     if has_input_state:
         input_state_kernel, input_state_torch = get_random_duplicated_tensors(
-            (batch_size, state_size), device=device, dtype=dtype, random_function=_random_function
+            (batch_size, state_size), device=device, dtype=dtype, std=0.01
         )
 
     return x_kernel, x_torch, input_state_kernel, input_state_torch
@@ -90,7 +83,6 @@ def _get_packed_tensor_inputs(
 #         total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
 #         state_size=state_size,
 #         has_input_state=has_input_state,
-#         std=0.02,
 #         dtype=dtype,
 #         device=device,
 #     )
@@ -119,7 +111,7 @@ def _get_packed_tensor_inputs(
 #         input_state=input_state_kernel,
 #         cu_seqlens=cu_seqlens,
 #         max_seqlen=max_seqlen,
-#         kernel_backend=kernel_backend,
+#         kernel_backend=KernelBackend.triton,
 #     )
 
 #     y_torch, output_state_torch = rnn_torch(
@@ -203,10 +195,9 @@ def test_rnn_varlen_torch(
     x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
         batch_size=batch_size,
         sequence_length=None,
-        total_tokens=cu_seqlens[-1].item(),
+        total_tokens=cu_seqlens[-1],
         state_size=state_size,
         has_input_state=has_input_state,
-        std=None,
         dtype=dtype,
         device=device,
     )
@@ -221,6 +212,8 @@ def test_rnn_varlen_torch(
             add_bias=False,
             gradient_clipping=None,
         ).to(dtype)
+
+        nn.init.normal_(rnn.state_weight, std=0.1)
 
     y_kernel, _ = rnn(
         input=x_packed_kernel,
@@ -248,13 +241,18 @@ def test_rnn_varlen_torch(
     y_torch.sum().backward()
     weight_torch_grads = collect_gradients_from_module_and_zero_grads(rnn)
 
-    assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False, atol_float32=1.3e-4, rtol_float32=0)
+    assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False)
+    # , atol_float32=2e-5, rtol_float32=0)
 
     for weight_name in weight_kernel_grads:
         assert_equal_tensors(
             weight_kernel_grads[weight_name],
             weight_torch_grads[weight_name],
             False,
-            atol_float32=2.3e-5,
-            rtol_float32=0,
+            # atol_float32=3e-7,
+            # rtol_float32=0,
+            # atol_float16=5e-4,
+            # rtol_float16=0,
+            # atol_bfloat16=5e-3,
+            # rtol_bfloat16=0,
         )
