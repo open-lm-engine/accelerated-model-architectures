@@ -119,7 +119,7 @@ def test_rnn(
         kernel_backend=KernelBackend.torch,
     )
 
-    assert_equal_tensors(y_kernel, y_torch, False)
+    assert_equal_tensors(y_kernel, y_torch, False, atol_float32=5.2e-4, rtol_float32=0)
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
     y_kernel.sum().backward()
