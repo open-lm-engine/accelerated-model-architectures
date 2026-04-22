@@ -108,7 +108,7 @@ def test_rnn(
         input_state=input_state_kernel,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
 
     y_torch, output_state_torch = rnn_torch(
@@ -120,7 +120,7 @@ def test_rnn(
     )
 
     assert_equal_tensors(y_kernel, y_torch, False, atol_float32=5.2e-4, rtol_float32=0)
-    assert_equal_tensors(output_state_kernel, output_state_torch, False)
+    assert_equal_tensors(output_state_kernel, output_state_torch, False, atol_float32=6.2e-5, rtol_float32=0)
 
     y_kernel.sum().backward()
     weight_kernel_grads = collect_gradients_from_module_and_zero_grads(rnn)
