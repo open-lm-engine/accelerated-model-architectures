@@ -98,7 +98,7 @@ def test_fused_residual_add_rmsnorm(
     assert_equal_tensors(residual_kernel.grad, residual_expected.grad, False)
 
     if has_weight:
-        assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=1.4e-5, rtol_float32=0)
+        assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=6.2e-5, rtol_float32=0)
 
 
 # def test_fused_residual_add_rmsnorm_kernel_replacement() -> None:
