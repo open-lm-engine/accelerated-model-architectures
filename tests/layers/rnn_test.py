@@ -32,14 +32,13 @@ def _get_packed_tensor_inputs(
         ((batch_size, sequence_length, state_size) if total_tokens is None else (total_tokens, state_size)),
         device=device,
         dtype=dtype,
-        std=0.01,
     )
 
     input_state_kernel = None
     input_state_torch = None
     if has_input_state:
         input_state_kernel, input_state_torch = get_random_duplicated_tensors(
-            (batch_size, state_size), device=device, dtype=dtype, std=0.01
+            (batch_size, state_size), device=device, dtype=dtype
         )
 
     return x_kernel, x_torch, input_state_kernel, input_state_torch
@@ -97,8 +96,6 @@ def test_rnn(
             add_bias=False,
             gradient_clipping=None,
         ).to(dtype)
-
-        nn.init.normal_(rnn.state_weight, std=0.1)
 
     rnn_torch = rnn
     rnn_kernel = rnn
@@ -212,8 +209,6 @@ def test_rnn_varlen_torch(
             add_bias=False,
             gradient_clipping=None,
         ).to(dtype)
-
-        nn.init.normal_(rnn.state_weight, std=0.1)
 
     y_kernel, _ = rnn(
         input=x_packed_kernel,
