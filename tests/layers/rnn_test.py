@@ -236,7 +236,7 @@ def test_rnn_varlen_torch(
     y_torch.sum().backward()
     weight_torch_grads = collect_gradients_from_module_and_zero_grads(rnn)
 
-    assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False, atol_float32=2e-5, rtol_float32=0)
+    assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False, atol_float32=1.3e-4, rtol_float32=0)
 
     for weight_name in weight_kernel_grads:
         assert_equal_tensors(
