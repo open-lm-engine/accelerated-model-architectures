@@ -25,7 +25,7 @@ def _get_packed_tensor_inputs(
     total_tokens: int | None,
     state_size: int,
     has_input_state: bool,
-    std: float,
+    std: float | None,
     dtype: torch.dtype,
     device: torch.device,
 ) -> tuple[torch.Tensor | None]:
@@ -35,8 +35,13 @@ def _get_packed_tensor_inputs(
         dtype=dtype,
     )
 
-    def _random_function(*args, **kwargs) -> torch.Tensor:
-        return torch.randn(*args, **kwargs) * std
+    if std is None:
+
+        def _random_function(*args, **kwargs) -> torch.Tensor:
+            return torch.randn(*args, **kwargs) * std
+
+    else:
+        _random_function = None
 
     input_state_kernel = None
     input_state_torch = None
@@ -202,6 +207,7 @@ def test_rnn_varlen_torch(
         total_tokens=cu_seqlens[-1],
         state_size=state_size,
         has_input_state=has_input_state,
+        std=None,
         dtype=dtype,
         device=device,
     )
@@ -246,14 +252,4 @@ def test_rnn_varlen_torch(
     assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False, atol_float32=1.3e-4, rtol_float32=0)
 
     for weight_name in weight_kernel_grads:
-        assert_equal_tensors(
-            weight_kernel_grads[weight_name],
-            weight_torch_grads[weight_name],
-            False,
-            atol_float32=3e-7,
-            rtol_float32=0,
-            atol_float16=5e-4,
-            rtol_float16=0,
-            atol_bfloat16=5e-3,
-            rtol_bfloat16=0,
-        )
+        assert_equal_tensors(weight_kernel_grads[weight_name], weight_torch_grads[weight_name], False)

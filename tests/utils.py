@@ -46,13 +46,13 @@ def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_
 
 
 def get_random_duplicated_tensors(
-    size: tuple[int],
-    device: torch.device,
-    dtype: torch.dtype,
-    random_function: Callable = partial(torch.randint, -8, 8),
+    size: tuple[int], device: torch.device, dtype: torch.dtype, random_function: Callable | None = None
 ) -> tuple[torch.Tensor]:
     if isinstance(size, int):
         size = (size,)
+
+    if random_function is None:
+        random_function = partial(torch.randint, -8, 8)
 
     x = random_function(size, device=device, dtype=dtype, requires_grad=False)
     x.requires_grad_()
