@@ -51,9 +51,7 @@ def test_fused_linear_cross_entropy(
     x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
     vocab_size = random.randint(max(100, size[0] - 100), size[0] + 100)
-    weight_kernel, weight_expected = get_random_duplicated_tensors(
-        (vocab_size, size[1]), device=device, dtype=dtype, std=2e-3
-    )
+    weight_kernel, weight_expected = get_random_duplicated_tensors((vocab_size, size[1]), device=device, dtype=dtype)
 
     labels = torch.randint(0, vocab_size, (x_kernel.size(0),), device=x_kernel.device)
 
