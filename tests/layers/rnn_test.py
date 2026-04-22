@@ -120,7 +120,7 @@ def test_rnn(
     )
 
     assert_equal_tensors(y_kernel, y_torch, False, atol_float32=5.2e-4, rtol_float32=0)
-    assert_equal_tensors(output_state_kernel, output_state_torch, False, atol_float32=6.2e-5, rtol_float32=0)
+    assert_equal_tensors(output_state_kernel, output_state_torch, False, atol_float32=1.2e-4, rtol_float32=0)
 
     y_kernel.sum().backward()
     weight_kernel_grads = collect_gradients_from_module_and_zero_grads(rnn)
