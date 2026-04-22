@@ -249,10 +249,8 @@ def test_rnn_varlen_torch(
             weight_kernel_grads[weight_name],
             weight_torch_grads[weight_name],
             False,
-            # atol_float32=3e-7,
-            # rtol_float32=0,
             # atol_float16=5e-4,
             # rtol_float16=0,
-            # atol_bfloat16=5e-3,
-            # rtol_bfloat16=0,
+            atol_bfloat16=4e-3,
+            rtol_bfloat16=0,
         )
