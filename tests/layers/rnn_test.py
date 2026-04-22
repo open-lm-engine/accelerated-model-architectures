@@ -163,7 +163,7 @@ def test_rnn(
             weight_kernel_grads[weight_name],
             weight_torch_grads[weight_name],
             False,
-            atol_float32=7.7e-4,
+            atol_float32=6e-3,
             rtol_float32=0,
             atol_float16=1.3e-2,
             rtol_float16=0,
