@@ -40,7 +40,7 @@ def test_p_norm(
 
     x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-    z_kernel = function(x=x_kernel, multiplier=multiplier, p=p)
+    z_kernel = function(x=x_kernel, multiplier=multiplier, p=p, kernel_backend=kernel_backend)
     z_expected = p_norm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
 
     assert_equal_tensors(
