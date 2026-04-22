@@ -25,6 +25,7 @@ def _get_packed_tensor_inputs(
     total_tokens: int | None,
     state_size: int,
     has_input_state: bool,
+    std: float,
     dtype: torch.dtype,
     device: torch.device,
 ) -> tuple[torch.Tensor | None]:
@@ -34,18 +35,21 @@ def _get_packed_tensor_inputs(
         dtype=dtype,
     )
 
+    def _random_function(*args, **kwargs) -> torch.Tensor:
+        return torch.randn(*args, **kwargs) * std
+
     input_state_kernel = None
     input_state_torch = None
     if has_input_state:
         input_state_kernel, input_state_torch = get_random_duplicated_tensors(
-            (batch_size, state_size), device=device, dtype=dtype
+            (batch_size, state_size), device=device, dtype=dtype, random_function=_random_function
         )
 
     return x_kernel, x_torch, input_state_kernel, input_state_torch
 
 
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
-@pytest.mark.parametrize("dtype", [torch.float32])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
 @pytest.mark.parametrize("input_shape", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])
 @pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
 @pytest.mark.parametrize("has_input_state", [False, True])

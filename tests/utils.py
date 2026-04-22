@@ -3,6 +3,8 @@
 # **************************************************
 
 import random
+from functools import partial
+from typing import Callable
 
 import pytest
 import torch
@@ -44,14 +46,15 @@ def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_
 
 
 def get_random_duplicated_tensors(
-    size: tuple[int], device: torch.device, dtype: torch.dtype, range: tuple[int, int] = (-8, 8)
+    size: tuple[int],
+    device: torch.device,
+    dtype: torch.dtype,
+    random_function: Callable = partial(torch.randint, -8, 8),
 ) -> tuple[torch.Tensor]:
     if isinstance(size, int):
         size = (size,)
 
-    min, max = range
-
-    x = torch.randint(min, max, size, device=device, dtype=dtype, requires_grad=False)
+    x = random_function(size, device=device, dtype=dtype, requires_grad=False)
     x.requires_grad_()
     x_clone = x.clone().detach().requires_grad_()
 
