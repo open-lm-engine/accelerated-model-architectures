@@ -76,4 +76,4 @@ def test_fused_linear_cross_entropy(
 
     assert_equal_tensors(loss_kernel, loss_expected, False)
     assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
-    assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False)
+    assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_bfloat16=1.4e-5, rtol_bfloat16=0)
