@@ -77,7 +77,6 @@ def test_fused_residual_add_rmsnorm(
         memory_efficient=memory_efficient,
         kernel_backend=kernel_backend,
     )
-    z_kernel = z_kernel * 2 + r_kernel * 3
 
     z_expected, r_expected = fused_residual_add_rmsnorm(
         x=x_expected,
@@ -87,6 +86,8 @@ def test_fused_residual_add_rmsnorm(
         multiplier=multiplier,
         kernel_backend=KernelBackend.torch,
     )
+
+    z_kernel = z_kernel * 2 + r_kernel * 3
     z_expected = z_expected * 2 + r_expected * 3
 
     assert_equal_tensors(z_kernel, z_expected, False)
