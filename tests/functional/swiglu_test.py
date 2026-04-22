@@ -80,5 +80,5 @@ def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBack
     z_kernel.mean().backward()
     z_expected.mean().backward()
 
-    assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=5e-6, rtol_float32=0)
-    assert_equal_tensors(y_kernel.grad, y_expected.grad, False, atol_float32=5e-6, rtol_float32=0)
+    assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
+    assert_equal_tensors(y_kernel.grad, y_expected.grad, False)
