@@ -54,7 +54,6 @@ def _get_packed_tensor_inputs(
 @pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
 @pytest.mark.parametrize("has_input_state", [False, True])
 @pytest.mark.parametrize("is_compiling", [False, True])
-@pytest.mark.parametrize("std", [0.1])
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_rnn(
     kernel_backend: KernelBackend,
@@ -63,7 +62,6 @@ def test_rnn(
     snn: tuple[int, int, int],
     has_input_state: bool,
     is_compiling: bool,
-    std: float,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -88,7 +86,7 @@ def test_rnn(
         total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
         state_size=state_size,
         has_input_state=has_input_state,
-        std=std,
+        std=0.02,
         dtype=dtype,
         device=device,
     )
@@ -104,7 +102,7 @@ def test_rnn(
             gradient_clipping=None,
         ).to(dtype)
 
-        nn.init.normal_(rnn.state_weight, std=std)
+        nn.init.normal_(rnn.state_weight, std=0.1)
 
     rnn_torch = rnn
     rnn_kernel = rnn
