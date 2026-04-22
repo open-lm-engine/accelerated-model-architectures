@@ -89,22 +89,16 @@ def test_fused_residual_add_rmsnorm(
     )
     z_expected = z_expected * 2 + r_expected * 3
 
-    assert_equal_tensors(z_kernel, z_expected, False, atol_float32=1.4e-4, rtol_float32=0)
+    assert_equal_tensors(z_kernel, z_expected, False)
 
     z_kernel.sum().backward()
     z_expected.sum().backward()
 
-    assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0)
-    assert_equal_tensors(residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0)
+    assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
+    assert_equal_tensors(residual_kernel.grad, residual_expected.grad, False)
 
     if has_weight:
-        assert_equal_tensors(
-            weight_kernel.grad,
-            weight_expected.grad,
-            False,
-            atol_float32=1.1e-4,
-            rtol_float32=0,
-        )
+        assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False)
 
 
 # def test_fused_residual_add_rmsnorm_kernel_replacement() -> None:
