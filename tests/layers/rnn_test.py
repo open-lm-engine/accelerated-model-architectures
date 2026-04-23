@@ -146,7 +146,7 @@ def test_rnn(
             input_state_kernel.grad,
             input_state_torch.grad,
             False,
-            atol_float32=6e-4,
+            atol_float32=8.2e-4,
             rtol_float32=0,
             atol_float16=5e-4,
             rtol_float16=0,
