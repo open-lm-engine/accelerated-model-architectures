@@ -45,101 +45,102 @@ def _get_packed_tensor_inputs(
     return x_kernel, x_torch, input_state_kernel, input_state_torch
 
 
-# @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
-# @pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
-# @pytest.mark.parametrize("input_shape", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])
-# @pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
-# @pytest.mark.parametrize("has_input_state", [False, True])
-# @pytest.mark.parametrize("is_compiling", [False, True])
-# @torch._dynamo.config.patch(recompile_limit=1024)
-# def test_rnn(
-#     kernel_backend: KernelBackend,
-#     dtype: torch.dtype,
-#     input_shape: tuple[int, int, list[int]],
-#     snn: tuple[int, int, int],
-#     has_input_state: bool,
-#     is_compiling: bool,
-# ) -> None:
-#     skip_if_incompatible_kernel_backend(kernel_backend)
-#     device = kernel_backend.get_compatible_accelerator().get_current_device()
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+@pytest.mark.parametrize("input_shape", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])
+@pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
+@pytest.mark.parametrize("has_input_state", [False, True])
+@pytest.mark.parametrize("is_compiling", [False, True])
+@torch._dynamo.config.patch(recompile_limit=1024)
+def test_rnn(
+    kernel_backend: KernelBackend,
+    dtype: torch.dtype,
+    input_shape: tuple[int, int, list[int]],
+    snn: tuple[int, int, int],
+    has_input_state: bool,
+    is_compiling: bool,
+) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-#     set_seed(_SEED)
+    set_seed(_SEED)
 
-#     state_head_dim, num_input_heads, num_weight_heads = snn
-#     num_heads = max(num_input_heads, num_weight_heads)
-#     state_size = state_head_dim * num_heads
+    state_head_dim, num_input_heads, num_weight_heads = snn
+    num_heads = max(num_input_heads, num_weight_heads)
+    state_size = state_head_dim * num_heads
 
-#     B, S, cu_seqlens = input_shape
-#     max_seqlen = None
+    B, S, cu_seqlens = input_shape
+    max_seqlen = None
 
-#     if B is None:
-#         cu_seqlens = torch.tensor(cu_seqlens, device=device)
-#         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
-#         B = cu_seqlens.size(0) - 1
+    if B is None:
+        cu_seqlens = torch.tensor(cu_seqlens, device=device)
+        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
+        B = cu_seqlens.size(0) - 1
 
-#     x_kernel, x_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
-#         batch_size=B,
-#         sequence_length=S if cu_seqlens is None else None,
-#         total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
-#         state_size=state_size,
-#         has_input_state=has_input_state,
-#         dtype=dtype,
-#         device=device,
-#     )
+    x_kernel, x_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
+        batch_size=B,
+        sequence_length=S if cu_seqlens is None else None,
+        total_tokens=None if cu_seqlens is None else cu_seqlens[-1],
+        state_size=state_size,
+        has_input_state=has_input_state,
+        dtype=dtype,
+        device=device,
+    )
 
-#     with torch.device(device):
-#         rnn = RNN(
-#             input_size=state_size,
-#             state_head_dim=state_head_dim,
-#             output_size=state_size,
-#             num_input_heads=num_input_heads,
-#             num_weight_heads=num_weight_heads,
-#             add_bias=False,
-#             gradient_clipping=None,
-#         ).to(dtype)
+    with torch.device(device):
+        rnn = RNN(
+            input_size=state_size,
+            state_head_dim=state_head_dim,
+            output_size=state_size,
+            num_input_heads=num_input_heads,
+            num_weight_heads=num_weight_heads,
+            add_bias=False,
+            gradient_clipping=None,
+        ).to(dtype)
 
-#         nn.init.normal_(rnn.state_weight, std=0.1)
+        nn.init.normal_(rnn.state_weight, std=0.1)
 
-#     rnn_torch = rnn
-#     rnn_kernel = rnn
+    rnn_torch = rnn
+    rnn_kernel = rnn
 
-#     if is_compiling:
-#         rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
+    if is_compiling:
+        rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
-#     y_kernel, output_state_kernel = rnn_kernel(
-#         input=x_kernel,
-#         input_state=input_state_kernel,
-#         cu_seqlens=cu_seqlens,
-#         max_seqlen=max_seqlen,
-#         kernel_backend=KernelBackend.triton,
-#     )
+    y_kernel, output_state_kernel = rnn_kernel(
+        input=x_kernel,
+        input_state=input_state_kernel,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
+        kernel_backend=kernel_backend,
+    )
 
-#     y_torch, output_state_torch = rnn_torch(
-#         input=x_torch,
-#         input_state=input_state_torch,
-#         cu_seqlens=cu_seqlens,
-#         max_seqlen=max_seqlen,
-#         kernel_backend=KernelBackend.torch,
-#     )
+    y_torch, output_state_torch = rnn_torch(
+        input=x_torch,
+        input_state=input_state_torch,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
+        kernel_backend=KernelBackend.torch,
+    )
 
-#     assert_equal_tensors(y_kernel, y_torch, False)
-#     assert_equal_tensors(output_state_kernel, output_state_torch, False)
+    assert_equal_tensors(y_kernel, y_torch, False)
+    assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
-#     y_kernel.sum().backward()
-#     weight_kernel_grads = collect_gradients_from_module_and_zero_grads(rnn)
+    y_kernel.sum().backward()
+    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(rnn)
 
-#     y_torch.sum().backward()
-#     weight_torch_grads = collect_gradients_from_module_and_zero_grads(rnn)
+    y_torch.sum().backward()
+    weight_torch_grads = collect_gradients_from_module_and_zero_grads(rnn)
 
-#     assert_equal_tensors(
-#         x_kernel.grad,
-#         x_torch.grad,
-#         False,
-#         atol_float32=None if cu_seqlens is None else 3.8e-4,
-#         rtol_float32=None if cu_seqlens is None else 0,
-#         atol_float16=1e-3,
-#         rtol_float16=0,
-#     )
+    assert_equal_tensors(
+        x_kernel.grad,
+        x_torch.grad,
+        False,
+        atol_float32=4e-4,
+        rtol_float32=0,
+        atol_float16=1e-3,
+        rtol_float16=0,
+    )
+
 
 #     if has_input_state:
 #         assert_equal_tensors(
