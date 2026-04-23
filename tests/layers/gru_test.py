@@ -130,13 +130,7 @@ def test_gru(
     y_torch.sum().backward()
     weight_torch_grads = collect_gradients_from_module_and_zero_grads(gru)
 
-    # assert_equal_tensors(
-    #     x_kernel.grad,
-    #     x_torch.grad,
-    #     False,
-    #     atol_float16=1e-3,
-    #     rtol_float16=0,
-    # )
+    assert_equal_tensors(x_kernel.grad, x_torch.grad, False, atol_float16=1e-3, rtol_float16=0)
 
     # if has_input_state:
     #     assert_equal_tensors(
