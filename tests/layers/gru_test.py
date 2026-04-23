@@ -97,7 +97,7 @@ def test_gru(
             gradient_clipping=None,
         ).to(dtype)
 
-        nn.init.normal_(gru.state_weight, std=0.01)
+        nn.init.normal_(gru.state_weight, std=0.1)
 
     gru_torch = gru
     gru_kernel = gru
@@ -110,7 +110,7 @@ def test_gru(
         input_state=input_state_kernel,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
 
     y_torch, output_state_torch = gru_torch(
@@ -121,25 +121,8 @@ def test_gru(
         kernel_backend=KernelBackend.torch,
     )
 
-    assert_equal_tensors(
-        y_kernel,
-        y_torch,
-        False,
-        atol_float32=4e-6,
-        rtol_float32=0,
-        atol_float16=6.5e-5,
-        rtol_float16=0,
-    )
-
-    assert_equal_tensors(
-        output_state_kernel,
-        output_state_torch,
-        False,
-        atol_float32=4e-6,
-        rtol_float32=0,
-        atol_float16=6.5e-5,
-        rtol_float16=0,
-    )
+    assert_equal_tensors(y_kernel, y_torch, False)
+    assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
     y_kernel.sum().backward()
     weight_kernel_grads = collect_gradients_from_module_and_zero_grads(gru)
@@ -147,45 +130,27 @@ def test_gru(
     y_torch.sum().backward()
     weight_torch_grads = collect_gradients_from_module_and_zero_grads(gru)
 
-    assert_equal_tensors(
-        x_kernel.grad,
-        x_torch.grad,
-        False,
-        atol_float16=1e-3,
-        rtol_float16=0,
-    )
+    assert_equal_tensors(x_kernel.grad, x_torch.grad, False, atol_float16=1e-3, rtol_float16=0)
 
     if has_input_state:
-        assert_equal_tensors(
-            input_state_kernel.grad,
-            input_state_torch.grad,
-            False,
-            atol_float32=4e-6,
-            rtol_float32=0,
-            atol_float16=3e-3,
-            rtol_float16=0,
-        )
+        assert_equal_tensors(input_state_kernel.grad, input_state_torch.grad, False, atol_float16=2e-3, rtol_float16=0)
 
     for weight_name in weight_kernel_grads:
         assert_equal_tensors(
             weight_kernel_grads[weight_name],
             weight_torch_grads[weight_name],
             False,
-            atol_float32=6e-3,
-            rtol_float32=0,
-            atol_float16=2.3e-2,
+            atol_float16=7.4e-3,
             rtol_float16=0,
         )
 
 
-@pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
 @pytest.mark.parametrize("problem_shape", _get_problem_shapes())
 @pytest.mark.parametrize("has_input_state", [False, True])
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_gru_varlen_torch(
-    kernel_backend: KernelBackend,
     dtype: torch.dtype,
     cu_seqlens: list[int],
     problem_shape: tuple[int, int, int, int, int, int, int],
@@ -194,9 +159,7 @@ def test_gru_varlen_torch(
     if Accelerator.get_accelerator() != Accelerator.cuda:
         pytest.skip("Sufficient to run on CUDA device")
 
-    skip_if_incompatible_kernel_backend(kernel_backend)
-    device = kernel_backend.get_compatible_accelerator().get_current_device()
-
+    device = Accelerator.get_current_device()
     set_seed(_SEED)
 
     batch_size = len(cu_seqlens) - 1
@@ -274,10 +237,8 @@ def test_gru_varlen_torch(
             weight_kernel_grads[weight_name],
             weight_torch_grads[weight_name],
             False,
-            atol_float32=2.4e-7,
-            rtol_float32=0,
-            atol_float16=1.5e-3,
+            atol_float16=4.9e-4,
             rtol_float16=0,
-            atol_bfloat16=6e-3,
+            atol_bfloat16=4e-3,
             rtol_bfloat16=0,
         )

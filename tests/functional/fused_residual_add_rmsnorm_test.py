@@ -46,7 +46,7 @@ def _get_sizes() -> list[tuple]:
 )
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_fused_residual_add_rmsnorm(
-    size: tuple[int],
+    size: tuple[int] | int,
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
     memory_efficient: bool,
@@ -63,7 +63,7 @@ def test_fused_residual_add_rmsnorm(
     residual_kernel, residual_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
     if has_weight:
-        weight_kernel, weight_expected = get_random_duplicated_tensors(size[-1], device=device, dtype=dtype)
+        weight_kernel, weight_expected = get_random_duplicated_tensors((size[-1],), device=device, dtype=dtype)
     else:
         weight_kernel = None
         weight_expected = None
@@ -75,9 +75,8 @@ def test_fused_residual_add_rmsnorm(
         eps=_EPSILON,
         multiplier=multiplier,
         memory_efficient=memory_efficient,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
-    z_kernel = z_kernel * 2 + r_kernel * 3
 
     z_expected, r_expected = fused_residual_add_rmsnorm(
         x=x_expected,
@@ -87,24 +86,20 @@ def test_fused_residual_add_rmsnorm(
         multiplier=multiplier,
         kernel_backend=KernelBackend.torch,
     )
+
+    z_kernel = z_kernel * 2 + r_kernel * 3
     z_expected = z_expected * 2 + r_expected * 3
 
-    assert_equal_tensors(z_kernel, z_expected, False, atol_float32=1.4e-4, rtol_float32=0)
+    assert_equal_tensors(z_kernel, z_expected, False)
 
     z_kernel.sum().backward()
     z_expected.sum().backward()
 
-    assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0)
-    assert_equal_tensors(residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0)
+    assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
+    assert_equal_tensors(residual_kernel.grad, residual_expected.grad, False)
 
     if has_weight:
-        assert_equal_tensors(
-            weight_kernel.grad,
-            weight_expected.grad,
-            False,
-            atol_float32=1.1e-4,
-            rtol_float32=0,
-        )
+        assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=6.2e-5, rtol_float32=0)
 
 
 # def test_fused_residual_add_rmsnorm_kernel_replacement() -> None:

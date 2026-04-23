@@ -32,7 +32,7 @@ def test_continuous_count(
     set_seed(_SEED)
     x = torch.randint(0, _MAX_EXPERTS, (bins,), device=device, dtype=dtype)
 
-    z_kernel = function(x=x, bins=_MAX_EXPERTS, kernel_backend=KernelBackend.cuda)
+    z_kernel = function(x=x, bins=_MAX_EXPERTS, kernel_backend=kernel_backend)
     z_expected = continuous_count(x.view(-1), bins=_MAX_EXPERTS, kernel_backend=KernelBackend.torch)
 
     assert_equal_tensors(z_kernel, z_expected, True)

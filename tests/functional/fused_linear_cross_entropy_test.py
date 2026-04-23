@@ -52,7 +52,7 @@ def test_fused_linear_cross_entropy(
 
     vocab_size = random.randint(max(100, size[0] - 100), size[0] + 100)
     weight_kernel, weight_expected = get_random_duplicated_tensors(
-        (vocab_size, size[1]), device=device, dtype=dtype, std=2e-3
+        (vocab_size, size[1]), device=device, dtype=dtype, std=0.02
     )
 
     labels = torch.randint(0, vocab_size, (x_kernel.size(0),), device=x_kernel.device)
@@ -62,7 +62,7 @@ def test_fused_linear_cross_entropy(
         weight=weight_kernel,
         labels=labels,
         logits_multiplier=logits_multiplier,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
 
     loss_expected = fused_linear_cross_entropy(
@@ -76,6 +76,15 @@ def test_fused_linear_cross_entropy(
     loss_kernel.backward()
     loss_expected.backward()
 
-    assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=3.2e-4, rtol_float32=0)
+    assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=5.1e-5, rtol_float32=0)
     assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
-    assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False)
+
+    assert_equal_tensors(
+        weight_kernel.grad,
+        weight_expected.grad,
+        False,
+        atol_float32=5.2e-5,
+        rtol_float32=0,
+        atol_bfloat16=6.2e-5,
+        rtol_bfloat16=0,
+    )

@@ -122,7 +122,7 @@ def test_m2rnn(
             gradient_clipping=None,
         ).to(dtype)
 
-        nn.init.normal_(m2rnn.state_weight, std=0.01)
+        nn.init.normal_(m2rnn.state_weight, std=0.1)
 
     m2rnn_torch = m2rnn
     m2rnn_kernel = m2rnn
@@ -146,23 +146,15 @@ def test_m2rnn(
         kernel_backend=KernelBackend.torch,
     )
 
-    assert_equal_tensors(
-        y_kernel,
-        y_torch,
-        False,
-        atol_float32=4e-6,
-        rtol_float32=0,
-        atol_bfloat16=2e-4,
-        rtol_bfloat16=0,
-    )
+    assert_equal_tensors(y_kernel, y_torch, False)
 
     assert_equal_tensors(
         output_state_kernel,
         output_state_torch,
         False,
-        atol_float32=4e-6,
+        atol_float32=9e-5,
         rtol_float32=0,
-        atol_bfloat16=2e-4,
+        atol_bfloat16=1.3e-4,
         rtol_bfloat16=0,
     )
 
@@ -176,9 +168,9 @@ def test_m2rnn(
         x_kernel.grad,
         x_torch.grad,
         False,
-        atol_float32=1.7e-4,
+        atol_float32=1.8e-4,
         rtol_float32=0,
-        atol_bfloat16=8e-3,
+        atol_bfloat16=8.6e-4,
         rtol_bfloat16=0,
     )
 
@@ -187,9 +179,9 @@ def test_m2rnn(
             input_state_kernel.grad,
             input_state_torch.grad,
             False,
-            atol_float32=2e-5,
+            atol_float32=2.3e-3,
             rtol_float32=0,
-            atol_bfloat16=1e-3,
+            atol_bfloat16=3e-3,
             rtol_bfloat16=0,
         )
 

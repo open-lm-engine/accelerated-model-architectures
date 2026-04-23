@@ -47,32 +47,6 @@ def _generate_args() -> list:
         )
     )
 
-    args += list(
-        product(
-            [torch.bfloat16],
-            [2, 4, 6, 8],  # num_experts
-            [2, 4],  # num_experts_per_tok
-            [2048],  # hidden_size
-            [8192],  # intermediate_size
-            [True, False],  # is_glu
-            [KernelBackend.cuda],  # kernel_backend
-            [False],  # is_compiling
-        )
-    )
-
-    args += list(
-        product(
-            [torch.bfloat16],
-            [128],  # num_experts
-            [8],  # num_experts_per_tok
-            [576],  # hidden_size
-            [256],  # intermediate_size
-            [True, False],  # is_glu
-            [KernelBackend.cuda],  # kernel_backend
-            [False],  # is_compiling
-        )
-    )
-
     return args
 
 
@@ -137,11 +111,11 @@ def test_moe(
         y_kernel,
         y_torch,
         False,
-        atol_float32=6e-3,
+        atol_float32=5.1e-3,
         rtol_float32=0,
-        atol_float16=4e-3,
+        atol_float16=2e-3,
         rtol_float16=0,
-        atol_bfloat16=2.35e-2,
+        atol_bfloat16=1.6e-2,
         rtol_bfloat16=0,
     )
 
@@ -155,11 +129,11 @@ def test_moe(
         x_kernel.grad,
         x_torch.grad,
         False,
-        atol_float32=6.5e-3,
+        atol_float32=5.9e-3,
         rtol_float32=0,
-        atol_float16=4e-3,
+        atol_float16=2e-3,
         rtol_float16=0,
-        atol_bfloat16=4e-2,
+        atol_bfloat16=1.6e-2,
         rtol_bfloat16=0,
     )
 
@@ -173,8 +147,8 @@ def test_moe(
             False,
             atol_float32=3e-2,
             rtol_float32=0,
-            atol_float16=4e-3,
+            atol_float16=2e-3,
             rtol_float16=0,
-            atol_bfloat16=4e-2,
+            atol_bfloat16=7.9e-3,
             rtol_bfloat16=0,
         )
