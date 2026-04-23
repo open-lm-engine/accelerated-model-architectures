@@ -242,15 +242,14 @@ def test_rnn_varlen_torch(
     weight_torch_grads = collect_gradients_from_module_and_zero_grads(rnn)
 
     assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False)
-    # , atol_float32=2e-5, rtol_float32=0)
 
     for weight_name in weight_kernel_grads:
         assert_equal_tensors(
             weight_kernel_grads[weight_name],
             weight_torch_grads[weight_name],
             False,
-            # atol_float16=5e-4,
-            # rtol_float16=0,
+            atol_float16=5e-4,
+            rtol_float16=0,
             atol_bfloat16=4e-3,
             rtol_bfloat16=0,
         )
