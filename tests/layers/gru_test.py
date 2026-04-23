@@ -124,11 +124,11 @@ def test_gru(
     assert_equal_tensors(y_kernel, y_torch, False)
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
-    # y_kernel.sum().backward()
-    # weight_kernel_grads = collect_gradients_from_module_and_zero_grads(gru)
+    y_kernel.sum().backward()
+    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(gru)
 
-    # y_torch.sum().backward()
-    # weight_torch_grads = collect_gradients_from_module_and_zero_grads(gru)
+    y_torch.sum().backward()
+    weight_torch_grads = collect_gradients_from_module_and_zero_grads(gru)
 
     # assert_equal_tensors(
     #     x_kernel.grad,
