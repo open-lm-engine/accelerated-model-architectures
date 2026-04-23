@@ -137,18 +137,18 @@ def test_moe(
         rtol_bfloat16=0,
     )
 
-    # for weight_name in weight_torch_grads:
-    #     if "gate" in weight_name:
-    #         continue
+    for weight_name in weight_torch_grads:
+        if "gate" in weight_name:
+            continue
 
-    #     assert_equal_tensors(
-    #         weight_kernel_grads[weight_name],
-    #         weight_torch_grads[weight_name],
-    #         False,
-    #         atol_float32=3e-2,
-    #         rtol_float32=0,
-    #         atol_float16=4e-3,
-    #         rtol_float16=0,
-    #         atol_bfloat16=4e-2,
-    #         rtol_bfloat16=0,
-    #     )
+        assert_equal_tensors(
+            weight_kernel_grads[weight_name],
+            weight_torch_grads[weight_name],
+            False,
+            atol_float32=3e-2,
+            rtol_float32=0,
+            atol_float16=2e-3,
+            rtol_float16=0,
+            atol_bfloat16=7.9e-3,
+            rtol_bfloat16=0,
+        )
