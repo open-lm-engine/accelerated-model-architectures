@@ -120,15 +120,7 @@ def test_linear_attention(
 
     assert_equal_tensors(y_kernel, y_torch, False)
 
-    assert_equal_tensors(
-        output_state_kernel,
-        output_state_torch,
-        False,
-        atol_float32=3e-3,
-        rtol_float32=0,
-        atol_bfloat16=2.6e-3,
-        rtol_bfloat16=0,
-    )
+    assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
     # if not no_grad:
     #     y_kernel.sum().backward()
