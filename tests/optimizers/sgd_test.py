@@ -9,7 +9,12 @@ import torch
 
 from xma import SGD, KernelBackend
 
-from ..utils import assert_equal_tensors, get_1d_tensor_sizes, skip_if_incompatible_kernel_backend
+from ..utils import (
+    assert_equal_tensors,
+    get_1d_tensor_sizes,
+    get_random_duplicated_tensors,
+    skip_if_incompatible_kernel_backend,
+)
 
 
 _LEARNING_RATE = 1e-3
@@ -39,8 +44,13 @@ def test_sgd(
     if nesterov and (dampening != 0 or momentum == 0):
         pytest.skip(f"invalid config")
 
-    params_kernel = [torch.randint(-8, 8, (size,), device=device, dtype=dtype) for _ in range(3)]
-    params_torch = [p.clone() for p in params_kernel]
+    params_kernel = []
+    params_torch = []
+    for _ in range(3):
+        param_kernel, param_torch = get_random_duplicated_tensors((size,), device=device, dtype=dtype)
+
+        params_kernel.append(param_kernel)
+        params_torch.append(param_torch)
 
     grads = [torch.randint(-8, 8, (size,), device=device, dtype=dtype) for _ in range(3)]
 
