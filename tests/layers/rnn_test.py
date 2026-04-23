@@ -152,17 +152,16 @@ def test_rnn(
             rtol_float16=0,
         )
 
-
-#     for weight_name in weight_kernel_grads:
-#         assert_equal_tensors(
-#             weight_kernel_grads[weight_name],
-#             weight_torch_grads[weight_name],
-#             False,
-#             atol_float32=None if cu_seqlens is None else 4.9e-4,
-#             rtol_float32=None if cu_seqlens is None else 0,
-#             atol_float16=1.3e-2,
-#             rtol_float16=0,
-#         )
+    for weight_name in weight_kernel_grads:
+        assert_equal_tensors(
+            weight_kernel_grads[weight_name],
+            weight_torch_grads[weight_name],
+            False,
+            atol_float32=2.2e-4,
+            rtol_float32=0,
+            atol_float16=1.3e-2,
+            rtol_float16=0,
+        )
 
 
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
