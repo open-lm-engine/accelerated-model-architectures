@@ -135,16 +135,14 @@ def test_gru(
     if has_input_state:
         assert_equal_tensors(input_state_kernel.grad, input_state_torch.grad, False, atol_float16=2e-3, rtol_float16=0)
 
-    # for weight_name in weight_kernel_grads:
-    #     assert_equal_tensors(
-    #         weight_kernel_grads[weight_name],
-    #         weight_torch_grads[weight_name],
-    #         False,
-    #         atol_float32=6e-3,
-    #         rtol_float32=0,
-    #         atol_float16=2.3e-2,
-    #         rtol_float16=0,
-    #     )
+    for weight_name in weight_kernel_grads:
+        assert_equal_tensors(
+            weight_kernel_grads[weight_name],
+            weight_torch_grads[weight_name],
+            False,
+            atol_float16=5.2e-3,
+            rtol_float16=0,
+        )
 
 
 # @pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
