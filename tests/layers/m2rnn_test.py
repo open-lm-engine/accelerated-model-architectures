@@ -185,17 +185,16 @@ def test_m2rnn(
             rtol_bfloat16=0,
         )
 
-
-#     for weight_name in weight_kernel_grads:
-#         assert_equal_tensors(
-#             weight_kernel_grads[weight_name],
-#             weight_torch_grads[weight_name],
-#             False,
-#             atol_float32=6e-3,
-#             rtol_float32=0,
-#             atol_bfloat16=8e-2,
-#             rtol_bfloat16=0,
-#         )
+    for weight_name in weight_kernel_grads:
+        assert_equal_tensors(
+            weight_kernel_grads[weight_name],
+            weight_torch_grads[weight_name],
+            False,
+            atol_float32=6e-3,
+            rtol_float32=0,
+            atol_bfloat16=8e-2,
+            rtol_bfloat16=0,
+        )
 
 
 # @pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
