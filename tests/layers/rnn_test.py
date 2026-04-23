@@ -164,24 +164,17 @@ def test_rnn(
         )
 
 
-@pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
 @pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
 @pytest.mark.parametrize("has_input_state", [False, True])
 def test_rnn_varlen_torch(
-    kernel_backend: KernelBackend,
-    dtype: torch.dtype,
-    cu_seqlens: list[int],
-    snn: tuple[int, int, int],
-    has_input_state: bool,
+    dtype: torch.dtype, cu_seqlens: list[int], snn: tuple[int, int, int], has_input_state: bool
 ) -> None:
     if Accelerator.get_accelerator() != Accelerator.cuda:
         pytest.skip("Sufficient to run on CUDA device")
 
-    skip_if_incompatible_kernel_backend(kernel_backend)
-    device = kernel_backend.get_compatible_accelerator().get_current_device()
-
+    device = Accelerator.get_current_device()
     set_seed(_SEED)
 
     batch_size = len(cu_seqlens) - 1
