@@ -122,7 +122,6 @@ def test_gru(
     )
 
     assert_equal_tensors(y_kernel, y_torch, False)
-
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
     # y_kernel.sum().backward()
