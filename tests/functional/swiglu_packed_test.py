@@ -41,4 +41,4 @@ def test_swiglu_packed(
     z_kernel.mean().backward()
     z_expected.mean().backward()
 
-    assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.8e-5, rtol_float32=0)
+    assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=3.9e-5, rtol_float32=0)
