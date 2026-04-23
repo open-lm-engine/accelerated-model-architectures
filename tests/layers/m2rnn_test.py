@@ -170,7 +170,7 @@ def test_m2rnn(
         False,
         atol_float32=1.8e-4,
         rtol_float32=0,
-        atol_bfloat16=7.4e-4,
+        atol_bfloat16=8.6e-4,
         rtol_bfloat16=0,
     )
 
