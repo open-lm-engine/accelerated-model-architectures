@@ -174,17 +174,9 @@ def test_m2rnn(
         rtol_bfloat16=0,
     )
 
+    if has_input_state:
+        assert_equal_tensors(input_state_kernel.grad, input_state_torch.grad, False)
 
-#     if has_input_state:
-#         assert_equal_tensors(
-#             input_state_kernel.grad,
-#             input_state_torch.grad,
-#             False,
-#             atol_float32=2e-5,
-#             rtol_float32=0,
-#             atol_bfloat16=1e-3,
-#             rtol_bfloat16=0,
-#         )
 
 #     for weight_name in weight_kernel_grads:
 #         assert_equal_tensors(
