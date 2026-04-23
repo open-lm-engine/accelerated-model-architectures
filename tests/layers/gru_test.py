@@ -133,13 +133,7 @@ def test_gru(
     assert_equal_tensors(x_kernel.grad, x_torch.grad, False, atol_float16=1e-3, rtol_float16=0)
 
     if has_input_state:
-        assert_equal_tensors(
-            input_state_kernel.grad,
-            input_state_torch.grad,
-            False,
-            atol_float16=2e-3,
-            rtol_float16=0,
-        )
+        assert_equal_tensors(input_state_kernel.grad, input_state_torch.grad, False, atol_float16=2e-3, rtol_float16=0)
 
     # for weight_name in weight_kernel_grads:
     #     assert_equal_tensors(
