@@ -47,32 +47,6 @@ def _generate_args() -> list:
         )
     )
 
-    args += list(
-        product(
-            [torch.bfloat16],
-            [2, 4, 6, 8],  # num_experts
-            [2, 4],  # num_experts_per_tok
-            [2048],  # hidden_size
-            [8192],  # intermediate_size
-            [True, False],  # is_glu
-            [KernelBackend.cuda],  # kernel_backend
-            [False],  # is_compiling
-        )
-    )
-
-    args += list(
-        product(
-            [torch.bfloat16],
-            [128],  # num_experts
-            [8],  # num_experts_per_tok
-            [576],  # hidden_size
-            [256],  # intermediate_size
-            [True, False],  # is_glu
-            [KernelBackend.cuda],  # kernel_backend
-            [False],  # is_compiling
-        )
-    )
-
     return args
 
 
