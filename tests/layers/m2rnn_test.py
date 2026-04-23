@@ -146,15 +146,7 @@ def test_m2rnn(
         kernel_backend=KernelBackend.torch,
     )
 
-    assert_equal_tensors(
-        y_kernel,
-        y_torch,
-        False,
-        # atol_float32=4e-6,
-        # rtol_float32=0,
-        # atol_bfloat16=2e-4,
-        # rtol_bfloat16=0,
-    )
+    assert_equal_tensors(y_kernel, y_torch, False)
 
     assert_equal_tensors(
         output_state_kernel,
