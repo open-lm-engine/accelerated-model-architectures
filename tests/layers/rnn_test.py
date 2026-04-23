@@ -141,17 +141,17 @@ def test_rnn(
         rtol_float16=0,
     )
 
+    if has_input_state:
+        assert_equal_tensors(
+            input_state_kernel.grad,
+            input_state_torch.grad,
+            False,
+            # atol_float32=None if cu_seqlens is None else 8.2e-4,
+            # rtol_float32=None if cu_seqlens is None else 0,
+            # atol_float16=3.7e-4 if cu_seqlens is None else 4.9e-4,
+            # rtol_float16=0,
+        )
 
-#     if has_input_state:
-#         assert_equal_tensors(
-#             input_state_kernel.grad,
-#             input_state_torch.grad,
-#             False,
-#             atol_float32=None if cu_seqlens is None else 8.2e-4,
-#             rtol_float32=None if cu_seqlens is None else 0,
-#             atol_float16=3.7e-4 if cu_seqlens is None else 4.9e-4,
-#             rtol_float16=0,
-#         )
 
 #     for weight_name in weight_kernel_grads:
 #         assert_equal_tensors(
