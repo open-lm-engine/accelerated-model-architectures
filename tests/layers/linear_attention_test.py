@@ -119,7 +119,6 @@ def test_linear_attention(
     )
 
     assert_equal_tensors(y_kernel, y_torch, False)
-
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
 
     # if not no_grad:
