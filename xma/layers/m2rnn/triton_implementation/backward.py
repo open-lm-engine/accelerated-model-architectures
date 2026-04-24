@@ -8,9 +8,9 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_utils import clamp, matmul, sigmoid_backward, tanh_backward
+from ....triton_utils import clamp, matmul, tanh_backward
 from ..utils import _get_num_heads
-from .forward import _forward_single_step, _get_autotune_configs
+from .forward import _MAX_BLOCK_SIZE_K, _forward_single_step, _get_autotune_configs
 
 
 @triton.autotune(
@@ -61,6 +61,7 @@ def _m2rnn_backward_triton_kernel(
     Gxf: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
+    ATOMIC_ADD: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(0)
     BLOCK_ID_N = tl.program_id(1)
@@ -210,7 +211,7 @@ def _m2rnn_backward_triton_kernel(
         df = dyh * (h_prev - z)
         df = tl.sum(df)
 
-        if Gxf == 1:
+        if Gxf == 1 and not ATOMIC_ADD:
             tl.store(dxf_ptrs, df)
         else:
             tl.atomic_add(dxf_ptrs, df, sem="relaxed")
@@ -226,7 +227,7 @@ def _m2rnn_backward_triton_kernel(
 
         dv = matmul(A=dx.T, B=k[:, None], C=None, output_dtype=k.dtype)
 
-        if Gv == 1:
+        if Gv == 1 and not ATOMIC_ADD:
             tl.store(dv_ptrs[:, None], dv, mask=MASK_V[:, None])
         else:
             tl.atomic_add(dv_ptrs[:, None], dv, mask=MASK_V[:, None], sem="relaxed")
@@ -290,7 +291,7 @@ def _m2rnn_backward_triton(
 
     BLOCK_SIZE_K = get_next_power_of_2(K)
     BLOCK_SIZE_K = max(16, BLOCK_SIZE_K)
-    BLOCK_SIZE_K = min(64, BLOCK_SIZE_K)
+    BLOCK_SIZE_K = min(_MAX_BLOCK_SIZE_K, BLOCK_SIZE_K)
 
     BLOCK_SIZE_V = get_next_power_of_2(V)
     BLOCK_SIZE_V = max(16, BLOCK_SIZE_V)
@@ -337,4 +338,5 @@ def _m2rnn_backward_triton(
         Gxf=N // Nxf,
         BLOCK_SIZE_K=BLOCK_SIZE_K,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
+        ATOMIC_ADD=K > BLOCK_SIZE_K,
     )

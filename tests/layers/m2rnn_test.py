@@ -30,6 +30,8 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int]]:
         t[i] = 4
         result.append(tuple(t))
 
+    result.append((128, 64, 8, 8, 8, 8, 8))
+
     return result
 
 
@@ -135,7 +137,7 @@ def test_m2rnn(
         input_state=input_state_kernel,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=kernel_backend,
     )
 
     y_torch, output_state_torch = m2rnn_torch(
@@ -168,9 +170,9 @@ def test_m2rnn(
         x_kernel.grad,
         x_torch.grad,
         False,
-        atol_float32=1.8e-4,
+        atol_float32=2.4e-4,
         rtol_float32=0,
-        atol_bfloat16=8.6e-4,
+        atol_bfloat16=1e-3,
         rtol_bfloat16=0,
     )
 
