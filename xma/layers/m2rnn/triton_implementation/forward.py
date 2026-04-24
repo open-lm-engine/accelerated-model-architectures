@@ -31,9 +31,8 @@ def _forward_single_step(h_prev, W, k, v, f):
     return z, h
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_K", "BLOCK_SIZE_V"], reset_to_zero=["y_ptr"])
 @triton.jit
-def _m2rnn_forward_triton_kernel(
+def _m2rnn_forward(
     q_ptr,
     q_stride,
     k_ptr,
@@ -178,6 +177,144 @@ def _m2rnn_forward_triton_kernel(
         )
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_K", "BLOCK_SIZE_V"], reset_to_zero=["y_ptr"])
+@triton.jit
+def _m2rnn_forward_triton_kernel(
+    q_ptr,
+    q_stride,
+    k_ptr,
+    k_stride,
+    v_ptr,
+    v_stride,
+    W_ptr,
+    W_stride,
+    xf_ptr,
+    xf_stride,
+    h0_ptr,
+    h0_stride,
+    h_ptr,
+    h_stride,
+    ht_ptr,
+    ht_stride,
+    y_ptr,
+    y_stride,
+    cu_seqlens_ptr,
+    cu_seqlens_stride,
+    S,
+    K: tl.constexpr,
+    V: tl.constexpr,
+    Gq: tl.constexpr,
+    Gk: tl.constexpr,
+    Gv: tl.constexpr,
+    Gw: tl.constexpr,
+    Gxf: tl.constexpr,
+    BLOCK_SIZE_K: tl.constexpr,
+    BLOCK_SIZE_V: tl.constexpr,
+    ATOMIC_ADD_OUTPUT: tl.constexpr,
+):
+    _m2rnn_forward(
+        q_ptr=q_ptr,
+        q_stride=q_stride,
+        k_ptr=k_ptr,
+        k_stride=k_stride,
+        v_ptr=v_ptr,
+        v_stride=v_stride,
+        W_ptr=W_ptr,
+        W_stride=W_stride,
+        xf_ptr=xf_ptr,
+        xf_stride=xf_stride,
+        h0_ptr=h0_ptr,
+        h0_stride=h0_stride,
+        h_ptr=h_ptr,
+        h_stride=h_stride,
+        ht_ptr=ht_ptr,
+        ht_stride=ht_stride,
+        y_ptr=y_ptr,
+        y_stride=y_stride,
+        cu_seqlens_ptr=cu_seqlens_ptr,
+        cu_seqlens_stride=cu_seqlens_stride,
+        S=S,
+        K=K,
+        V=V,
+        Gq=Gq,
+        Gk=Gk,
+        Gv=Gv,
+        Gw=Gw,
+        Gxf=Gxf,
+        BLOCK_SIZE_K=BLOCK_SIZE_K,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
+        ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT,
+    )
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_K", "BLOCK_SIZE_V"])
+@triton.jit
+def _m2rnn_forward_no_output_triton_kernel(
+    q_ptr,
+    q_stride,
+    k_ptr,
+    k_stride,
+    v_ptr,
+    v_stride,
+    W_ptr,
+    W_stride,
+    xf_ptr,
+    xf_stride,
+    h0_ptr,
+    h0_stride,
+    h_ptr,
+    h_stride,
+    ht_ptr,
+    ht_stride,
+    cu_seqlens_ptr,
+    cu_seqlens_stride,
+    S,
+    K: tl.constexpr,
+    V: tl.constexpr,
+    Gq: tl.constexpr,
+    Gk: tl.constexpr,
+    Gv: tl.constexpr,
+    Gw: tl.constexpr,
+    Gxf: tl.constexpr,
+    BLOCK_SIZE_K: tl.constexpr,
+    BLOCK_SIZE_V: tl.constexpr,
+    ATOMIC_ADD_OUTPUT: tl.constexpr,
+):
+    _m2rnn_forward(
+        q_ptr=q_ptr,
+        q_stride=q_stride,
+        k_ptr=k_ptr,
+        k_stride=k_stride,
+        v_ptr=v_ptr,
+        v_stride=v_stride,
+        W_ptr=W_ptr,
+        W_stride=W_stride,
+        xf_ptr=xf_ptr,
+        xf_stride=xf_stride,
+        h0_ptr=h0_ptr,
+        h0_stride=h0_stride,
+        h_ptr=h_ptr,
+        h_stride=h_stride,
+        ht_ptr=ht_ptr,
+        ht_stride=ht_stride,
+        y_ptr=None,
+        y_stride=None,
+        cu_seqlens_ptr=cu_seqlens_ptr,
+        cu_seqlens_stride=cu_seqlens_stride,
+        S=S,
+        K=K,
+        V=V,
+        Gq=Gq,
+        Gk=Gk,
+        Gv=Gv,
+        Gw=Gw,
+        Gxf=Gxf,
+        BLOCK_SIZE_K=BLOCK_SIZE_K,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
+        ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT,
+    )
+
+
 @xma_op(mutates_args={"h", "ht", "y"})
 def _m2rnn_forward_triton(
     q: torch.Tensor | None,
@@ -215,10 +352,7 @@ def _m2rnn_forward_triton(
 
     ATOMIC_ADD_OUTPUT = K > BLOCK_SIZE_K
 
-    if y is not None and ATOMIC_ADD_OUTPUT:
-        y.zero_()
-
-    _m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
+    kwargs = dict(
         q_ptr=q,
         q_stride=None if q is None else q.stride(),
         k_ptr=k,
@@ -235,8 +369,6 @@ def _m2rnn_forward_triton(
         h_stride=None if h is None else h.stride(),
         ht_ptr=ht,
         ht_stride=None if ht is None else ht.stride(),
-        y_ptr=y,
-        y_stride=None if y is None else y.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
         S=S,
@@ -251,3 +383,11 @@ def _m2rnn_forward_triton(
         BLOCK_SIZE_V=BLOCK_SIZE_V,
         ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT,
     )
+
+    if y is None:
+        _m2rnn_forward_no_output_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](**kwargs)
+    else:
+        if ATOMIC_ADD_OUTPUT:
+            y.zero_()
+
+        _m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](**kwargs, y_ptr=y, y_stride=y.stride())
