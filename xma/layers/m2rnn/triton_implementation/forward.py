@@ -66,7 +66,7 @@ def _m2rnn_forward(
     Gxf: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
-    ATOMIC_ADD_OUTPUT: tl.constexpr,
+    ATOMIC_ADD: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(0)
     BLOCK_ID_N = tl.program_id(1)
@@ -161,7 +161,7 @@ def _m2rnn_forward(
 
             y = matmul(A=q[None, :], B=h, C=None, output_dtype=q.dtype)
 
-            if ATOMIC_ADD_OUTPUT:
+            if ATOMIC_ADD:
                 tl.atomic_add(y_ptrs[None, :], y, mask=MASK_V[None, :])
             else:
                 tl.store(y_ptrs[None, :], y, mask=MASK_V[None, :])
@@ -213,7 +213,7 @@ def _m2rnn_forward_triton_kernel(
     Gxf: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
-    ATOMIC_ADD_OUTPUT: tl.constexpr,
+    ATOMIC_ADD: tl.constexpr,
 ):
     _m2rnn_forward(
         q_ptr=q_ptr,
@@ -246,7 +246,7 @@ def _m2rnn_forward_triton_kernel(
         Gxf=Gxf,
         BLOCK_SIZE_K=BLOCK_SIZE_K,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
-        ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT,
+        ATOMIC_ADD=ATOMIC_ADD,
     )
 
 
@@ -313,7 +313,7 @@ def _m2rnn_forward_no_output_triton_kernel(
         Gxf=Gxf,
         BLOCK_SIZE_K=BLOCK_SIZE_K,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
-        ATOMIC_ADD_OUTPUT=None,
+        ATOMIC_ADD=None,
     )
 
 
@@ -388,5 +388,5 @@ def _m2rnn_forward_triton(
         _m2rnn_forward_no_output_triton_kernel[B, N, NUM_BLOCKS_K](**kwargs)
     else:
         _m2rnn_forward_triton_kernel[B, N, NUM_BLOCKS_K](
-            **kwargs, y_ptr=y, y_stride=y.stride(), ATOMIC_ADD_OUTPUT=K > BLOCK_SIZE_K
+            **kwargs, y_ptr=y, y_stride=y.stride(), ATOMIC_ADD=K > BLOCK_SIZE_K
         )
