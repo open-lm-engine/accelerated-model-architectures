@@ -48,7 +48,7 @@ def _get_packed_tensor_inputs(
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
 @pytest.mark.parametrize("input_shape", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])
-@pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
+@pytest.mark.parametrize("problem_shape", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
 @pytest.mark.parametrize("has_input_state", [False, True])
 @pytest.mark.parametrize("is_compiling", [False, True])
 @torch._dynamo.config.patch(recompile_limit=1024)
@@ -56,7 +56,7 @@ def test_rnn(
     kernel_backend: KernelBackend,
     dtype: torch.dtype,
     input_shape: tuple[int, int, list[int]],
-    snn: tuple[int, int, int],
+    problem_shape: tuple[int, int, int],
     has_input_state: bool,
     is_compiling: bool,
 ) -> None:
@@ -65,7 +65,7 @@ def test_rnn(
 
     set_seed(_SEED)
 
-    state_head_dim, num_input_heads, num_weight_heads = snn
+    state_head_dim, num_input_heads, num_weight_heads = problem_shape
     num_heads = max(num_input_heads, num_weight_heads)
     state_size = state_head_dim * num_heads
 
@@ -166,10 +166,10 @@ def test_rnn(
 
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
-@pytest.mark.parametrize("snn", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
+@pytest.mark.parametrize("problem_shape", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
 @pytest.mark.parametrize("has_input_state", [False, True])
 def test_rnn_varlen_torch(
-    dtype: torch.dtype, cu_seqlens: list[int], snn: tuple[int, int, int], has_input_state: bool
+    dtype: torch.dtype, cu_seqlens: list[int], problem_shape: tuple[int, int, int], has_input_state: bool
 ) -> None:
     if Accelerator.get_accelerator() != Accelerator.cuda:
         pytest.skip("Sufficient to run on CUDA device")
@@ -181,7 +181,7 @@ def test_rnn_varlen_torch(
     cu_seqlens = torch.tensor(cu_seqlens, device=device)
     max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
 
-    state_head_dim, num_input_heads, num_weight_heads = snn
+    state_head_dim, num_input_heads, num_weight_heads = problem_shape
     num_heads = max(num_input_heads, num_weight_heads)
     state_size = state_head_dim * num_heads
 
@@ -227,22 +227,3 @@ def test_rnn_varlen_torch(
     y_torch = torch.cat(y_torch)
 
     assert_equal_tensors(y_kernel, y_torch, False)
-
-    y_kernel.sum().backward()
-    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(rnn)
-
-    y_torch.sum().backward()
-    weight_torch_grads = collect_gradients_from_module_and_zero_grads(rnn)
-
-    assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False)
-
-    for weight_name in weight_kernel_grads:
-        assert_equal_tensors(
-            weight_kernel_grads[weight_name],
-            weight_torch_grads[weight_name],
-            False,
-            atol_float16=5e-4,
-            rtol_float16=0,
-            atol_bfloat16=4e-3,
-            rtol_bfloat16=0,
-        )

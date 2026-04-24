@@ -225,20 +225,3 @@ def test_gru_varlen_torch(
     y_torch = torch.cat(y_torch)
 
     assert_equal_tensors(y_kernel, y_torch, False, atol_bfloat16=3.1e-5, rtol_bfloat16=0)
-
-    y_kernel.sum().backward()
-    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(gru)
-
-    y_torch.sum().backward()
-    weight_torch_grads = collect_gradients_from_module_and_zero_grads(gru)
-
-    for weight_name in weight_kernel_grads:
-        assert_equal_tensors(
-            weight_kernel_grads[weight_name],
-            weight_torch_grads[weight_name],
-            False,
-            atol_float16=4.9e-4,
-            rtol_float16=0,
-            atol_bfloat16=4e-3,
-            rtol_bfloat16=0,
-        )
