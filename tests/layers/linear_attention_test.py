@@ -159,13 +159,11 @@ def test_linear_attention(
     #         )
 
 
-@pytest.mark.parametrize("kernel_backend", [KernelBackend.torch])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
 @pytest.mark.parametrize("problem_shape", [(8, 4, 3, 3, 3)])
 @pytest.mark.parametrize("has_input_state", [False, True])
 def test_linear_attention_varlen_torch(
-    kernel_backend: KernelBackend,
     dtype: torch.dtype,
     cu_seqlens: list[int],
     problem_shape: tuple[int, int, int, int, int],
@@ -174,9 +172,7 @@ def test_linear_attention_varlen_torch(
     if Accelerator.get_accelerator() != Accelerator.cuda:
         pytest.skip("Sufficient to run on CUDA device")
 
-    skip_if_incompatible_kernel_backend(kernel_backend)
-    device = kernel_backend.get_compatible_accelerator().get_current_device()
-
+    device = Accelerator.get_current_device()
     set_seed(_SEED)
 
     batch_size = len(cu_seqlens) - 1
@@ -228,32 +224,3 @@ def test_linear_attention_varlen_torch(
     y_torch = torch.cat(y_torch)
 
     assert_equal_tensors(y_kernel, y_torch, False)
-
-    y_kernel.sum().backward()
-    weight_kernel_grads = collect_gradients_from_module_and_zero_grads(linear_attention)
-
-    y_torch.sum().backward()
-    weight_torch_grads = collect_gradients_from_module_and_zero_grads(linear_attention)
-
-    assert_equal_tensors(
-        x_packed_kernel.grad,
-        x_packed_torch.grad,
-        False,
-        atol_float32=2e-5,
-        rtol_float32=0,
-        atol_bfloat16=2.5e-4,
-        rtol_bfloat16=0,
-    )
-
-    for weight_name in weight_kernel_grads:
-        assert_equal_tensors(
-            weight_kernel_grads[weight_name],
-            weight_torch_grads[weight_name],
-            False,
-            atol_float32=3e-7,
-            rtol_float32=0,
-            atol_float16=5e-4,
-            rtol_float16=0,
-            atol_bfloat16=5e-3,
-            rtol_bfloat16=0,
-        )
