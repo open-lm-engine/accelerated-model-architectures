@@ -381,13 +381,14 @@ def _m2rnn_forward_triton(
         Gxf=N // Nxf,
         BLOCK_SIZE_K=BLOCK_SIZE_K,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
-        ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT,
     )
 
     if y is None:
-        _m2rnn_forward_no_output_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](**kwargs)
+        _m2rnn_forward_no_output_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](**kwargs, ATOMIC_ADD_OUTPUT=None)
     else:
         if ATOMIC_ADD_OUTPUT:
             y.zero_()
 
-        _m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](**kwargs, y_ptr=y, y_stride=y.stride())
+        _m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
+            **kwargs, y_ptr=y, y_stride=y.stride(), ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT
+        )
