@@ -278,7 +278,6 @@ def _m2rnn_forward_no_output_triton_kernel(
     Gxf: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
-    ATOMIC_ADD_OUTPUT: tl.constexpr,
 ):
     _m2rnn_forward(
         q_ptr=q_ptr,
@@ -311,7 +310,7 @@ def _m2rnn_forward_no_output_triton_kernel(
         Gxf=Gxf,
         BLOCK_SIZE_K=BLOCK_SIZE_K,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
-        ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT,
+        ATOMIC_ADD_OUTPUT=None,
     )
 
 
@@ -382,7 +381,7 @@ def _m2rnn_forward_triton(
     )
 
     if y is None:
-        _m2rnn_forward_no_output_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](**kwargs, ATOMIC_ADD_OUTPUT=None)
+        _m2rnn_forward_no_output_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](**kwargs)
     else:
         _m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
             **kwargs, y_ptr=y, y_stride=y.stride(), ATOMIC_ADD_OUTPUT=K > BLOCK_SIZE_K
