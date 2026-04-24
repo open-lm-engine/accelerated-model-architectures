@@ -1,7 +1,0 @@
-xma.layers.m2rnn.layer
-======================
-
-.. automodule:: xma.layers.m2rnn.layer
-   :members:
-   :show-inheritance:
-   :undoc-members:
