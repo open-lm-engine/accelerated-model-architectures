@@ -31,7 +31,7 @@ def _forward_single_step(h_prev, W, k, v, f):
     return z, h
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_K", "BLOCK_SIZE_V"])
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_K", "BLOCK_SIZE_V"], reset_to_zero=["y_ptr"])
 @triton.jit
 def _m2rnn_forward_triton_kernel(
     q_ptr,
@@ -64,6 +64,7 @@ def _m2rnn_forward_triton_kernel(
     Gxf: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
+    ATOMIC_ADD_OUTPUT: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(0)
     BLOCK_ID_N = tl.program_id(1)
@@ -158,7 +159,11 @@ def _m2rnn_forward_triton_kernel(
 
             y = matmul(A=q[None, :], B=h, C=None, output_dtype=q.dtype)
 
-            tl.store(y_ptrs[None, :], y, mask=MASK_V[None, :])
+            if ATOMIC_ADD_OUTPUT:
+                tl.atomic_add(y_ptrs[None, :], y, mask=MASK_V[None, :])
+            else:
+                tl.store(y_ptrs[None, :], y, mask=MASK_V[None, :])
+
             y_ptrs += y_stride[S_DIM]
 
     if ht_ptr is not None:
@@ -208,6 +213,11 @@ def _m2rnn_forward_triton(
     BLOCK_SIZE_V = get_next_power_of_2(V)
     BLOCK_SIZE_V = max(16, BLOCK_SIZE_V)
 
+    ATOMIC_ADD_OUTPUT = K > BLOCK_SIZE_K
+
+    if y is not None and ATOMIC_ADD_OUTPUT:
+        y.zero_()
+
     _m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
         q_ptr=q,
         q_stride=None if q is None else q.stride(),
@@ -239,4 +249,5 @@ def _m2rnn_forward_triton(
         Gxf=N // Nxf,
         BLOCK_SIZE_K=BLOCK_SIZE_K,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
+        ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT,
     )
