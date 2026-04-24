@@ -350,8 +350,6 @@ def _m2rnn_forward_triton(
     BLOCK_SIZE_V = get_next_power_of_2(V)
     BLOCK_SIZE_V = max(16, BLOCK_SIZE_V)
 
-    ATOMIC_ADD_OUTPUT = K > BLOCK_SIZE_K
-
     kwargs = dict(
         q_ptr=q,
         q_stride=None if q is None else q.stride(),
@@ -386,9 +384,6 @@ def _m2rnn_forward_triton(
     if y is None:
         _m2rnn_forward_no_output_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](**kwargs, ATOMIC_ADD_OUTPUT=None)
     else:
-        if ATOMIC_ADD_OUTPUT:
-            y.zero_()
-
         _m2rnn_forward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
-            **kwargs, y_ptr=y, y_stride=y.stride(), ATOMIC_ADD_OUTPUT=ATOMIC_ADD_OUTPUT
+            **kwargs, y_ptr=y, y_stride=y.stride(), ATOMIC_ADD_OUTPUT=K > BLOCK_SIZE_K
         )

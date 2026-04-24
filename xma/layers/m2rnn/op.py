@@ -134,7 +134,11 @@ class _M2RNN(CustomOp):
 
         y_shape = list(v.size())
         y_shape[-2] = N
-        y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
+
+        if K > 64:
+            y = torch.zeros(y_shape, device=q.device, dtype=torch.float32)
+        else:
+            y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
 
         _m2rnn_forward_triton(
             q=q,
