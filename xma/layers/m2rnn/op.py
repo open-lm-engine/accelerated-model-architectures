@@ -14,7 +14,7 @@ from .utils import _get_num_heads
 
 
 if is_triton_available():
-    from .triton_implementation import _m2rnn_backward_triton, _m2rnn_forward_triton
+    from .triton_implementation import _MAX_BLOCK_SIZE_K, _m2rnn_backward_triton, _m2rnn_forward_triton
 
 
 class _M2RNN(CustomOp):
@@ -135,7 +135,7 @@ class _M2RNN(CustomOp):
         y_shape = list(v.size())
         y_shape[-2] = N
 
-        if K > 64:
+        if K > _MAX_BLOCK_SIZE_K:
             y = torch.zeros(y_shape, device=q.device, dtype=torch.float32)
         else:
             y = torch.empty(y_shape, device=q.device, dtype=q.dtype)

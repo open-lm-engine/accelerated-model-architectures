@@ -10,7 +10,7 @@ from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_utils import clamp, matmul, tanh_backward
 from ..utils import _get_num_heads
-from .forward import _forward_single_step, _get_autotune_configs
+from .forward import _MAX_BLOCK_SIZE_K, _forward_single_step, _get_autotune_configs
 
 
 @triton.autotune(
@@ -291,7 +291,7 @@ def _m2rnn_backward_triton(
 
     BLOCK_SIZE_K = get_next_power_of_2(K)
     BLOCK_SIZE_K = max(16, BLOCK_SIZE_K)
-    BLOCK_SIZE_K = min(64, BLOCK_SIZE_K)
+    BLOCK_SIZE_K = min(_MAX_BLOCK_SIZE_K, BLOCK_SIZE_K)
 
     BLOCK_SIZE_V = get_next_power_of_2(V)
     BLOCK_SIZE_V = max(16, BLOCK_SIZE_V)

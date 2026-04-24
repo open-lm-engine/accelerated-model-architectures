@@ -11,6 +11,9 @@ from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....triton_utils import matmul, tanh
 
 
+_MAX_BLOCK_SIZE_K = 64
+
+
 def _get_autotune_configs() -> list[triton.Config]:
     configs = []
     for num_warps in get_powers_of_2(1, 32):
@@ -344,7 +347,7 @@ def _m2rnn_forward_triton(
 
     BLOCK_SIZE_K = get_next_power_of_2(K)
     BLOCK_SIZE_K = max(16, BLOCK_SIZE_K)
-    BLOCK_SIZE_K = min(64, BLOCK_SIZE_K)
+    BLOCK_SIZE_K = min(_MAX_BLOCK_SIZE_K, BLOCK_SIZE_K)
     NUM_BLOCKS_K = ceil_divide(K, BLOCK_SIZE_K)
 
     BLOCK_SIZE_V = get_next_power_of_2(V)
