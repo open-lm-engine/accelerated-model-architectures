@@ -159,12 +159,11 @@ class _M2RNN(CustomOp):
             N=N,
         )
 
-        ctx_save_for_backward(ctx, q, k, v, W, xf, h0, cu_seqlens)
+        y = y.type_as(v)
 
+        ctx_save_for_backward(ctx, q, k, v, W, xf, h0, cu_seqlens)
         ctx.gradient_clipping = gradient_clipping
         ctx.num_heads = Nq, Nk, Nv, Nw, Nxf, N
-
-        y = y.type_as(v)
 
         return y, ht
 
