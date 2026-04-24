@@ -278,7 +278,7 @@
 
 
 <span class="k">if</span> <span class="n">is_triton_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_m2rnn_backward_triton</span><span class="p">,</span> <span class="n">_m2rnn_forward_triton</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.triton_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_MAX_BLOCK_SIZE_K</span><span class="p">,</span> <span class="n">_m2rnn_backward_triton</span><span class="p">,</span> <span class="n">_m2rnn_forward_triton</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_M2RNN</span><span class="p">(</span><span class="n">CustomOp</span><span class="p">):</span>
@@ -398,7 +398,11 @@
 
         <span class="n">y_shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
         <span class="n">y_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">N</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">y_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">K</span> <span class="o">&gt;</span> <span class="n">_MAX_BLOCK_SIZE_K</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">y_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">y_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">_m2rnn_forward_triton</span><span class="p">(</span>
             <span class="n">q</span><span class="o">=</span><span class="n">q</span><span class="p">,</span>
@@ -419,12 +423,11 @@
             <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">xf</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
 
+        <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">xf</span><span class="p">,</span> <span class="n">h0</span><span class="p">,</span> <span class="n">cu_seqlens</span><span class="p">)</span>
         <span class="n">ctx</span><span class="o">.</span><span class="n">gradient_clipping</span> <span class="o">=</span> <span class="n">gradient_clipping</span>
         <span class="n">ctx</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="n">Nq</span><span class="p">,</span> <span class="n">Nk</span><span class="p">,</span> <span class="n">Nv</span><span class="p">,</span> <span class="n">Nw</span><span class="p">,</span> <span class="n">Nxf</span><span class="p">,</span> <span class="n">N</span>
-
-        <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">y</span><span class="p">,</span> <span class="n">ht</span>
 
@@ -465,10 +468,15 @@
 
         <span class="n">dq</span> <span class="o">=</span> <span class="p">(</span><span class="n">empty_like_contiguous</span> <span class="k">if</span> <span class="n">Nq</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="n">function</span><span class="p">)(</span><span class="n">q</span><span class="p">)</span>
         <span class="n">dk</span> <span class="o">=</span> <span class="p">(</span><span class="n">empty_like_contiguous</span> <span class="k">if</span> <span class="n">Nk</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="n">function</span><span class="p">)(</span><span class="n">k</span><span class="p">)</span>
-        <span class="n">dv</span> <span class="o">=</span> <span class="p">(</span><span class="n">empty_like_contiguous</span> <span class="k">if</span> <span class="n">Nv</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="n">function</span><span class="p">)(</span><span class="n">v</span><span class="p">)</span>
         <span class="n">dW</span> <span class="o">=</span> <span class="n">zeros_like_contiguous</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="n">dxf</span> <span class="o">=</span> <span class="p">(</span><span class="n">empty_like_contiguous</span> <span class="k">if</span> <span class="n">Nxf</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="n">function</span><span class="p">)(</span><span class="n">xf</span><span class="p">)</span>
         <span class="n">dh0</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">h0</span><span class="p">)</span> <span class="k">if</span> <span class="n">h0</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">h0</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">K</span> <span class="o">&gt;</span> <span class="n">_MAX_BLOCK_SIZE_K</span><span class="p">:</span>
+            <span class="n">dv</span> <span class="o">=</span> <span class="n">function</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">dxf</span> <span class="o">=</span> <span class="n">function</span><span class="p">(</span><span class="n">xf</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dv</span> <span class="o">=</span> <span class="p">(</span><span class="n">empty_like_contiguous</span> <span class="k">if</span> <span class="n">Nv</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="n">function</span><span class="p">)(</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">dxf</span> <span class="o">=</span> <span class="p">(</span><span class="n">empty_like_contiguous</span> <span class="k">if</span> <span class="n">Nxf</span> <span class="o">==</span> <span class="n">N</span> <span class="k">else</span> <span class="n">function</span><span class="p">)(</span><span class="n">xf</span><span class="p">)</span>
 
         <span class="n">_m2rnn_backward_triton</span><span class="p">(</span>
             <span class="n">q</span><span class="o">=</span><span class="n">q</span><span class="p">,</span>
