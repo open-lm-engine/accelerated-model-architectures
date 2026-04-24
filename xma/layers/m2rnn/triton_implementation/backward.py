@@ -296,8 +296,6 @@ def _m2rnn_backward_triton(
     BLOCK_SIZE_V = get_next_power_of_2(V)
     BLOCK_SIZE_V = max(16, BLOCK_SIZE_V)
 
-    ATOMIC_ADD = K > BLOCK_SIZE_K
-
     _m2rnn_backward_triton_kernel[B, N, ceil_divide(K, BLOCK_SIZE_K)](
         q_ptr=q,
         q_stride=q.stride(),
@@ -340,5 +338,5 @@ def _m2rnn_backward_triton(
         Gxf=N // Nxf,
         BLOCK_SIZE_K=BLOCK_SIZE_K,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
-        ATOMIC_ADD=ATOMIC_ADD,
+        ATOMIC_ADD=K > BLOCK_SIZE_K,
     )

@@ -204,10 +204,15 @@ class _M2RNN(CustomOp):
 
         dq = (empty_like_contiguous if Nq == N else function)(q)
         dk = (empty_like_contiguous if Nk == N else function)(k)
-        dv = (empty_like_contiguous if Nv == N else function)(v)
         dW = zeros_like_contiguous(W, dtype=torch.float32)
-        dxf = (empty_like_contiguous if Nxf == N else function)(xf)
         dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
+
+        if K > _MAX_BLOCK_SIZE_K:
+            dv = function(v)
+            dxf = function(xf)
+        else:
+            dv = (empty_like_contiguous if Nv == N else function)(v)
+            dxf = (empty_like_contiguous if Nxf == N else function)(xf)
 
         _m2rnn_backward_triton(
             q=q,
