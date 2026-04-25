@@ -3,4 +3,4 @@
 # **************************************************
 
 from .backward import _m2rnn_backward_triton
-from .forward import _m2rnn_forward_triton
+from .forward import _MAX_BLOCK_SIZE_K, _m2rnn_forward_triton

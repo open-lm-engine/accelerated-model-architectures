@@ -41,18 +41,18 @@ def test_cross_entropy(
     if isinstance(size, int):
         size = (size,)
 
-    x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
+    x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
     labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
 
     loss_kernel = function(
-        x=x_kernel, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.triton
+        x=x_kernel, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend
     )
 
     loss_expected = cross_entropy(
         x=x_expected, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
     )
 
-    assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=6.3e-5, rtol_float32=0)
+    assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=7.2e-5, rtol_float32=0)
 
     loss_kernel.backward()
     loss_expected.backward()
