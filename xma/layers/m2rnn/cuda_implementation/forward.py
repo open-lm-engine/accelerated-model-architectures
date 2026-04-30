@@ -274,13 +274,13 @@ def _m2rnn_forward_cuda(
 
     V = v.size(-1)
 
-    key = (q.dtype, cu_seqlens.dtype, K, V, Nq, Nk, Nv, Nw, Nxf, N, is_varlen)
-    function = _CACHE.get(key)
-    stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
-
     div_K = math.gcd(16 // q.dtype.itemsize, K)
     div_V = math.gcd(16 // v.dtype.itemsize, V)
     div_Nxf = math.gcd(16 // xf.dtype.itemsize, Nxf)
+
+    key = (q.dtype, div_K, div_V, div_Nxf, K, V, Nq, Nk, Nv, Nw, Nxf, N, is_varlen)
+    function = _CACHE.get(key)
+    stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
     if function is None:
         if is_varlen:
