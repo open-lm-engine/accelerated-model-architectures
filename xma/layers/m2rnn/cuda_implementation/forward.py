@@ -210,7 +210,6 @@ class _M2RNNForwardCUDAKernel:
         mY: cute.Tensor,
         mCuSeqlens: cute.Tensor | None,
         stream: cuda.CUstream,
-        S: int,
     ) -> None:
         if const_expr(mCuSeqlens is None):
             B = cute.size(mQ, mode=[0])
@@ -229,7 +228,6 @@ class _M2RNNForwardCUDAKernel:
             mHt=mHt,
             mY=mY,
             mCuSeqlens=mCuSeqlens,
-            S=S,
         ).launch(
             grid=(B, N, 1),
             block=(self.threads_per_cta, 1, 1),
@@ -261,11 +259,6 @@ def _m2rnn_forward_cuda(
     N: int,
 ) -> None:
     is_varlen = cu_seqlens is not None
-
-    if is_varlen:
-        S = max_seqlen
-    else:
-        S = q.size(1)
 
     K = q.size(-1)
     V = v.size(-1)
@@ -301,9 +294,9 @@ def _m2rnn_forward_cuda(
 
         function = _M2RNNForwardCUDAKernel(K=K, V=V, Gq=N // Nq, Gk=N // Nk, Gv=N // Nv, Gw=N // Nw, Gxf=N // Nxf)
         function = cute.compile(
-            function, _q, _k, _v, _W, _xf, _h0, _ht, _y, _cu_seqlens, stream, S, options="--enable-tvm-ffi"
+            function, _q, _k, _v, _W, _xf, _h0, _ht, _y, _cu_seqlens, stream, options="--enable-tvm-ffi"
         )
 
         _CACHE[key] = function
 
-    function(q, k, v, W, xf, h0, ht, y, cu_seqlens, stream, S)
+    function(q, k, v, W, xf, h0, ht, y, cu_seqlens, stream)
