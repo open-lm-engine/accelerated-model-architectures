@@ -207,10 +207,10 @@ class _M2RNNForwardCUDAKernel:
         mV: cute.Tensor,
         mW: cute.Tensor,
         mXf: cute.Tensor,
-        mH0: cute.Tensor,
+        mH0: cute.Tensor | None,
         mHt: cute.Tensor,
         mY: cute.Tensor,
-        mCuSeqlens: cute.Tensor,
+        mCuSeqlens: cute.Tensor | None,
         stream: cuda.CUstream,
         is_varlen: bool,
         S: int,
@@ -299,7 +299,9 @@ def _m2rnn_forward_cuda(
         _W = get_fake_cute_tensor(W.dtype, (Nw, V, V), divisibility=div_V)
         _h0 = None if h0 is None else get_fake_cute_tensor(h0.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
         _ht = get_fake_cute_tensor(ht.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
-        _cu_seqlens = get_fake_cute_tensor(cu_seqlens.dtype, (cute.sym_int(),), divisibility=1)
+        _cu_seqlens = (
+            None if cu_seqlens is None else get_fake_cute_tensor(cu_seqlens.dtype, (cute.sym_int(),), divisibility=1)
+        )
 
         function = _M2RNNForwardCUDAKernel(K=K, V=V, Gq=N // Nq, Gk=N // Nk, Gv=N // Nv, Gw=N // Nw, Gxf=N // Nxf)
         function = cute.compile(
