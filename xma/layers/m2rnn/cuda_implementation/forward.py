@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import math
+
 import cuda.bindings.driver as cuda
 import torch
 
@@ -231,9 +233,6 @@ class M2RNNForwardCUTEKernel:
         mHt: cute.Tensor,
         mY: cute.Tensor,
         stream: cuda.CUstream,
-        HAS_H0: cutlass.Constexpr,
-        HAS_HT: cutlass.Constexpr,
-        HAS_Y: cutlass.Constexpr,
     ) -> None:
         B = cute.size(mK, mode=[0])
         S = cute.size(mK, mode=[1])
@@ -259,9 +258,6 @@ class M2RNNForwardCUTEKernel:
             mHt,
             mY,
             S,
-            HAS_H0,
-            HAS_HT,
-            HAS_Y,
         ).launch(
             grid=(B, N, 1),
             block=(self.threads_per_cta, 1, 1),
@@ -274,7 +270,7 @@ _CACHE: dict = {}
 
 
 @xma_op(mutates_args={"ht", "y"})
-def _m2rnn_forward_cute(
+def _m2rnn_forward_cuda(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -284,6 +280,7 @@ def _m2rnn_forward_cute(
     h: torch.Tensor | None,
     ht: torch.Tensor | None,
     y: torch.Tensor | None,
+    cu_seqlens: torch.Tensor | None,
     Nq: int,
     Nk: int,
     Nv: int,
@@ -291,23 +288,16 @@ def _m2rnn_forward_cute(
     Nxf: int,
     N: int,
 ) -> None:
-    """
-    Hopper-targeted M2RNN forward pass written in NVIDIA CUTE DSL.
+    assert cu_seqlens is None
+    assert h is None
 
-    Specialized for K=64, V=16 and contiguous (non-varlen) inputs.
+    if cu_seqlens is None:
+        B, S, _, K = k.size()
+    else:
+        B = cu_seqlens.size(0) - 1
+        S = None
+        K = k.size(-1)
 
-    Tensor shapes (must be contiguous in the last dim):
-      q  : (B, S, Nq, K)
-      k  : (B, S, Nk, K)
-      v  : (B, S, Nv, V)
-      W  : (Nw, V, V)
-      xf : (B, S, Nxf)
-      h0 : (B, N,  K, V) or None  -> None means zero-initialized state
-      ht : (B, N,  K, V) or None  -> None means final state is discarded
-      y  : (B, S,  N, V) or None  -> None means output is discarded
-    """
-    assert k.dim() == 4, "varlen path is not supported by the cute implementation"
-    B, S, _, K = k.size()
     V = v.size(-1)
 
     assert K == 64 and V == 16, f"cute kernel requires K=64, V=16; got K={K}, V={V}"
@@ -322,54 +312,44 @@ def _m2rnn_forward_cute(
     Gw = N // Nw
     Gxf = N // Nxf
 
-    # the kernel takes all 8 tensors unconditionally; dummies stand in
-    # for any that the caller has opted out of.
-    if not has_h0:
-        h0 = torch.zeros(1, 1, 1, 1, dtype=k.dtype, device=k.device)
-    if not has_ht:
-        ht = torch.empty(1, 1, 1, 1, dtype=k.dtype, device=k.device)
-    if not has_y:
-        y = torch.empty(1, 1, 1, 1, dtype=k.dtype, device=k.device)
+    div_K = math.gcd(16 // k.dtype.itemsize, K)
+    div_V = math.gcd(16 // v.dtype.itemsize, V)
+    div_Nxf = math.gcd(16 // xf.dtype.itemsize, Nxf)
+    div_N = math.gcd(16 // y.dtype.itemsize, N)
 
-    cache_key = (k.dtype, K, V, Gq, Gk, Gv, Gw, Gxf, has_h0, has_ht, has_y)
-    compiled = _CACHE.get(cache_key)
+    key = (k.dtype, div_K, div_V, div_Nxf, div_N, K, V, Gq, Gk, Gv, Gw, Gxf, has_h0, has_ht, has_y)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
-    if compiled is None:
-        fq = get_fake_cute_tensor(q.dtype, (cute.sym_int(), cute.sym_int(), Nq, K), divisibility=8)
-        fk = get_fake_cute_tensor(k.dtype, (cute.sym_int(), cute.sym_int(), Nk, K), divisibility=8)
-        fv = get_fake_cute_tensor(v.dtype, (cute.sym_int(), cute.sym_int(), Nv, V), divisibility=8)
-        fW = get_fake_cute_tensor(W.dtype, (Nw, V, V), divisibility=8)
-        fxf = get_fake_cute_tensor(xf.dtype, (cute.sym_int(), cute.sym_int(), Nxf), divisibility=1)
-        fh0 = get_fake_cute_tensor(h0.dtype, (cute.sym_int(), N, K, V) if has_h0 else (1, 1, 1, 1), divisibility=1)
-        fht = get_fake_cute_tensor(ht.dtype, (cute.sym_int(), N, K, V) if has_ht else (1, 1, 1, 1), divisibility=1)
-        fy = get_fake_cute_tensor(
-            y.dtype,
-            (cute.sym_int(), cute.sym_int(), N, V) if has_y else (1, 1, 1, 1),
-            divisibility=1,
-        )
+    function = _CACHE.get(key)
 
-        kernel_fn = M2RNNForwardCUTEKernel(K=K, V=V, Gq=Gq, Gk=Gk, Gv=Gv, Gw=Gw, Gxf=Gxf)
+    if function is None:
+        _q = get_fake_cute_tensor(q.dtype, (cute.sym_int(), cute.sym_int(), Nq, K), divisibility=div_K)
+        _k = get_fake_cute_tensor(k.dtype, (cute.sym_int(), cute.sym_int(), Nk, K), divisibility=div_K)
+        _v = get_fake_cute_tensor(v.dtype, (cute.sym_int(), cute.sym_int(), Nv, V), divisibility=div_V)
+        _W = get_fake_cute_tensor(W.dtype, (Nw, V, V), divisibility=div_V)
+        _xf = get_fake_cute_tensor(xf.dtype, (cute.sym_int(), cute.sym_int(), Nxf), divisibility=div_Nxf)
+        _y = get_fake_cute_tensor(y.dtype, (cute.sym_int(), cute.sym_int(), N, V), divisibility=div_V)
 
-        compiled = cute.compile(
-            kernel_fn,
-            fq,
-            fk,
-            fv,
-            fW,
-            fxf,
-            fh0,
-            fht,
-            fy,
+        _h0 = None if h0 is None else get_fake_cute_tensor(h0.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
+        _ht = None if ht is None else get_fake_cute_tensor(ht.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
+
+        function = M2RNNForwardCUTEKernel(K=K, V=V, Gq=Gq, Gk=Gk, Gv=Gv, Gw=Gw, Gxf=Gxf)
+
+        function = cute.compile(
+            function,
+            _q,
+            _k,
+            _v,
+            _W,
+            _xf,
+            _h0,
+            _ht,
+            _y,
             stream,
-            has_h0,
-            has_ht,
-            has_y,
             options="--enable-tvm-ffi",
         )
 
-        _CACHE[cache_key] = compiled
+        _CACHE[key] = function
 
-    # constexprs (has_*) were baked at compile time; only dynamic args here.
-    compiled(q, k, v, W, xf, h0, ht, y, stream)
+    function(q, k, v, W, xf, h0, ht, y, stream)

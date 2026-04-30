@@ -14,7 +14,7 @@ from .utils import _get_num_heads
 
 
 if is_cute_dsl_available():
-    from .cute_implementation import _m2rnn_forward_cute
+    from .cuda_implementation import _m2rnn_forward_cute
 
 
 if is_triton_available():
