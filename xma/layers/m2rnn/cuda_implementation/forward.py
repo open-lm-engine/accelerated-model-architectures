@@ -16,41 +16,11 @@ from cutlass import Float32, Int32, const_expr, range_constexpr
 from ....constants import WARP_SIZE
 from ....custom_op import xma_op
 from ....cute_dsl_utils import get_fake_cute_tensor, tanh
+from ....math import ceil_divide, get_next_power_of_2
 
 
-# =====================================================================
-# Hopper (SM90) M2RNN forward CUTE-DSL kernel.
-#
-# Recurrence (per timestep s):
-#     x = k ⊗ v                      # (K, V)
-#     z = tanh(h_prev @ W + x)       # (K, V)
-#     h = f * h_prev + (1 - f) * z   # (K, V)
-#     y = q @ h                      # (V,)
-#
-# Tile / thread decomposition (specialized for K=64, V=16):
-#   * Grid:  (B, N) — one CTA per (batch, head).
-#   * Block: K threads (= 64 = 2 warps) — thread `tid` owns row `tid`
-#     of the (K, V) state in registers (V floats per thread).
-#   * Smem:
-#       - sW  : (V, V) — weight tile, loaded once, reused for S steps.
-#       - sV  : (V,)   — current step's `v` vector, refreshed each step.
-#       - sF  : scalar — broadcast forget gate.
-#       - sY  : (num_warps, V) — cross-warp reduction buffer for `q @ h`.
-#
-# All math runs in fp32; loads / stores honor the user's IO dtype.
-# Recurrence is sequential, so the kernel is latency-bound — keeping the
-# state in registers and W in smem minimizes per-step memory traffic.
-# Tensor cores are *not* used: V=16 makes the inner GEMM too small for
-# WGMMA to amortize launch overhead inside a recurrent loop.
-# =====================================================================
-
-
-class M2RNNForwardCUTEKernel:
+class _M2RNNForwardCUDAKernel:
     def __init__(self, K: int, V: int, Gq: int, Gk: int, Gv: int, Gw: int, Gxf: int) -> None:
-        # specialized for K = 64, V = 16
-        assert K == 64, f"this implementation requires K == 64, got {K}"
-        assert V == 16, f"this implementation requires V == 16, got {V}"
-
         self.K = K
         self.V = V
         self.Gq = Gq
@@ -59,10 +29,15 @@ class M2RNNForwardCUTEKernel:
         self.Gw = Gw
         self.Gxf = Gxf
 
-        self.threads_per_cta = K
-        self.num_warps = self.threads_per_cta // WARP_SIZE
+        # One thread owns one row of the recurrent state. A power-of-two CTA
+        # keeps the warp shuffle reduction simple and gives enough threads to
+        # cooperatively load W into shared memory.
+        self.threads_per_cta = max(WARP_SIZE, min(128, get_next_power_of_2(max(K, V))))
         assert self.threads_per_cta % WARP_SIZE == 0
-        assert (V * V) % self.threads_per_cta == 0
+
+        self.num_warps = self.threads_per_cta // WARP_SIZE
+        self.w_loads_per_thread = ceil_divide(V * V, self.threads_per_cta)
+        self.v_loads_per_thread = ceil_divide(V, self.threads_per_cta)
 
     @cute.kernel
     def kernel(
@@ -75,10 +50,9 @@ class M2RNNForwardCUTEKernel:
         mH0: cute.Tensor,
         mHt: cute.Tensor,
         mY: cute.Tensor,
+        mCuSeqlens: cute.Tensor,
         S: Int32,
-        HAS_H0: cutlass.Constexpr,
-        HAS_HT: cutlass.Constexpr,
-        HAS_Y: cutlass.Constexpr,
+        IS_VARLEN: cutlass.Constexpr,
     ) -> None:
         K: cutlass.Constexpr = self.K
         V: cutlass.Constexpr = self.V
@@ -88,7 +62,6 @@ class M2RNNForwardCUTEKernel:
         Gw: cutlass.Constexpr = self.Gw
         Gxf: cutlass.Constexpr = self.Gxf
         NUM_WARPS: cutlass.Constexpr = self.num_warps
-        W_ELEMS_PER_THREAD: cutlass.Constexpr = (V * V) // self.threads_per_cta
 
         bid_b, bid_n, _ = cute.arch.block_idx()
         tid, _, _ = cute.arch.thread_idx()
@@ -99,125 +72,130 @@ class M2RNNForwardCUTEKernel:
         bid_nw = bid_n // Gw
         bid_nxf = bid_n // Gxf
 
-        io_dtype = mK.element_type
-
         lane = tid % WARP_SIZE
         warp = tid // WARP_SIZE
 
-        # -----------------------------------------------------------------
-        # Smem: W (V*V), sV (V), sF (1), sY (num_warps, V) — used by the
-        # output reduction; declared here so all paths see the same layout.
-        # -----------------------------------------------------------------
-        smem = cutlass.utils.SmemAllocator()
+        io_dtype = mK.element_type
+        acc_dtype = Float32
 
+        smem = cutlass.utils.SmemAllocator()
         sW = smem.allocate_tensor(
-            element_type=io_dtype,
+            element_type=acc_dtype,
             layout=cute.make_layout((V, V), stride=(V, 1)),
             byte_alignment=16,
         )
-        sV = smem.allocate_tensor(
-            element_type=io_dtype,
-            layout=cute.make_layout(V),
-            byte_alignment=16,
-        )
-        sF = smem.allocate_tensor(
-            element_type=io_dtype,
-            layout=cute.make_layout(1),
-            byte_alignment=4,
-        )
+        sV = smem.allocate_tensor(element_type=acc_dtype, layout=cute.make_layout(V), byte_alignment=16)
+        sF = smem.allocate_tensor(element_type=acc_dtype, layout=cute.make_layout(1), byte_alignment=4)
         sY = smem.allocate_tensor(
-            element_type=Float32,
-            layout=cute.make_layout((NUM_WARPS, V), stride=(V, 1)),
-            byte_alignment=16,
+            element_type=acc_dtype, layout=cute.make_layout((NUM_WARPS, V), stride=(V, 1)), byte_alignment=16
         )
 
-        # -----------------------------------------------------------------
-        # Cooperative load of W (V x V) into smem (one-time).
-        # 64 threads * 4 elems = 256 covers the full 16x16 weight tile
-        # in row-major order; consecutive threads hit consecutive elements
-        # so loads are coalesced.
-        # -----------------------------------------------------------------
-        for i in range_constexpr(W_ELEMS_PER_THREAD):
-            idx = tid * W_ELEMS_PER_THREAD + i
-            row = idx // V
-            col = idx % V
-            sW[row, col] = mW[bid_nw, row, col]
-
-        # -----------------------------------------------------------------
-        # Initialize register-resident row of h: h_row = h0[bid_b, bid_n, tid, :]
-        # -----------------------------------------------------------------
-        h_row = cute.make_rmem_tensor(cute.make_layout(V), Float32)
-
-        if const_expr(HAS_H0):
-            for v in range_constexpr(V):
-                h_row[v] = mH0[bid_b, bid_n, tid, v].to(Float32)
-        else:
-            for v in range_constexpr(V):
-                h_row[v] = Float32(0.0)
+        # Cooperative load of the VxV state transition matrix.
+        for i in range_constexpr(self.w_loads_per_thread):
+            idx = tid + i * self.threads_per_cta
+            if idx < V * V:
+                row = idx // V
+                col = idx % V
+                sW[row, col] = mW[bid_nw, row, col].to(acc_dtype)
 
         cute.arch.sync_threads()
 
-        # -----------------------------------------------------------------
-        # Main recurrent loop.
-        # -----------------------------------------------------------------
+        # One row of the state matrix lives in each thread.
+        h_row = cute.make_rmem_tensor(cute.make_layout(V), acc_dtype)
+        h_next = cute.make_rmem_tensor(cute.make_layout(V), acc_dtype)
+
+        if tid < K:
+            for v in range_constexpr(V):
+                h_row[v] = mH0[bid_b, bid_n, tid, v].to(acc_dtype)
+        else:
+            for v in range_constexpr(V):
+                h_row[v] = acc_dtype(0.0)
+
+        start = bid_b * S
+        seqlen = S
+        if const_expr(IS_VARLEN):
+            start = mCuSeqlens[bid_b]
+            seqlen = mCuSeqlens[bid_b + 1] - start
+
         for s in cutlass.range(S, unroll=1):
-            # --- load k[tid] from gmem (one element per thread) -----------
-            k_val = mK[bid_b, s, bid_nk, tid].to(Float32)
+            if (not const_expr(IS_VARLEN)) or (s < seqlen):
+                if const_expr(IS_VARLEN):
+                    time_idx = start + s
+                else:
+                    time_idx = s
 
-            # --- load v[V], f scalar into smem cooperatively --------------
-            if tid < V:
-                sV[tid] = mV[bid_b, s, bid_nv, tid]
-            if tid == 0:
-                sF[0] = mXf[bid_b, s, bid_nxf]
+                # Load value and forget tensors for this timestep.
+                for i in range_constexpr(self.v_loads_per_thread):
+                    idx = tid + i * self.threads_per_cta
+                    if idx < V:
+                        if const_expr(IS_VARLEN):
+                            sV[idx] = mV[time_idx, bid_nv, idx].to(acc_dtype)
+                        else:
+                            sV[idx] = mV[bid_b, s, bid_nv, idx].to(acc_dtype)
 
-            cute.arch.sync_threads()
+                if tid == 0:
+                    if const_expr(IS_VARLEN):
+                        sF[0] = mXf[time_idx, bid_nxf].to(acc_dtype)
+                    else:
+                        sF[0] = mXf[bid_b, s, bid_nxf].to(acc_dtype)
 
-            f_val = sF[0].to(Float32)
+                cute.arch.sync_threads()
 
-            # --- z[v'] = sum_v h_row[v] * W[v,v'] + k_val * v[v'] ----------
-            # --- z = tanh(z); h_row = f*h_row + (1-f)*z --------------------
-            for vp in range_constexpr(V):
-                acc = k_val * sV[vp].to(Float32)
-                for v in range_constexpr(V):
-                    acc += h_row[v] * sW[v, vp].to(Float32)
-                z_vp = tanh(acc, output_dtype=Float32)
-                h_row[vp] = f_val * h_row[vp] + (Float32(1.0) - f_val) * z_vp
+                f_val = sF[0]
 
-            # --- optional output: y = q @ h -------------------------------
-            if const_expr(HAS_Y):
-                q_val = mQ[bid_b, s, bid_nq, tid].to(Float32)
+                if tid < K:
+                    if const_expr(IS_VARLEN):
+                        k_val = mK[time_idx, bid_nk, tid].to(acc_dtype)
+                    else:
+                        k_val = mK[bid_b, s, bid_nk, tid].to(acc_dtype)
 
-                # warp-level butterfly reduction across the 32 lanes for
-                # each of V output columns; lane 0 of each warp ends up
-                # with the warp's contribution.
+                    for vp in range_constexpr(V):
+                        acc = k_val * sV[vp]
+                        for vv in range_constexpr(V):
+                            acc += h_row[vv] * sW[vv, vp]
+
+                        z_vp = tanh(acc, output_dtype=acc_dtype)
+                        h_next[vp] = f_val * h_row[vp] + (acc_dtype(1.0) - f_val) * z_vp
+
+                    q_val = acc_dtype(0.0)
+                    if const_expr(IS_VARLEN):
+                        q_val = mQ[time_idx, bid_nq, tid].to(acc_dtype)
+                    else:
+                        q_val = mQ[bid_b, s, bid_nq, tid].to(acc_dtype)
+                else:
+                    q_val = acc_dtype(0.0)
+
                 for vp in range_constexpr(V):
-                    partial = q_val * h_row[vp]
-                    for off in range_constexpr(5):  # log2(WARP_SIZE)
+                    partial = q_val * (h_next[vp] if tid < K else acc_dtype(0.0))
+                    for off in range_constexpr(5):
                         partial += cute.arch.shuffle_sync_bfly(
                             partial,
                             offset_or_lane=Int32(1 << off),
                             mask_and_clamp=Int32(0x1F),
                         )
+
                     if lane == 0:
                         sY[warp, vp] = partial
 
                 cute.arch.sync_threads()
 
-                # cross-warp reduction + final write: V threads each
-                # accumulate the per-warp partials and store one output.
                 if tid < V:
-                    final = Float32(0.0)
+                    y_val = acc_dtype(0.0)
                     for w in range_constexpr(NUM_WARPS):
-                        final += sY[w, tid]
-                    mY[bid_b, s, bid_n, tid] = final.to(io_dtype)
+                        y_val += sY[w, tid]
 
-            # --- end-of-step barrier: protects sV/sF before next iter -----
-            cute.arch.sync_threads()
+                    if const_expr(IS_VARLEN):
+                        mY[time_idx, bid_n, tid] = y_val.to(io_dtype)
+                    else:
+                        mY[bid_b, s, bid_n, tid] = y_val.to(io_dtype)
 
-        # -----------------------------------------------------------------
-        # Store final state ht.
-        # -----------------------------------------------------------------
-        if const_expr(HAS_HT):
+                cute.arch.sync_threads()
+
+                if tid < K:
+                    for vp in range_constexpr(V):
+                        h_row[vp] = h_next[vp]
+
+        if tid < K:
             for vp in range_constexpr(V):
                 mHt[bid_b, bid_n, tid, vp] = h_row[vp].to(io_dtype)
 
@@ -232,37 +210,35 @@ class M2RNNForwardCUTEKernel:
         mH0: cute.Tensor,
         mHt: cute.Tensor,
         mY: cute.Tensor,
+        mCuSeqlens: cute.Tensor,
         stream: cuda.CUstream,
+        is_varlen: bool,
+        S: int,
     ) -> None:
-        B = cute.size(mK, mode=[0])
-        S = cute.size(mK, mode=[1])
-        N = cute.size(mW, mode=[0]) * self.Gw  # Nw * Gw == N
+        if is_varlen:
+            B = cute.size(mCuSeqlens, mode=[0]) - 1
+        else:
+            B = cute.size(mQ, mode=[0])
 
-        # smem layout footprint (matches kernel allocator order)
-        io_bytes = mK.element_type.width // 8
-        smem_bytes = (
-            self.V * self.V * io_bytes  # sW
-            + self.V * io_bytes  # sV
-            + max(4, io_bytes)  # sF (one element, padded)
-            + self.num_warps * self.V * 4  # sY (fp32)
-            + 64  # alignment slack
-        )
+        N = cute.size(mW, mode=[0]) * self.Gw
 
         self.kernel(
-            mQ,
-            mK,
-            mV,
-            mW,
-            mXf,
-            mH0,
-            mHt,
-            mY,
-            S,
+            mQ=mQ,
+            mK=mK,
+            mV=mV,
+            mW=mW,
+            mXf=mXf,
+            mH0=mH0,
+            mHt=mHt,
+            mY=mY,
+            mCuSeqlens=mCuSeqlens,
+            S=S,
+            IS_VARLEN=is_varlen,
         ).launch(
             grid=(B, N, 1),
             block=(self.threads_per_cta, 1, 1),
             stream=stream,
-            smem=smem_bytes,
+            smem=(self.V * self.V + self.V + 1 + self.num_warps * self.V) * 4,
         )
 
 
@@ -277,79 +253,59 @@ def _m2rnn_forward_cuda(
     W: torch.Tensor,
     xf: torch.Tensor,
     h0: torch.Tensor | None,
-    h: torch.Tensor | None,
-    ht: torch.Tensor | None,
-    y: torch.Tensor | None,
-    cu_seqlens: torch.Tensor | None,
+    ht: torch.Tensor,
+    y: torch.Tensor,
     Nq: int,
     Nk: int,
     Nv: int,
     Nw: int,
     Nxf: int,
     N: int,
+    cu_seqlens: torch.Tensor | None,
+    max_seqlen: int | None,
 ) -> None:
-    assert cu_seqlens is None
-    assert h is None
+    is_varlen = cu_seqlens is not None
 
-    if cu_seqlens is None:
-        B, S, _, K = k.size()
+    if is_varlen:
+        _, _, K = q.size()
+        S = max_seqlen
     else:
-        B = cu_seqlens.size(0) - 1
-        S = None
-        K = k.size(-1)
+        _, S, _, K = q.size()
 
     V = v.size(-1)
 
-    assert K == 64 and V == 16, f"cute kernel requires K=64, V=16; got K={K}, V={V}"
-
-    has_h0 = h0 is not None
-    has_ht = ht is not None
-    has_y = y is not None
-
-    Gq = N // Nq
-    Gk = N // Nk
-    Gv = N // Nv
-    Gw = N // Nw
-    Gxf = N // Nxf
-
-    div_K = math.gcd(16 // k.dtype.itemsize, K)
-    div_V = math.gcd(16 // v.dtype.itemsize, V)
-    div_Nxf = math.gcd(16 // xf.dtype.itemsize, Nxf)
-    div_N = math.gcd(16 // y.dtype.itemsize, N)
-
-    key = (k.dtype, div_K, div_V, div_Nxf, div_N, K, V, Gq, Gk, Gv, Gw, Gxf, has_h0, has_ht, has_y)
-
+    key = (q.dtype, cu_seqlens.dtype, K, V, Nq, Nk, Nv, Nw, Nxf, N, is_varlen)
+    function = _CACHE.get(key)
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
-    function = _CACHE.get(key)
+    div_K = math.gcd(16 // q.dtype.itemsize, K)
+    div_V = math.gcd(16 // v.dtype.itemsize, V)
+    div_Nxf = math.gcd(16 // xf.dtype.itemsize, Nxf)
 
     if function is None:
-        _q = get_fake_cute_tensor(q.dtype, (cute.sym_int(), cute.sym_int(), Nq, K), divisibility=div_K)
-        _k = get_fake_cute_tensor(k.dtype, (cute.sym_int(), cute.sym_int(), Nk, K), divisibility=div_K)
-        _v = get_fake_cute_tensor(v.dtype, (cute.sym_int(), cute.sym_int(), Nv, V), divisibility=div_V)
+        if is_varlen:
+            _q = get_fake_cute_tensor(q.dtype, (cute.sym_int(), Nq, K), divisibility=div_K)
+            _k = get_fake_cute_tensor(k.dtype, (cute.sym_int(), Nk, K), divisibility=div_K)
+            _v = get_fake_cute_tensor(v.dtype, (cute.sym_int(), Nv, V), divisibility=div_V)
+            _xf = get_fake_cute_tensor(xf.dtype, (cute.sym_int(), Nxf), divisibility=div_Nxf)
+            _y = get_fake_cute_tensor(y.dtype, (cute.sym_int(), N, V), divisibility=div_V)
+        else:
+            _q = get_fake_cute_tensor(q.dtype, (cute.sym_int(), cute.sym_int(), Nq, K), divisibility=div_K)
+            _k = get_fake_cute_tensor(k.dtype, (cute.sym_int(), cute.sym_int(), Nk, K), divisibility=div_K)
+            _v = get_fake_cute_tensor(v.dtype, (cute.sym_int(), cute.sym_int(), Nv, V), divisibility=div_V)
+            _xf = get_fake_cute_tensor(xf.dtype, (cute.sym_int(), cute.sym_int(), Nxf), divisibility=div_Nxf)
+            _y = get_fake_cute_tensor(y.dtype, (cute.sym_int(), cute.sym_int(), N, V), divisibility=div_V)
+
         _W = get_fake_cute_tensor(W.dtype, (Nw, V, V), divisibility=div_V)
-        _xf = get_fake_cute_tensor(xf.dtype, (cute.sym_int(), cute.sym_int(), Nxf), divisibility=div_Nxf)
-        _y = get_fake_cute_tensor(y.dtype, (cute.sym_int(), cute.sym_int(), N, V), divisibility=div_V)
+        _h0 = get_fake_cute_tensor(h0.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
+        _ht = get_fake_cute_tensor(ht.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
+        _cu_seqlens = get_fake_cute_tensor(cu_seqlens.dtype, (cute.sym_int(),), divisibility=1)
 
-        _h0 = None if h0 is None else get_fake_cute_tensor(h0.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
-        _ht = None if ht is None else get_fake_cute_tensor(ht.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
-
-        function = M2RNNForwardCUTEKernel(K=K, V=V, Gq=Gq, Gk=Gk, Gv=Gv, Gw=Gw, Gxf=Gxf)
-
+        function = _M2RNNForwardCUDAKernel(K=K, V=V, Gq=N // Nq, Gk=N // Nk, Gv=N // Nv, Gw=N // Nw, Gxf=N // Nxf)
         function = cute.compile(
-            function,
-            _q,
-            _k,
-            _v,
-            _W,
-            _xf,
-            _h0,
-            _ht,
-            _y,
-            stream,
-            options="--enable-tvm-ffi",
+            function, _q, _k, _v, _W, _xf, _h0, _ht, _y, _cu_seqlens, stream, is_varlen, S, options="--enable-tvm-ffi"
         )
 
         _CACHE[key] = function
 
-    function(q, k, v, W, xf, h0, ht, y, stream)
+    function(q, k, v, W, xf, h0, ht, y, cu_seqlens, stream, is_varlen, S)

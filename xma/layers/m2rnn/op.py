@@ -14,7 +14,7 @@ from .utils import _get_num_heads
 
 
 if is_cute_dsl_available():
-    from .cuda_implementation import _m2rnn_forward_cute
+    from .cuda_implementation import _m2rnn_forward_cuda
 
 
 if is_triton_available():
@@ -139,29 +139,72 @@ class _M2RNN(CustomOp):
         y_shape = list(v.size())
         y_shape[-2] = N
 
-        if K > _MAX_BLOCK_SIZE_K:
-            y = torch.zeros(y_shape, device=q.device, dtype=torch.float32)
-        else:
+        if kernel_backend == KernelBackend.cuda:
+            assert is_cute_dsl_available(), "KernelBackend.cuda requires CUTE DSL support"
+            is_varlen = cu_seqlens is not None
+
+            q = q.contiguous()
+            k = k.contiguous()
+            v = v.contiguous()
+            W = W.contiguous()
+            xf = xf.contiguous()
+            max_seqlen_value = q.size(1)
+            if h0 is None:
+                h0 = torch.zeros(B, N, K, V, device=k.device, dtype=k.dtype)
+            else:
+                h0 = h0.contiguous()
+
+            if cu_seqlens is None:
+                cu_seqlens = torch.tensor([0, B * q.size(1)], device=q.device, dtype=torch.int32)
+            else:
+                cu_seqlens = cu_seqlens.contiguous()
+                max_seqlen_value = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+
             y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
 
-        _m2rnn_forward_triton(
-            q=q,
-            k=k,
-            v=v,
-            W=W,
-            xf=xf,
-            h0=h0,
-            h=None,
-            ht=ht,
-            y=y,
-            cu_seqlens=cu_seqlens,
-            Nq=Nq,
-            Nk=Nk,
-            Nv=Nv,
-            Nw=Nw,
-            Nxf=Nxf,
-            N=N,
-        )
+            _m2rnn_forward_cute(
+                q=q,
+                k=k,
+                v=v,
+                W=W,
+                xf=xf,
+                h0=h0,
+                ht=ht,
+                y=y,
+                cu_seqlens=cu_seqlens,
+                Nq=Nq,
+                Nk=Nk,
+                Nv=Nv,
+                Nw=Nw,
+                Nxf=Nxf,
+                N=N,
+                is_varlen=is_varlen,
+                max_seqlen=max_seqlen_value,
+            )
+        else:
+            if K > _MAX_BLOCK_SIZE_K:
+                y = torch.zeros(y_shape, device=q.device, dtype=torch.float32)
+            else:
+                y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
+
+            _m2rnn_forward_triton(
+                q=q,
+                k=k,
+                v=v,
+                W=W,
+                xf=xf,
+                h0=h0,
+                h=None,
+                ht=ht,
+                y=y,
+                cu_seqlens=cu_seqlens,
+                Nq=Nq,
+                Nk=Nk,
+                Nv=Nv,
+                Nw=Nw,
+                Nxf=Nxf,
+                N=N,
+            )
 
         y = y.type_as(v)
 
