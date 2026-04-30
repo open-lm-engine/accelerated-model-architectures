@@ -51,8 +51,6 @@ class _M2RNNForwardCUDAKernel:
         mHt: cute.Tensor,
         mY: cute.Tensor,
         mCuSeqlens: cute.Tensor,
-        S: Int32,
-        IS_VARLEN: cutlass.Constexpr,
     ) -> None:
         K: cutlass.Constexpr = self.K
         V: cutlass.Constexpr = self.V
@@ -265,11 +263,11 @@ def _m2rnn_forward_cuda(
     is_varlen = cu_seqlens is not None
 
     if is_varlen:
-        _, _, K = q.size()
         S = max_seqlen
     else:
-        _, S, _, K = q.size()
+        S = q.size(1)
 
+    K = q.size(-1)
     V = v.size(-1)
 
     div_K = math.gcd(16 // q.dtype.itemsize, K)
