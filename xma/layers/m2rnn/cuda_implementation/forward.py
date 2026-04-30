@@ -297,7 +297,7 @@ def _m2rnn_forward_cuda(
             _y = get_fake_cute_tensor(y.dtype, (cute.sym_int(), cute.sym_int(), N, V), divisibility=div_V)
 
         _W = get_fake_cute_tensor(W.dtype, (Nw, V, V), divisibility=div_V)
-        _h0 = get_fake_cute_tensor(h0.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
+        _h0 = None if h0 is None else get_fake_cute_tensor(h0.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
         _ht = get_fake_cute_tensor(ht.dtype, (cute.sym_int(), N, K, V), divisibility=div_V)
         _cu_seqlens = get_fake_cute_tensor(cu_seqlens.dtype, (cute.sym_int(),), divisibility=1)
 
