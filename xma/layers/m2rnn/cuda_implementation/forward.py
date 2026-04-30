@@ -20,7 +20,7 @@ from ....math import ceil_divide, get_next_power_of_2
 
 
 class _M2RNNForwardCUDAKernel:
-    def __init__(self, K: int, V: int, Gq: int, Gk: int, Gv: int, Gw: int, Gxf: int) -> None:
+    def __init__(self, K: int, V: int, Gq: int, Gk: int, Gv: int, Gw: int, Gxf: int, IS_VARLEN: bool) -> None:
         self.K = K
         self.V = V
         self.Gq = Gq
@@ -28,6 +28,7 @@ class _M2RNNForwardCUDAKernel:
         self.Gv = Gv
         self.Gw = Gw
         self.Gxf = Gxf
+        self.IS_VARLEN = IS_VARLEN
 
         # One thread owns one row of the recurrent state. A power-of-two CTA
         # keeps the warp shuffle reduction simple and gives enough threads to
@@ -212,10 +213,9 @@ class _M2RNNForwardCUDAKernel:
         mY: cute.Tensor,
         mCuSeqlens: cute.Tensor | None,
         stream: cuda.CUstream,
-        is_varlen: bool,
         S: int,
     ) -> None:
-        if is_varlen:
+        if self.IS_VARLEN:
             B = cute.size(mCuSeqlens, mode=[0]) - 1
         else:
             B = cute.size(mQ, mode=[0])
@@ -303,11 +303,13 @@ def _m2rnn_forward_cuda(
             None if cu_seqlens is None else get_fake_cute_tensor(cu_seqlens.dtype, (cute.sym_int(),), divisibility=1)
         )
 
-        function = _M2RNNForwardCUDAKernel(K=K, V=V, Gq=N // Nq, Gk=N // Nk, Gv=N // Nv, Gw=N // Nw, Gxf=N // Nxf)
+        function = _M2RNNForwardCUDAKernel(
+            K=K, V=V, Gq=N // Nq, Gk=N // Nk, Gv=N // Nv, Gw=N // Nw, Gxf=N // Nxf, IS_VARLEN=is_varlen
+        )
         function = cute.compile(
-            function, _q, _k, _v, _W, _xf, _h0, _ht, _y, _cu_seqlens, stream, is_varlen, S, options="--enable-tvm-ffi"
+            function, _q, _k, _v, _W, _xf, _h0, _ht, _y, _cu_seqlens, stream, S, options="--enable-tvm-ffi"
         )
 
         _CACHE[key] = function
 
-    function(q, k, v, W, xf, h0, ht, y, cu_seqlens, stream, is_varlen, S)
+    function(q, k, v, W, xf, h0, ht, y, cu_seqlens, stream, S)
