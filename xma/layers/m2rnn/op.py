@@ -9,8 +9,12 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...torch_utils import clip_gradients, tanh
-from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
+from ...utils import empty_like_contiguous, is_cute_dsl_available, is_triton_available, zeros_like_contiguous
 from .utils import _get_num_heads
+
+
+if is_cute_dsl_available():
+    from .cute_implementation import _m2rnn_forward_cute
 
 
 if is_triton_available():
