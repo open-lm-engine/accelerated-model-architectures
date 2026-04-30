@@ -255,14 +255,14 @@ def _m2rnn_forward_cuda(
     h0: torch.Tensor | None,
     ht: torch.Tensor,
     y: torch.Tensor,
+    cu_seqlens: torch.Tensor | None,
+    max_seqlen: int | None,
     Nq: int,
     Nk: int,
     Nv: int,
     Nw: int,
     Nxf: int,
     N: int,
-    cu_seqlens: torch.Tensor | None,
-    max_seqlen: int | None,
 ) -> None:
     is_varlen = cu_seqlens is not None
 

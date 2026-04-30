@@ -140,29 +140,9 @@ class _M2RNN(CustomOp):
         y_shape[-2] = N
 
         if kernel_backend == KernelBackend.cuda:
-            assert is_cute_dsl_available(), "KernelBackend.cuda requires CUTE DSL support"
-            is_varlen = cu_seqlens is not None
-
-            q = q.contiguous()
-            k = k.contiguous()
-            v = v.contiguous()
-            W = W.contiguous()
-            xf = xf.contiguous()
-            max_seqlen_value = q.size(1)
-            if h0 is None:
-                h0 = torch.zeros(B, N, K, V, device=k.device, dtype=k.dtype)
-            else:
-                h0 = h0.contiguous()
-
-            if cu_seqlens is None:
-                cu_seqlens = torch.tensor([0, B * q.size(1)], device=q.device, dtype=torch.int32)
-            else:
-                cu_seqlens = cu_seqlens.contiguous()
-                max_seqlen_value = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
-
             y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
 
-            _m2rnn_forward_cute(
+            _m2rnn_forward_cuda(
                 q=q,
                 k=k,
                 v=v,
@@ -172,14 +152,13 @@ class _M2RNN(CustomOp):
                 ht=ht,
                 y=y,
                 cu_seqlens=cu_seqlens,
+                max_seqlen=max_seqlen_value,
                 Nq=Nq,
                 Nk=Nk,
                 Nv=Nv,
                 Nw=Nw,
                 Nxf=Nxf,
                 N=N,
-                is_varlen=is_varlen,
-                max_seqlen=max_seqlen_value,
             )
         else:
             if K > _MAX_BLOCK_SIZE_K:
