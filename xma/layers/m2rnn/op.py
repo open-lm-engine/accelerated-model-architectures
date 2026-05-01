@@ -152,7 +152,6 @@ class _M2RNN(CustomOp):
                 ht=ht,
                 y=y,
                 cu_seqlens=cu_seqlens,
-                max_seqlen=max_seqlen,
                 Nq=Nq,
                 Nk=Nk,
                 Nv=Nv,

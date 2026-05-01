@@ -50,30 +50,28 @@ class _M2RNNForwardCUDAKernel:
         mH0: cute.Tensor,
         mHt: cute.Tensor,
         mY: cute.Tensor,
-        mCuSeqlens: cute.Tensor,
+        mCuSeqlens: cute.Tensor | None,
     ) -> None:
-        K: cutlass.Constexpr = self.K
-        V: cutlass.Constexpr = self.V
-        Gq: cutlass.Constexpr = self.Gq
-        Gk: cutlass.Constexpr = self.Gk
-        Gv: cutlass.Constexpr = self.Gv
-        Gw: cutlass.Constexpr = self.Gw
-        Gxf: cutlass.Constexpr = self.Gxf
-        NUM_WARPS: cutlass.Constexpr = self.num_warps
+        BLOCK_ID_B, BLOCK_ID_N, _ = cute.arch.block_idx()
+        THREAD_ID, _, _ = cute.arch.thread_idx()
 
-        bid_b, bid_n, _ = cute.arch.block_idx()
-        tid, _, _ = cute.arch.thread_idx()
+        if const_expr(mCuSeqlens is None):
+            S = cute.size(mQ, mode=[1])
+        else:
+            start = mCuSeqlens[BLOCK_ID_B]
+            end = mCuSeqlens[BLOCK_ID_B + 1]
+            S = end - start
 
-        bid_nq = bid_n // Gq
-        bid_nk = bid_n // Gk
-        bid_nv = bid_n // Gv
-        bid_nw = bid_n // Gw
-        bid_nxf = bid_n // Gxf
+        BLOCK_ID_Nq = BLOCK_ID_N // self.Gq
+        BLOCK_ID_Nk = BLOCK_ID_N // self.Gk
+        BLOCK_ID_Nv = BLOCK_ID_N // self.Gv
+        BLOCK_ID_Nw = BLOCK_ID_N // self.Gw
+        BLOCK_ID_Nxf = BLOCK_ID_N // self.Gxf
 
-        lane = tid % WARP_SIZE
-        warp = tid // WARP_SIZE
+        LANE_ID = THREAD_ID % WARP_SIZE
+        WARP_ID = THREAD_ID // WARP_SIZE
 
-        io_dtype = mK.element_type
+        io_dtype = mQ.element_type
         acc_dtype = Float32
 
         smem = cutlass.utils.SmemAllocator()
@@ -98,6 +96,10 @@ class _M2RNNForwardCUDAKernel:
 
         cute.arch.sync_threads()
 
+        # Each CTA only needs the query vector for the active timestep.
+        # We first carve out the per-threadblock row, then tile it across threads.
+        q_thread_tiler = cute.make_layout(self.threads_per_cta)
+
         # One row of the state matrix lives in each thread.
         h_row = cute.make_rmem_tensor(cute.make_layout(V), acc_dtype)
         h_next = cute.make_rmem_tensor(cute.make_layout(V), acc_dtype)
@@ -111,13 +113,13 @@ class _M2RNNForwardCUDAKernel:
 
         start = bid_b * S
         seqlen = S
-        if const_expr(IS_VARLEN):
+        if const_expr(is_varlen):
             start = mCuSeqlens[bid_b]
             seqlen = mCuSeqlens[bid_b + 1] - start
 
         for s in cutlass.range(S, unroll=1):
-            if (not const_expr(IS_VARLEN)) or (s < seqlen):
-                if const_expr(IS_VARLEN):
+            if (not const_expr(is_varlen)) or (s < seqlen):
+                if const_expr(is_varlen):
                     time_idx = start + s
                 else:
                     time_idx = s
@@ -126,13 +128,13 @@ class _M2RNNForwardCUDAKernel:
                 for i in range_constexpr(self.v_loads_per_thread):
                     idx = tid + i * self.threads_per_cta
                     if idx < V:
-                        if const_expr(IS_VARLEN):
+                        if const_expr(is_varlen):
                             sV[idx] = mV[time_idx, bid_nv, idx].to(acc_dtype)
                         else:
                             sV[idx] = mV[bid_b, s, bid_nv, idx].to(acc_dtype)
 
                 if tid == 0:
-                    if const_expr(IS_VARLEN):
+                    if const_expr(is_varlen):
                         sF[0] = mXf[time_idx, bid_nxf].to(acc_dtype)
                     else:
                         sF[0] = mXf[bid_b, s, bid_nxf].to(acc_dtype)
@@ -142,7 +144,7 @@ class _M2RNNForwardCUDAKernel:
                 f_val = sF[0]
 
                 if tid < K:
-                    if const_expr(IS_VARLEN):
+                    if const_expr(is_varlen):
                         k_val = mK[time_idx, bid_nk, tid].to(acc_dtype)
                     else:
                         k_val = mK[bid_b, s, bid_nk, tid].to(acc_dtype)
@@ -155,11 +157,12 @@ class _M2RNNForwardCUDAKernel:
                         z_vp = tanh(acc, output_dtype=acc_dtype)
                         h_next[vp] = f_val * h_row[vp] + (acc_dtype(1.0) - f_val) * z_vp
 
-                    q_val = acc_dtype(0.0)
-                    if const_expr(IS_VARLEN):
-                        q_val = mQ[time_idx, bid_nq, tid].to(acc_dtype)
+                    if const_expr(is_varlen):
+                        q_row = cute.tiled_divide(mQ[time_idx, bid_nq], q_thread_tiler)
                     else:
-                        q_val = mQ[bid_b, s, bid_nq, tid].to(acc_dtype)
+                        q_row = cute.tiled_divide(mQ[bid_b, s, bid_nq], q_thread_tiler)
+
+                    q_val = q_row[tid, 0].to(acc_dtype)
                 else:
                     q_val = acc_dtype(0.0)
 
@@ -182,7 +185,7 @@ class _M2RNNForwardCUDAKernel:
                     for w in range_constexpr(NUM_WARPS):
                         y_val += sY[w, tid]
 
-                    if const_expr(IS_VARLEN):
+                    if const_expr(is_varlen):
                         mY[time_idx, bid_n, tid] = y_val.to(io_dtype)
                     else:
                         mY[bid_b, s, bid_n, tid] = y_val.to(io_dtype)
@@ -250,7 +253,6 @@ def _m2rnn_forward_cuda(
     ht: torch.Tensor,
     y: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
-    max_seqlen: int | None,
     Nq: int,
     Nk: int,
     Nv: int,
