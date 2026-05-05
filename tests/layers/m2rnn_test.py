@@ -160,10 +160,10 @@ def test_m2rnn(
         rtol_bfloat16=0,
     )
 
-    y_kernel.sum().backward()
+    y_kernel.sum().backward(retain_graph=True)
     weight_kernel_grads = collect_gradients_from_module_and_zero_grads(m2rnn)
 
-    y_torch.sum().backward()
+    y_torch.sum().backward(retain_graph=True)
     weight_torch_grads = collect_gradients_from_module_and_zero_grads(m2rnn)
 
     assert_equal_tensors(
@@ -195,6 +195,37 @@ def test_m2rnn(
             atol_float32=6e-3,
             rtol_float32=0,
             atol_bfloat16=8e-2,
+            rtol_bfloat16=0,
+        )
+
+    x_kernel.grad = None
+    x_torch.grad = None
+    if has_input_state:
+        input_state_kernel.grad = None
+        input_state_torch.grad = None
+
+    output_state_kernel.sum().backward()
+
+    output_state_torch.sum().backward()
+
+    assert_equal_tensors(
+        x_kernel.grad,
+        x_torch.grad,
+        False,
+        atol_float32=2.4e-4,
+        rtol_float32=0,
+        atol_bfloat16=1e-3,
+        rtol_bfloat16=0,
+    )
+
+    if has_input_state:
+        assert_equal_tensors(
+            input_state_kernel.grad,
+            input_state_torch.grad,
+            False,
+            atol_float32=2.3e-3,
+            rtol_float32=0,
+            atol_bfloat16=3e-3,
             rtol_bfloat16=0,
         )
 

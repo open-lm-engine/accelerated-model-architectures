@@ -38,6 +38,8 @@ def _m2rnn_backward_triton_kernel(
     h0_stride,
     dy_ptr,
     dy_stride,
+    dht_ptr,
+    dht_stride,
     dq_ptr,
     dq_stride,
     dk_ptr,
@@ -88,7 +90,18 @@ def _m2rnn_backward_triton_kernel(
         mask=MASK_VV,
     )
 
-    dh = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=W_ptr.dtype.element_ty)
+    if dht_ptr is None:
+        dh = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=W_ptr.dtype.element_ty)
+    else:
+        dh = tl.load(
+            dht_ptr
+            + BLOCK_ID_B * dht_stride[0]
+            + BLOCK_ID_N * dht_stride[1]
+            + BLOCK_K[:, None] * dht_stride[2]
+            + BLOCK_V[None, :] * dht_stride[3],
+            mask=MASK_KV,
+            other=0.0,
+        )
     dW = tl.zeros((BLOCK_SIZE_V, BLOCK_SIZE_V), dtype=tl.float32)
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
@@ -270,6 +283,7 @@ def _m2rnn_backward_triton(
     xf: torch.Tensor,
     h0: torch.Tensor | None,
     dy: torch.Tensor,
+    dht: torch.Tensor | None,
     h: torch.Tensor,
     dq: torch.Tensor,
     dk: torch.Tensor,
@@ -315,6 +329,8 @@ def _m2rnn_backward_triton(
         h0_stride=None if h0 is None else h0.stride(),
         dy_ptr=dy,
         dy_stride=dy.stride(),
+        dht_ptr=dht,
+        dht_stride=None if dht is None else dht.stride(),
         dq_ptr=dq,
         dq_stride=dq.stride(),
         dk_ptr=dk,
