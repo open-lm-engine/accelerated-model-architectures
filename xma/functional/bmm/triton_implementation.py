@@ -8,7 +8,6 @@ import triton.language as tl
 
 from ...accelerator import Accelerator
 from ...custom_op import xma_op
-from ...math import ceil_divide
 
 
 @triton.autotune(
@@ -39,7 +38,7 @@ from ...math import ceil_divide
             {"BLOCK_SIZE_M": 64, "BLOCK_SIZE_N": 32, "BLOCK_SIZE_K": 32, "GROUP_SIZE_M": 8}, num_stages=5, num_warps=2
         ),
     ],
-    key=[],
+    key=["M", "N", "K", "L"],
 )
 @triton.jit
 def _bmm_triton_kernel(
@@ -58,95 +57,108 @@ def _bmm_triton_kernel(
     M,
     K,
     N,
+    L,
+    NUM_SMS,
     GROUP_SIZE_M: tl.constexpr,
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
 ):
-    # A -> K x M if is_A_transposed else M x K
-    # B -> N x K if is_B_transposed else K x N
+    # A -> K x M if IS_A_TRANSPOSED else M x K
+    # B -> N x K if IS_B_TRANSPOSED else K x N
     # C -> M x N
 
-    BLOCK_ID = tl.program_id(0)
-    BLOCK_ID_L = tl.program_id(1)
+    sm_id = tl.program_id(0)
 
     NUM_BLOCKS_M = tl.cdiv(M, BLOCK_SIZE_M)
     NUM_BLOCKS_N = tl.cdiv(N, BLOCK_SIZE_N)
+    total_tiles = L * NUM_BLOCKS_M * NUM_BLOCKS_N
 
-    NUM_BLOCKS_IN_GROUP = GROUP_SIZE_M * NUM_BLOCKS_N
-    GROUP_ID = BLOCK_ID // NUM_BLOCKS_IN_GROUP
+    for tile_id in range(sm_id, total_tiles, NUM_SMS):
+        BLOCK_ID_L = tile_id // (NUM_BLOCKS_M * NUM_BLOCKS_N)
+        tile_mn = tile_id % (NUM_BLOCKS_M * NUM_BLOCKS_N)
 
-    FIRST_BLOCK_M_IN_GROUP = GROUP_ID * GROUP_SIZE_M
-    CURRENT_GROUP_SIZE_M = min(NUM_BLOCKS_M - FIRST_BLOCK_M_IN_GROUP, GROUP_SIZE_M)
+        NUM_BLOCKS_IN_GROUP = GROUP_SIZE_M * NUM_BLOCKS_N
+        GROUP_ID = tile_mn // NUM_BLOCKS_IN_GROUP
+        FIRST_BLOCK_M_IN_GROUP = GROUP_ID * GROUP_SIZE_M
+        CURRENT_GROUP_SIZE_M = min(NUM_BLOCKS_M - FIRST_BLOCK_M_IN_GROUP, GROUP_SIZE_M)
+        BLOCK_ID_M = FIRST_BLOCK_M_IN_GROUP + ((tile_mn % NUM_BLOCKS_IN_GROUP) % CURRENT_GROUP_SIZE_M)
+        BLOCK_ID_N = (tile_mn % NUM_BLOCKS_IN_GROUP) // CURRENT_GROUP_SIZE_M
 
-    BLOCK_ID_M = FIRST_BLOCK_M_IN_GROUP + ((BLOCK_ID % NUM_BLOCKS_IN_GROUP) % CURRENT_GROUP_SIZE_M)
-    BLOCK_ID_N = (BLOCK_ID % NUM_BLOCKS_IN_GROUP) // CURRENT_GROUP_SIZE_M
+        BLOCK_M = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+        BLOCK_N = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
 
-    if BLOCK_ID_N >= NUM_BLOCKS_N:
-        return
+        MASK_M = BLOCK_M < M
+        MASK_N = BLOCK_N < N
 
-    BLOCK_M = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    BLOCK_N = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+        acc = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+        BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
 
-    MASK_M = BLOCK_M < M
-    MASK_N = BLOCK_N < N
+        for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
+            MASK_K = BLOCK_K < K
 
-    D = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
-    BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
+            if IS_A_TRANSPOSED:
+                A_ptrs = (
+                    A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_K[:, None] * A_stride[1] + BLOCK_M[None, :] * A_stride[2]
+                )
 
-    for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
-        MASK_K = BLOCK_K < K
+                MASK_A = MASK_K[:, None] & MASK_M[None, :]
+            else:
+                A_ptrs = (
+                    A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_M[:, None] * A_stride[1] + BLOCK_K[None, :] * A_stride[2]
+                )
 
-        if IS_A_TRANSPOSED:
-            A_ptrs = A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_K[:, None] * A_stride[1] + BLOCK_M[None, :] * A_stride[2]
-            MASK_A = MASK_K[:, None] & MASK_M[None, :]
-        else:
-            A_ptrs = A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_M[:, None] * A_stride[1] + BLOCK_K[None, :] * A_stride[2]
-            MASK_A = MASK_M[:, None] & MASK_K[None, :]
+                MASK_A = MASK_M[:, None] & MASK_K[None, :]
 
-        A = tl.load(A_ptrs, mask=MASK_A)
+            A = tl.load(A_ptrs, mask=MASK_A)
 
-        if IS_A_TRANSPOSED:
-            A = A.T
+            if IS_A_TRANSPOSED:
+                A = A.T
 
-        if IS_B_TRANSPOSED:
-            B_ptrs = B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_N[:, None] * B_stride[1] + BLOCK_K[None, :] * B_stride[2]
-            MASK_B = MASK_N[:, None] & MASK_K[None, :]
-        else:
-            B_ptrs = B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_K[:, None] * B_stride[1] + BLOCK_N[None, :] * B_stride[2]
-            MASK_B = MASK_K[:, None] & MASK_N[None, :]
+            if IS_B_TRANSPOSED:
+                B_ptrs = (
+                    B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_N[:, None] * B_stride[1] + BLOCK_K[None, :] * B_stride[2]
+                )
 
-        B = tl.load(B_ptrs, mask=MASK_B)
+                MASK_B = MASK_N[:, None] & MASK_K[None, :]
+            else:
+                B_ptrs = (
+                    B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_K[:, None] * B_stride[1] + BLOCK_N[None, :] * B_stride[2]
+                )
 
-        if IS_B_TRANSPOSED:
-            B = B.T
+                MASK_B = MASK_K[:, None] & MASK_N[None, :]
 
-        D = tl.dot(A, B, D, allow_tf32=True)
-        BLOCK_K += BLOCK_SIZE_K
+            B = tl.load(B_ptrs, mask=MASK_B)
 
-    D = D.to(A_ptr.dtype.element_ty)
+            if IS_B_TRANSPOSED:
+                B = B.T
 
-    if alpha is not None:
-        D *= alpha
+            acc = tl.dot(A, B, acc, allow_tf32=True)
+            BLOCK_K += BLOCK_SIZE_K
 
-    MASK_MN = MASK_M[:, None] & MASK_N[None, :]
+        acc = acc.to(A_ptr.dtype.element_ty)
 
-    if C_ptr is not None:
-        C = tl.load(
-            C_ptr + BLOCK_ID_L * C_stride[0] + BLOCK_M[:, None] * C_stride[1] + BLOCK_N[None, :] * C_stride[2],
+        if alpha is not None:
+            acc *= alpha
+
+        MASK_MN = MASK_M[:, None] & MASK_N[None, :]
+
+        if C_ptr is not None:
+            C = tl.load(
+                C_ptr + BLOCK_ID_L * C_stride[0] + BLOCK_M[:, None] * C_stride[1] + BLOCK_N[None, :] * C_stride[2],
+                mask=MASK_MN,
+            )
+
+            if beta is not None:
+                C *= beta
+
+            acc += C
+
+        tl.store(
+            D_ptr + BLOCK_ID_L * D_stride[0] + BLOCK_M[:, None] * D_stride[1] + BLOCK_N[None, :] * D_stride[2],
+            acc,
             mask=MASK_MN,
         )
-
-        if beta is not None:
-            C *= beta
-
-        D += C
-
-    tl.store(
-        D_ptr + BLOCK_ID_L * D_stride[0] + BLOCK_M[:, None] * D_stride[1] + BLOCK_N[None, :] * D_stride[2],
-        D,
-        mask=MASK_MN,
-    )
 
 
 @xma_op(mutates_args={"D"})
@@ -166,12 +178,9 @@ def _bmm_triton(
 
     N = B.size(1 if is_B_transposed else 2)
 
-    GRID = lambda kwargs: (
-        ceil_divide(M, kwargs["BLOCK_SIZE_M"]) * ceil_divide(N, kwargs["BLOCK_SIZE_N"]),
-        L,
-    )
+    num_sms = Accelerator.get_max_allowed_core_count()
 
-    _bmm_triton_kernel[GRID](
+    _bmm_triton_kernel[(num_sms,)](
         A_ptr=A,
         A_stride=A.stride(),
         B_ptr=B,
@@ -187,4 +196,6 @@ def _bmm_triton(
         M=M,
         K=K,
         N=N,
+        L=L,
+        NUM_SMS=num_sms,
     )

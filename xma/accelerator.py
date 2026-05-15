@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from enum import Enum
 from functools import lru_cache
 
@@ -62,6 +63,8 @@ class Accelerator(Enum):
     rocm = "rocm"
     tpu = "tpu"
     trainium = "trainium"
+
+    _max_allowed_cores: int | None = None
 
     @staticmethod
     @lru_cache
@@ -130,8 +133,32 @@ class Accelerator(Enum):
         accelerator = Accelerator.get_accelerator()
 
         if accelerator == Accelerator.cuda:
-            sm_count = torch.cuda.get_device_properties().multi_processor_count
+            cores = torch.cuda.get_device_properties().multi_processor_count
         else:
             raise ValueError(f"unexpected accelerator ({accelerator})")
 
-        return sm_count
+        return cores
+
+    @staticmethod
+    @contextmanager
+    def max_allowed_core_count(cores: int):
+        previous = Accelerator._max_allowed_cores
+        Accelerator._max_allowed_cores = cores
+
+        yield
+
+        Accelerator._max_allowed_cores = previous
+
+    @staticmethod
+    def get_max_allowed_core_count() -> int:
+        accelerator = Accelerator.get_accelerator()
+
+        if accelerator == Accelerator.cuda:
+            cores = torch.cuda.get_device_properties(torch.cuda.current_device()).multi_processor_count
+        else:
+            raise ValueError(f"unexpected accelerator ({accelerator})")
+
+        if Accelerator._max_allowed_cores is not None:
+            cores = min(cores, Accelerator._max_allowed_cores)
+
+        return cores
