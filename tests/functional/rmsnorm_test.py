@@ -112,7 +112,7 @@ def test_rmsnorm_kernel_replacement(size: tuple[int], kernel_backend: KernelBack
         post_grad_custom_pre_pass=None,
         post_grad_custom_post_pass=_CallablePatternMatcherPass(),
     ):
-        enable_kernels([rmsnorm.__name__], config.post_grad_custom_post_pass, device=device)
+        enable_kernels([(rmsnorm.__name__, kernel_backend)], config.post_grad_custom_post_pass, device=device)
 
         reset_counters()
         model = torch.compile(model, fullgraph=True)
