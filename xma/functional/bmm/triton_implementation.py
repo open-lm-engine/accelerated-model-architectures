@@ -6,6 +6,7 @@ import torch
 import triton
 import triton.language as tl
 
+from ...accelerator import Accelerator
 from ...custom_op import xma_op
 from ...math import ceil_divide
 

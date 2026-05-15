@@ -126,7 +126,7 @@ class Accelerator(Enum):
             xla_wait_device_ops()
 
     @staticmethod
-    def get_sm_count() -> int:
+    def get_core_count() -> int:
         accelerator = Accelerator.get_accelerator()
 
         if accelerator == Accelerator.cuda:
