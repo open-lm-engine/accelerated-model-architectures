@@ -46,7 +46,7 @@ def _get_example_input(dim: int, device: torch.device, dtype: torch.dtype) -> to
 
 
 def get_rmsnorm_replacer(
-    device: torch.device,
+    device: torch.device, kernel_backend: KernelBackend | None = None
 ) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor]]]:
     for dtype in _ALL_DTYPES:
         example_inputs = (
@@ -58,13 +58,15 @@ def get_rmsnorm_replacer(
             rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.torch
         )
 
-        replacement_function = partialize_and_update_signature(rmsnorm, eps=None, memory_efficient=False)
+        replacement_function = partialize_and_update_signature(
+            rmsnorm, eps=None, memory_efficient=False, kernel_backend=kernel_backend
+        )
 
         yield search_function, replacement_function, example_inputs
 
 
 def get_fused_residual_add_rmsnorm_replacer(
-    device: torch.device,
+    device: torch.device, kernel_backend: KernelBackend | None = None
 ) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor, torch.Tensor]]]:
     for dtype in _ALL_DTYPES:
         for dim in range(1, 5):
@@ -87,6 +89,7 @@ def get_fused_residual_add_rmsnorm_replacer(
                 eps=None,
                 multiplier=None,
                 memory_efficient=False,
+                kernel_backend=kernel_backend,
             )
 
             yield search_function, replacement_function, example_inputs
@@ -98,9 +101,13 @@ _MAPPING = {
 }
 
 
-def enable_kernels(kernels: list[str], _patterns: PatternMatcherPass = patterns, device: torch.device = None) -> None:
-    for kernel in kernels:
-        for search_function, replacement_function, example_inputs in _MAPPING[kernel](device):
+def enable_kernels(
+    kernels: list[tuple[str, KernelBackend | None]],
+    _patterns: PatternMatcherPass = patterns,
+    device: torch.device = None,
+) -> None:
+    for kernel, kernel_backend in kernels:
+        for search_function, replacement_function, example_inputs in _MAPPING[kernel](device, kernel_backend):
             for trace_function in _ALL_TRACE_FUNCTIONS:
                 register_replacement(
                     search_fn=search_function,
