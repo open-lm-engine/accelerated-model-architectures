@@ -126,7 +126,7 @@ class Accelerator(Enum):
             xla_wait_device_ops()
 
     @staticmethod
-    def get_sm_count(device: torch.device | None = None) -> int:
+    def get_core_count(device: torch.device | None = None) -> int:
         if device is None:
             accelerator = Accelerator.get_accelerator()
         else:
