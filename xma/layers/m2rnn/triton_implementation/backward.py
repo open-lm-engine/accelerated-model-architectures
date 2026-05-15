@@ -100,8 +100,8 @@ def _m2rnn_backward_triton_kernel(
             + BLOCK_K[:, None] * dht_stride[2]
             + BLOCK_V[None, :] * dht_stride[3],
             mask=MASK_KV,
-            other=0.0,
         )
+
     dW = tl.zeros((BLOCK_SIZE_V, BLOCK_SIZE_V), dtype=tl.float32)
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
