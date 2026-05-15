@@ -126,16 +126,13 @@ class Accelerator(Enum):
             xla_wait_device_ops()
 
     @staticmethod
-    def get_core_count(device: torch.device | None = None) -> int:
-        if device is None:
-            accelerator = Accelerator.get_accelerator()
-        else:
-            accelerator = Accelerator(device.type)
+    def get_sm_count() -> int:
+        accelerator = Accelerator.get_accelerator()
 
         # TODO clean this up
         if accelerator == Accelerator.cuda:
-            sm_count = torch.cuda.get_device_properties(device).multi_processor_count
-        elif device.type == "xpu":
-            sm_count = torch.xpu.get_device_properties(device).gpu_subslice_count
+            sm_count = torch.cuda.get_device_properties().multi_processor_count
+        else:
+            raise ValueError(f"unexpected accelerator ({accelerator})")
 
         return sm_count
