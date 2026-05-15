@@ -415,17 +415,14 @@
 <div class="viewcode-block" id="Accelerator.get_sm_count">
 <a class="viewcode-back" href="../../xma.accelerator.html#xma.accelerator.Accelerator.get_sm_count">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_sm_count</span><span class="p">(</span><span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">accelerator</span> <span class="o">=</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">get_accelerator</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">accelerator</span> <span class="o">=</span> <span class="n">Accelerator</span><span class="p">(</span><span class="n">device</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_sm_count</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="n">accelerator</span> <span class="o">=</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">get_accelerator</span><span class="p">()</span>
 
         <span class="c1"># TODO clean this up</span>
         <span class="k">if</span> <span class="n">accelerator</span> <span class="o">==</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
-            <span class="n">sm_count</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_properties</span><span class="p">(</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">multi_processor_count</span>
-        <span class="k">elif</span> <span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;xpu&quot;</span><span class="p">:</span>
-            <span class="n">sm_count</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">xpu</span><span class="o">.</span><span class="n">get_device_properties</span><span class="p">(</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">gpu_subslice_count</span>
+            <span class="n">sm_count</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_properties</span><span class="p">()</span><span class="o">.</span><span class="n">multi_processor_count</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected accelerator (</span><span class="si">{</span><span class="n">accelerator</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">sm_count</span></div>
 </div>
