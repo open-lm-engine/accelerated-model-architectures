@@ -129,7 +129,6 @@ class Accelerator(Enum):
     def get_sm_count() -> int:
         accelerator = Accelerator.get_accelerator()
 
-        # TODO clean this up
         if accelerator == Accelerator.cuda:
             sm_count = torch.cuda.get_device_properties().multi_processor_count
         else:
