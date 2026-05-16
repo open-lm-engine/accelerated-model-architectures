@@ -40,16 +40,13 @@ def _cross_entropy_forward_backward_triton_kernel(
 
     BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     MASK_B = BLOCK_B < B
-    # Clamp out-of-range row indices so pointer arithmetic never reaches unmapped memory.
-    # The mask already suppresses actual loads/stores for those rows.
-    SAFE_BLOCK_B = tl.minimum(BLOCK_B, B - 1)
 
     Z = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
     M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
 
     NUM_BLOCKS_V = tl.cdiv(V, BLOCK_SIZE_V)
     BLOCK_V = tl.arange(0, BLOCK_SIZE_V)
-    x_ptrs = x_ptr + SAFE_BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
+    x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
 
     for _ in range(NUM_BLOCKS_V):
         MASK_V = BLOCK_V < V
@@ -71,9 +68,9 @@ def _cross_entropy_forward_backward_triton_kernel(
 
         BLOCK_V += BLOCK_SIZE_V
 
-    y = tl.load(y_ptr + SAFE_BLOCK_B * y_stride[0], mask=MASK_B)
+    y = tl.load(y_ptr + BLOCK_B * y_stride[0], mask=MASK_B)
 
-    xy = tl.load(x_ptr + SAFE_BLOCK_B * x_stride[0] + y * x_stride[1], mask=MASK_B).to(tl.float32)
+    xy = tl.load(x_ptr + BLOCK_B * x_stride[0] + y * x_stride[1], mask=MASK_B).to(tl.float32)
     if logits_multiplier is not None:
         xy *= logits_multiplier
 
@@ -88,8 +85,8 @@ def _cross_entropy_forward_backward_triton_kernel(
 
     if dx_ptr is not None:
         BLOCK_V = tl.arange(0, BLOCK_SIZE_V)
-        x_ptrs = x_ptr + SAFE_BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
-        dx_ptrs = dx_ptr + SAFE_BLOCK_B[:, None] * dx_stride[0] + BLOCK_V[None, :] * dx_stride[1]
+        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
+        dx_ptrs = dx_ptr + BLOCK_B[:, None] * dx_stride[0] + BLOCK_V[None, :] * dx_stride[1]
 
         for _ in range(NUM_BLOCKS_V):
             MASK_V = BLOCK_V < V
