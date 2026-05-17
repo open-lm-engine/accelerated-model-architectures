@@ -22,6 +22,14 @@ def _is_package(dotted_name: str) -> bool:
 
 
 _AUTOMODULE_OPTIONS = "   :members:\n   :undoc-members:\n   :show-inheritance:\n"
+_KEEP_FILES = {"conf.py", "index.rst", "Makefile", "make.bat"}
+
+
+def _clean_generated_rsts() -> None:
+    """Delete all sphinx-apidoc-generated RSTs, keeping hand-crafted files."""
+    for f in _DOCS_DIR.glob("*.rst"):
+        if f.name not in _KEEP_FILES:
+            f.unlink()
 
 
 def _flatten_to_entry_points() -> None:
@@ -102,6 +110,7 @@ def _flatten_to_entry_points() -> None:
 
 def main() -> None:
     _run("make", "-C", str(_DOCS_DIR), "clean")
+    _clean_generated_rsts()
     _run(
         "sphinx-apidoc",
         "--force",
