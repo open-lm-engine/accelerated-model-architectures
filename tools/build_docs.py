@@ -36,6 +36,8 @@ def _clean_generated_rsts() -> None:
 def _merge_toctrees() -> None:
     """Merge multiple toctree blocks in the same RST file into one sorted block."""
     for rst_path in sorted(_DOCS_DIR.glob("*.rst")):
+        if rst_path.name in _KEEP_FILES:
+            continue
         content = rst_path.read_text()
         if content.count(".. toctree::") < 2:
             continue
