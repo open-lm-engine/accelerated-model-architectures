@@ -23,6 +23,7 @@ def _is_package(dotted_name: str) -> bool:
 
 _AUTOMODULE_OPTIONS = "   :members:\n   :undoc-members:\n   :show-inheritance:\n"
 _KEEP_FILES = {"conf.py", "index.rst", "Makefile", "make.bat"}
+_IMPL_MODULE_NAMES = {"module", "op", "impl", "base", "core"}
 
 
 def _clean_generated_rsts() -> None:
@@ -30,6 +31,54 @@ def _clean_generated_rsts() -> None:
     for f in _DOCS_DIR.glob("*.rst"):
         if f.name not in _KEEP_FILES:
             f.unlink()
+
+
+def _merge_toctrees() -> None:
+    """Merge multiple toctree blocks in the same RST file into one sorted block."""
+    for rst_path in sorted(_DOCS_DIR.glob("*.rst")):
+        content = rst_path.read_text()
+        if content.count(".. toctree::") < 2:
+            continue
+
+        lines = content.splitlines(keepends=True)
+        out: list[str] = []
+        all_entries: list[str] = []
+        options: list[str] = []
+        i = 0
+
+        while i < len(lines):
+            line = lines[i]
+            if re.match(r"^\.\. toctree::", line):
+                i += 1
+                while i < len(lines):
+                    l = lines[i]
+                    if l.strip() and not l[0].isspace():
+                        break
+                    stripped = l.strip()
+                    if stripped.startswith(":") and stripped not in options:
+                        options.append(stripped)
+                    elif stripped and not stripped.startswith(":"):
+                        all_entries.append(stripped)
+                    i += 1
+                continue
+            out.append(line)
+            i += 1
+
+        if not all_entries:
+            continue
+
+        toctree = ".. toctree::\n"
+        for opt in options:
+            toctree += f"   {opt}\n"
+        toctree += "\n"
+        for entry in sorted(all_entries):
+            toctree += f"   {entry}\n"
+        toctree += "\n"
+
+        # Insert the merged toctree before the first automodule
+        merged = "".join(out)
+        merged = merged.replace(".. automodule::", toctree + ".. automodule::", 1)
+        rst_path.write_text(merged)
 
 
 def _flatten_to_entry_points() -> None:
@@ -75,10 +124,11 @@ def _flatten_to_entry_points() -> None:
                 for bl in block:
                     bs = bl.strip()
                     if bs and not bs.startswith(":") and not bs.startswith(".."):
-                        if _is_package(bs):
-                            filtered.append(bl)
+                        short_name = bs.split(".")[-1]
+                        if _is_package(bs) or short_name not in _IMPL_MODULE_NAMES:
+                            filtered.append(bl)  # sub-package or public module: keep
                         else:
-                            orphaned.add(bs)
+                            orphaned.add(bs)  # impl detail: inline and delete
                             if (_DOCS_DIR / f"{bs}.rst").exists():
                                 inlined.append(bs)
                     else:
@@ -121,6 +171,7 @@ def main() -> None:
         str(_ROOT / "tests"),
     )
     _run(sys.executable, str(_ROOT / "tools" / "clean_rst_headings.py"))
+    _merge_toctrees()
     _flatten_to_entry_points()
     _run("make", "-C", str(_DOCS_DIR), "html")
 
