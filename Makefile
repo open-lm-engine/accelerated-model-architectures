@@ -4,9 +4,10 @@
 
 accelerator=cuda
 port=8001
+num_accelerators ?= $(shell uv run python -c "import torch; n=torch.cuda.device_count(); print(n if n > 0 else 1)" 2>/dev/null || echo 1)
 
 test:
-	uv run --extra dev --extra $(accelerator) pytest tests
+	uv run --extra dev --extra $(accelerator) pytest -n $(num_accelerators) tests
 
 update-precommit:
 	uv run --extra dev --no-default-groups pre-commit autoupdate
