@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.layers.moe" href="xma.layers.moe.html"><link rel="prev" title="xma.functional.swiglu_packed" href="xma.functional.swiglu_packed.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.layers.gru" href="xma.layers.gru.html"><link rel="prev" title="xma.functional.swiglu_packed" href="xma.functional.swiglu_packed.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>xma.layers - XMA documentation</title>
@@ -198,12 +198,8 @@
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.cross_entropy.html">xma.functional.cross_entropy</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.fused_linear_cross_entropy.html">xma.functional.fused_linear_cross_entropy</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.fused_residual_add_rmsnorm.html">xma.functional.fused_residual_add_rmsnorm</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.gru.html">xma.functional.gru</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.linear_attention.html">xma.functional.linear_attention</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.m2rnn.html">xma.functional.m2rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.p_norm.html">xma.functional.p_norm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.rmsnorm.html">xma.functional.rmsnorm</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.functional.rnn.html">xma.functional.rnn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.sequence_packing.html">xma.functional.sequence_packing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.softmax.html">xma.functional.softmax</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.swiglu.html">xma.functional.swiglu</a></li>
@@ -211,11 +207,15 @@
 </ul>
 </li>
 <li class="toctree-l1 current has-children current-page"><a class="current reference internal" href="#">xma.layers</a><input aria-label="Toggle navigation of xma.layers" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.layers.moe.html">xma.layers.moe</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.gru.html">xma.layers.gru</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.linear_attention.html">xma.layers.linear_attention</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.m2rnn.html">xma.layers.m2rnn</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.moe.html">xma.layers.moe</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.optimizers.html">xma.optimizers</a><input aria-label="Toggle navigation of xma.optimizers" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.optimizers.sgd.html">xma.optimizers.sgd</a></li>
 </ul>
 </li>
 </ul>
@@ -223,7 +223,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
@@ -272,6 +272,33 @@
 <h1>xma.layers<a class="headerlink" href="#xma-layers" title="Link to this heading">¶</a></h1>
 <div class="toctree-wrapper compound">
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="xma.layers.gru.html">xma.layers.gru</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.gru.html#xma.layers.gru.module.GRU"><code class="docutils literal notranslate"><span class="pre">GRU</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.gru.html#xma.layers.gru.module.GRU.extra_repr"><code class="docutils literal notranslate"><span class="pre">GRU.extra_repr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.gru.html#xma.layers.gru.module.GRU.forward"><code class="docutils literal notranslate"><span class="pre">GRU.forward()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.gru.html#xma.layers.gru.module.GRU.reset_parameters"><code class="docutils literal notranslate"><span class="pre">GRU.reset_parameters()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.gru.html#xma.layers.gru.op.gru"><code class="docutils literal notranslate"><span class="pre">gru()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="xma.layers.linear_attention.html">xma.layers.linear_attention</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.linear_attention.html#xma.layers.linear_attention.module.LinearAttention"><code class="docutils literal notranslate"><span class="pre">LinearAttention</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.linear_attention.html#xma.layers.linear_attention.module.LinearAttention.forward"><code class="docutils literal notranslate"><span class="pre">LinearAttention.forward()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.linear_attention.html#xma.layers.linear_attention.op.linear_attention"><code class="docutils literal notranslate"><span class="pre">linear_attention()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="xma.layers.m2rnn.html">xma.layers.m2rnn</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.m2rnn.html#xma.layers.m2rnn.module.M2RNN"><code class="docutils literal notranslate"><span class="pre">M2RNN</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.m2rnn.html#xma.layers.m2rnn.module.M2RNN.forward"><code class="docutils literal notranslate"><span class="pre">M2RNN.forward()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.m2rnn.html#xma.layers.m2rnn.module.M2RNN.reset_parameters"><code class="docutils literal notranslate"><span class="pre">M2RNN.reset_parameters()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.m2rnn.html#xma.layers.m2rnn.op.m2rnn"><code class="docutils literal notranslate"><span class="pre">m2rnn()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="xma.layers.moe.html">xma.layers.moe</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.moe.html#xma.layers.moe.Experts"><code class="docutils literal notranslate"><span class="pre">Experts</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="xma.layers.moe.html#xma.layers.moe.Experts.down_projection_triton_forward"><code class="docutils literal notranslate"><span class="pre">Experts.down_projection_triton_forward()</span></code></a></li>
@@ -287,14 +314,16 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.rnn.html#xma.layers.rnn.module.RNN"><code class="docutils literal notranslate"><span class="pre">RNN</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.rnn.html#xma.layers.rnn.module.RNN.extra_repr"><code class="docutils literal notranslate"><span class="pre">RNN.extra_repr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.rnn.html#xma.layers.rnn.module.RNN.forward"><code class="docutils literal notranslate"><span class="pre">RNN.forward()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="xma.layers.rnn.html#xma.layers.rnn.module.RNN.reset_parameters"><code class="docutils literal notranslate"><span class="pre">RNN.reset_parameters()</span></code></a></li>
 </ul>
-</div>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="xma.layers.gru.html">xma.layers.gru</a></li>
-<li class="toctree-l1"><a class="reference internal" href="xma.layers.linear_attention.html">xma.layers.linear_attention</a></li>
-<li class="toctree-l1"><a class="reference internal" href="xma.layers.m2rnn.html">xma.layers.m2rnn</a></li>
-<li class="toctree-l1"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a></li>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="xma.layers.rnn.html#xma.layers.rnn.op.rnn"><code class="docutils literal notranslate"><span class="pre">rnn()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </div>
 <span class="target" id="module-xma.layers"></span></section>
@@ -304,12 +333,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="xma.layers.moe.html">
+          <a class="next-page" href="xma.layers.gru.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">xma.layers.moe</div>
+                <div class="title">xma.layers.gru</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
