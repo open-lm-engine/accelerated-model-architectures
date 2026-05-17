@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 import random
@@ -20,6 +20,7 @@ def skip_if_incompatible_kernel_backend(kernel_backend: KernelBackend) -> None:
 
 
 def get_1d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50) -> set[int]:
+    rng = random.Random(0)
     sizes = set()
     # powers of 2
     for i in range(log_max_power_of_2):
@@ -28,11 +29,12 @@ def get_1d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_
             sizes.add(start + j)
     # not powers of 2
     for _ in range(num_not_powers_of_2):
-        sizes.add(3000 + random.randint(-1000, 1000))
+        sizes.add(3000 + rng.randint(-1000, 1000))
     return list(sizes)
 
 
 def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50) -> set[int]:
+    rng = random.Random(0)
     sizes = set()
     # powers of 2
     for i in range(log_max_power_of_2):
@@ -41,7 +43,7 @@ def get_2d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_
             sizes.add((start + j, start + j))
     # not powers of 2
     for _ in range(num_not_powers_of_2):
-        sizes.add((3000 + random.randint(-1000, 1000), 3000 + random.randint(-1000, 1000)))
+        sizes.add((3000 + rng.randint(-1000, 1000), 3000 + rng.randint(-1000, 1000)))
     return list(sizes)
 
 

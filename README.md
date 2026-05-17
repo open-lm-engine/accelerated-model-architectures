@@ -1,5 +1,5 @@
 <!-- **************************************************
-Copyright (c) 2025, Mayank Mishra
+Copyright (c) 2026, Mayank Mishra
 ************************************************** -->
 
 # <img src="assets/xma.png" width="90px" height="30px" style="vertical-align: middle;"> (Accelerated Model Architectures)

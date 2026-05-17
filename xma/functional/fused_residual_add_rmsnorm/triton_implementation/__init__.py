@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 from .backward import _fused_residual_add_rmsnorm_backward_triton
