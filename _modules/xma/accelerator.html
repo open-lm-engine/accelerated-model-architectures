@@ -412,13 +412,12 @@
             <span class="n">xla_wait_device_ops</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="Accelerator.get_sm_count">
-<a class="viewcode-back" href="../../xma.accelerator.html#xma.accelerator.Accelerator.get_sm_count">[docs]</a>
+<div class="viewcode-block" id="Accelerator.get_core_count">
+<a class="viewcode-back" href="../../xma.accelerator.html#xma.accelerator.Accelerator.get_core_count">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_sm_count</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_core_count</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="n">accelerator</span> <span class="o">=</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">get_accelerator</span><span class="p">()</span>
 
-        <span class="c1"># TODO clean this up</span>
         <span class="k">if</span> <span class="n">accelerator</span> <span class="o">==</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
             <span class="n">sm_count</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_properties</span><span class="p">()</span><span class="o">.</span><span class="n">multi_processor_count</span>
         <span class="k">else</span><span class="p">:</span>
