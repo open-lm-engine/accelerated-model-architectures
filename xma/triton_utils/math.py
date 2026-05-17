@@ -22,7 +22,7 @@ def compute_p_norm(x, P, P_inv, is_P_inf, eps, axis):
         x = tl.abs(x)
         m = tl.max(x, axis=axis)
         x = x.to(tl.float32)
-        x /= m
+        x /= m + eps
         x += eps
         x = tl.log2(x)
         x *= P
