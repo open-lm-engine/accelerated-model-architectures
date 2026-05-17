@@ -43,7 +43,9 @@ def _p_norm_triton_kernel(
 
 
 @xma_op(mutates_args={"y"})
-def _p_norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | None, is_p_inf: bool) -> None:
+def _p_norm_triton(
+    x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p: int | None, is_p_inf: bool, eps: float
+) -> None:
     B, H = x.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
@@ -56,7 +58,7 @@ def _p_norm_triton(x: torch.Tensor, y: torch.Tensor, multiplier: float | None, p
         y_stride=y.stride(),
         multiplier=multiplier,
         H=H,
-        eps=torch.finfo(torch.float32).eps,
+        eps=eps,
         is_P_inf=is_p_inf,
         P=p,
         BLOCK_SIZE_H=BLOCK_SIZE_H,
