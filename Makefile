@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2026, Mayank Mishr
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 accelerator=cuda
