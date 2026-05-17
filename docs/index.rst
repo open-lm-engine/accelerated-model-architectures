@@ -203,6 +203,7 @@ Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested
 
    xma.functional
    xma.layers
+   xma.optimizers
 
 .. toctree::
    :maxdepth: 4

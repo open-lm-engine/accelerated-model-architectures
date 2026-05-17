@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 import torch
@@ -17,6 +17,7 @@ def p_norm(
     multiplier: float | None = None,
     p: int | str = 2,
     output_dtype: torch.dtype = torch.float32,
+    eps: float | None = None,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
@@ -48,8 +49,11 @@ def p_norm(
         B = x.size(0)
         is_p_inf = p == "inf"
 
+        if eps is None:
+            eps = torch.finfo(x.dtype).eps
+
         y = torch.empty(B, device=x.device, dtype=output_dtype)
-        _p_norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf)
+        _p_norm_triton(x=x, y=y, multiplier=multiplier, p=None if is_p_inf else p, is_p_inf=is_p_inf, eps=eps)
     elif kernel_backend == KernelBackend.torch:
         if multiplier not in [None, 1]:
             x = x * multiplier

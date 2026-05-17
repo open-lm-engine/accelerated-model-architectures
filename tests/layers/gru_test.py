@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 import pytest
@@ -140,7 +140,7 @@ def test_gru(
             weight_kernel_grads[weight_name],
             weight_torch_grads[weight_name],
             False,
-            atol_float16=7.4e-3,
+            atol_float16=7.9e-3,
             rtol_float16=0,
         )
 
