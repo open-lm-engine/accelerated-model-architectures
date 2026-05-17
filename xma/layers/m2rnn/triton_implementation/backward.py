@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2026, Mayank Mishra, Chukwusom Uzowihe
+# Copyright (c) 2026, Mayank Mishra, Chuk Uzowihe
 # **************************************************
 
 import torch
