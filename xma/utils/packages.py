@@ -1,7 +1,6 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
-
 
 try:
     import cutlass.cute

@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 """Remove 'module', 'package', 'Submodules', 'Subpackages' from sphinx-apidoc generated RST files."""
