@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 # Configuration file for the Sphinx documentation builder.
@@ -37,6 +37,7 @@ add_module_names = False
 
 # Mock modules that aren't installed during doc builds (handles all submodules automatically)
 autodoc_mock_imports = [
+    "cuda",
     "cutlass",
     "jax",
     "neuronxcc",

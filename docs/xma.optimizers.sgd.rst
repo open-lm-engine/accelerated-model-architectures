@@ -1,17 +1,17 @@
-xma.layers.rnn
-==============
+xma.optimizers.sgd
+==================
 
 
-.. automodule:: xma.layers.rnn.module
+.. automodule:: xma.optimizers.sgd.module
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: xma.layers.rnn.op
+.. automodule:: xma.optimizers.sgd.op
    :members:
    :undoc-members:
    :show-inheritance:
-.. automodule:: xma.layers.rnn
+.. automodule:: xma.optimizers.sgd
    :members:
    :show-inheritance:
    :undoc-members:
