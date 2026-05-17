@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 import torch
@@ -23,13 +23,12 @@ def _single_tensor_hyperball_state_update(
     dW: torch.Tensor,
     exp_avg: torch.Tensor,
     exp_avg_sq: torch.Tensor,
+    u_norm: torch.Tensor,
     beta1: float,
     beta2: float,
     t: int,
     eps: float,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    uW_norm = torch.zeros((2,), dtype=torch.float32, device=W.device)
-    u_norm, W_norm = uW_norm.chunk(2)
+) -> tuple[torch.Tensor, torch.Tensor]:
     u = torch.empty_like(W)
 
     _single_tensor_hyperball_state_update_triton(
@@ -51,7 +50,7 @@ def _single_tensor_hyperball_state_update(
             placements=[Partial() if placement.is_shard() else placement for placement in dW.placements],
         ).redistribute(placements=[Replicate()] * dW.device_mesh.ndim, async_op=True)
 
-    return u, u_norm, W_norm
+    return u, u_norm
 
 
 def _single_tensor_hyperball_weight_norm(
@@ -141,13 +140,23 @@ def _single_tensor_hyperball_adam(
     t1: int | None,
     eps: float | None = None,
 ) -> None:
-    u0, u_norm0, W_norm0 = _single_tensor_hyperball_state_update(
-        W=W0, dW=dW0, exp_avg=exp_avg0, exp_avg_sq=exp_avg_sq0, beta1=beta1, beta2=beta2, t=t0, eps=eps
+    u_norm0, u_norm1, W_norm0, W_norm1 = torch.zeros((4,), dtype=torch.float32, device=W0.device).chunk(4)
+
+    u0, u_norm0 = _single_tensor_hyperball_state_update(
+        W=W0, dW=dW0, exp_avg=exp_avg0, exp_avg_sq=exp_avg_sq0, u_norm=u_norm0, beta1=beta1, beta2=beta2, t=t0, eps=eps
     )
 
     if W1 is not None:
-        u1, u_norm1, W_norm1 = _single_tensor_hyperball_state_update(
-            W=W1, dW=dW1, exp_avg=exp_avg1, exp_avg_sq=exp_avg_sq1, beta1=beta1, beta2=beta2, t=t1, eps=eps
+        u1, u_norm1 = _single_tensor_hyperball_state_update(
+            W=W1,
+            dW=dW1,
+            exp_avg=exp_avg1,
+            exp_avg_sq=exp_avg_sq1,
+            u_norm=u_norm1,
+            beta1=beta1,
+            beta2=beta2,
+            t=t1,
+            eps=eps,
         )
 
     W_norm0 = _single_tensor_hyperball_weight_norm(W=W0, u=u0, u_norm=u_norm0, W_norm=W_norm0, lr=lr, R=R0, eps=eps)
@@ -163,6 +172,7 @@ def _single_tensor_hyperball_adam(
         _single_tensor_hyperball_weight_update(W=W1, u=u1, u_norm=u_norm1, W_norm=W_norm1, lr=lr, R=R1, eps=eps)
 
 
+@torch.no_grad()
 def hyperball_adam(
     params: list[torch.Tensor],
     grads: list[torch.Tensor],
