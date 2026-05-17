@@ -6,6 +6,7 @@ xma
 
    xma.functional
    xma.layers
+   xma.optimizers
    xma.xtuner
 
 .. toctree::

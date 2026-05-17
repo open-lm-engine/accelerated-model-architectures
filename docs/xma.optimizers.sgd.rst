@@ -1,0 +1,13 @@
+xma.optimizers.sgd
+==================
+
+.. toctree::
+   :maxdepth: 4
+
+   xma.optimizers.sgd.module
+   xma.optimizers.sgd.op
+
+.. automodule:: xma.optimizers.sgd
+   :members:
+   :show-inheritance:
+   :undoc-members:
