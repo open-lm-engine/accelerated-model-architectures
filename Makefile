@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 accelerator=cuda
@@ -14,7 +14,7 @@ update-precommit:
 
 style:
 	uv run python tools/populate_readme.py
-	uv run python copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) 2025, Mayank Mishra"
+	uv run python copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) $$(date +%Y), __authors__"
 	uv run --extra dev --no-default-groups pre-commit run --all-files
 
 website:

@@ -1,3 +1,7 @@
+<!-- **************************************************
+Copyright (c) 2026, Mayank Mishra
+************************************************** -->
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
