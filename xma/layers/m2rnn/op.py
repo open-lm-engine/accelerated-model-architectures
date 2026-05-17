@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2026, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra, Chukwusom Uzowihe
 # **************************************************
 
 from functools import partial
@@ -222,6 +222,7 @@ class _M2RNN(CustomOp):
             xf=xf,
             h0=h0,
             dy=dy,
+            dht=dht,
             h=h,
             dq=dq,
             dk=dk,
