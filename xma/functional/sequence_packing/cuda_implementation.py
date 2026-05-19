@@ -108,4 +108,4 @@ def _pack_unpack_sequence_cuda(
         function = cute.compile(function, _x, _y, cu_seqlens, stream, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
-    function(x, y, stream)
+    function(x, y, cu_seqlens, stream)
