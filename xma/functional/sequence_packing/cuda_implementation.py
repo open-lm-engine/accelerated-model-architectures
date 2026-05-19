@@ -62,7 +62,7 @@ class _PackUnpackSequenceCUDAKernel:
 
         mC = cute.make_identity_tensor(mX.shape)
 
-        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX.element_type)
+        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mX.element_type)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
 
         B = cute.size(mX, mode=[0])
