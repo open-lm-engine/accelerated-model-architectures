@@ -16,15 +16,17 @@ from ...cute_dsl_utils import get_fake_cute_tensor
 
 
 class _PackUnpackSequenceCUDAKernel:
-    def __init__(self, BLOCK_SIZE: int) -> _PackUnpackSequenceCUDAKernel:
+    def __init__(self, N: int, padding_side: str, BLOCK_SIZE: int) -> _PackUnpackSequenceCUDAKernel:
+        self.N = N
+        self.padding_side = padding_side
         self.BLOCK_SIZE = BLOCK_SIZE
 
     @cute.kernel
     def kernel(
         self,
-        mX: cute.Tensor,
-        mY: cute.Tensor,
-        mC: cute.Tensor,
+        gX: cute.Tensor,
+        gY: cute.Tensor,
+        gC: cute.Tensor,
         copy_atom: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
@@ -38,7 +40,6 @@ class _PackUnpackSequenceCUDAKernel:
 
         thr_layout = cute.make_ordered_layout((1, self.BLOCK_SIZE), order=(1, 0))
         val_layout = cute.make_ordered_layout((self.B, vector_size), order=(1, 0))
-        tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
         mC = cute.make_identity_tensor(mX.shape)
 
@@ -72,7 +73,7 @@ def _pack_unpack_sequence_cuda(
     N = x.size(-1)
     x_div = math.gcd(16 // x.dtype.itemsize, N)
 
-    key = (x.dtype, N)
+    key = (x.dtype, N, pack, padding_side, BLOCK_SIZE)
     function = _CACHE.get(key, None)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
@@ -84,7 +85,7 @@ def _pack_unpack_sequence_cuda(
         if not pack:
             _x, _y = _y, _x
 
-        function = _PackUnpackSequenceCUDAKernel(N=N, BLOCK_SIZE=BLOCK_SIZE)
+        function = _PackUnpackSequenceCUDAKernel(N=N, padding_side=padding_side, BLOCK_SIZE=BLOCK_SIZE)
 
         function = cute.compile(function, _x, _y, stream, options="--enable-tvm-ffi")
         _CACHE[key] = function
