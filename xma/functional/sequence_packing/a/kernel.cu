@@ -44,7 +44,7 @@ inline __device__ void _copy_array(const scalar_t *source,
 
 template <typename scalar_t, typename integer_t, PaddingSide padding_side, bool is_packing>
 __global__ void pack_unpack_sequence_cuda_kernel(
-    const scalar_t *x, scalar_t *output, const integer_t *cu_seqlens, const uint32 S, const uint32 N) {
+    const scalar_t *x, scalar_t *y, const integer_t *cu_seqlens, const uint32 S, const uint32 N) {
     const uint32 s = blockIdx.x;
     const uint32 b = blockIdx.y;
 
@@ -55,23 +55,23 @@ __global__ void pack_unpack_sequence_cuda_kernel(
     if (padding_side == PaddingSide::left) {
         const uint32 pad_tokens = S - seqlens;
         if (s >= pad_tokens) {
-            _copy_array<scalar_t, is_packing>(x, output, b, s, start + s - pad_tokens, S, N);
+            _copy_array<scalar_t, is_packing>(x, y, b, s, start + s - pad_tokens, S, N);
         }
     } else {
         if (s < seqlens) {
-            _copy_array<scalar_t, is_packing>(x, output, b, s, start + s, S, N);
+            _copy_array<scalar_t, is_packing>(x, y, b, s, start + s, S, N);
         }
     }
 }
 
 void _pack_unpack_sequence_cuda(const torch::Tensor &x,
-                                torch::Tensor &output,
+                                torch::Tensor &y,
                                 const torch::Tensor &cu_seqlens,
                                 const std::string &padding_side,
                                 const bool &pack,
                                 const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
-    CHECK_CUDA_TENSOR(output);
+    CHECK_CUDA_TENSOR(y);
     CHECK_CUDA_TENSOR(cu_seqlens);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
@@ -84,9 +84,9 @@ void _pack_unpack_sequence_cuda(const torch::Tensor &x,
         S = x.size(1);
         N = x.numel() / (B * S);
     } else {
-        B = output.size(0);
-        S = output.size(1);
-        N = output.numel() / (B * S);
+        B = y.size(0);
+        S = y.size(1);
+        N = y.numel() / (B * S);
     }
 
     const dim3 NUM_BLOCKS = dim3(S, B);
@@ -103,14 +103,14 @@ void _pack_unpack_sequence_cuda(const torch::Tensor &x,
                         if (padding_side == "left") {
                             pack_unpack_sequence_cuda_kernel<scalar_t, integer_t, PaddingSide::left, true>
                                 <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                                 output.data_ptr<scalar_t>(),
+                                                                                 y.data_ptr<scalar_t>(),
                                                                                  cu_seqlens.data_ptr<integer_t>(),
                                                                                  S,
                                                                                  N);
                         } else {
                             pack_unpack_sequence_cuda_kernel<scalar_t, integer_t, PaddingSide::right, true>
                                 <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                                 output.data_ptr<scalar_t>(),
+                                                                                 y.data_ptr<scalar_t>(),
                                                                                  cu_seqlens.data_ptr<integer_t>(),
                                                                                  S,
                                                                                  N);
@@ -119,14 +119,14 @@ void _pack_unpack_sequence_cuda(const torch::Tensor &x,
                         if (padding_side == "left") {
                             pack_unpack_sequence_cuda_kernel<scalar_t, integer_t, PaddingSide::left, false>
                                 <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                                 output.data_ptr<scalar_t>(),
+                                                                                 y.data_ptr<scalar_t>(),
                                                                                  cu_seqlens.data_ptr<integer_t>(),
                                                                                  S,
                                                                                  N);
                         } else {
                             pack_unpack_sequence_cuda_kernel<scalar_t, integer_t, PaddingSide::right, false>
                                 <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                                 output.data_ptr<scalar_t>(),
+                                                                                 y.data_ptr<scalar_t>(),
                                                                                  cu_seqlens.data_ptr<integer_t>(),
                                                                                  S,
                                                                                  N);

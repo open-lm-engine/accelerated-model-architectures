@@ -12,7 +12,7 @@ from ....jit import cpp_jit
 @cpp_jit(is_cuda=True)
 def _pack_unpack_sequence_cuda(
     x: torch.Tensor,
-    output: torch.Tensor,
+    y: torch.Tensor,
     cu_seqlens: torch.Tensor,
     padding_side: str,
     pack: bool,
