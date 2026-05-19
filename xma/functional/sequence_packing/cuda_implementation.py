@@ -75,12 +75,6 @@ class _PackUnpackSequenceCUDAKernel:
         kernel.launch(grid=(S, B, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
 
-def _get_tensor_parameters(x: torch.Tensor) -> tuple[int, int, int]:
-    B, S = x.size()[:2]
-    N = x.numel() // (B * S)
-    return B, S, N
-
-
 _CACHE = {}
 
 
@@ -88,8 +82,14 @@ _CACHE = {}
 def _pack_unpack_sequence_cuda(
     x: torch.Tensor, y: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool, BLOCK_SIZE: int
 ) -> None:
-    N = x.size(-1)
-    x_div = math.gcd(16 // x.dtype.itemsize, N)
+    if pack:
+        x = x.flatten(2, -1)
+        y = y.flatten(1, -1)
+        B, _, N = x.size()
+    else:
+        x = x.flatten(1, -1)
+        y = y.flatten(2, -1)
+        B, _, N = y.size()
 
     key = (x.dtype, N, pack, padding_side, BLOCK_SIZE)
     function = _CACHE.get(key, None)
@@ -97,15 +97,27 @@ def _pack_unpack_sequence_cuda(
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
     if function is None:
-        _x = get_fake_cute_tensor(dtype=x.dtype, shape=(cute.sym_int(), cute.sym_int(), N), divisibility=x_div)
-        _y = get_fake_cute_tensor(dtype=x.dtype, shape=(cute.sym_int(), N), divisibility=x_div)
+        x_div = math.gcd(16 // x.dtype.itemsize, N)
+        cu_seqlens_div = math.gcd(16 // cu_seqlens.dtype.itemsize, B + 1)
+
+        x_shape = [cute.sym_int(), cute.sym_int(), N]
+        y_shape = [cute.sym_int(), N]
+
+        if not pack:
+            x_shape, y_shape = y_shape, x_shape
+
+        _x = get_fake_cute_tensor(dtype=x.dtype, shape=x_shape, divisibility=x_div)
+        _y = get_fake_cute_tensor(dtype=x.dtype, shape=y_shape, divisibility=x_div)
+        _cu_seqlens = get_fake_cute_tensor(
+            dtype=cu_seqlens.dtype, shape=(cute.sym_int(),), divisibility=cu_seqlens_div
+        )
 
         if not pack:
             _x, _y = _y, _x
 
         function = _PackUnpackSequenceCUDAKernel(N=N, padding_side=padding_side, pack=pack, BLOCK_SIZE=BLOCK_SIZE)
 
-        function = cute.compile(function, _x, _y, cu_seqlens, stream, options="--enable-tvm-ffi")
+        function = cute.compile(function, _x, _y, _cu_seqlens, stream, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
     function(x, y, cu_seqlens, stream)
