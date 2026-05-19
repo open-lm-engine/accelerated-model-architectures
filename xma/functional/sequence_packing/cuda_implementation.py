@@ -54,7 +54,7 @@ class _PackUnpackSequenceCUDAKernel:
             ...
 
     @cute.jit
-    def __call__(self, mX: cute.Tensor, mY: cute.Tensor, stream: cuda.CUstream) -> None:
+    def __call__(self, mX: cute.Tensor, mY: cute.Tensor, mCu_seqlens: cute.Tensor, stream: cuda.CUstream) -> None:
         vector_size = 128 // mX.element_type.width
 
         thr_layout = cute.make_ordered_layout((1, self.BLOCK_SIZE), order=(1, 0))
@@ -68,7 +68,10 @@ class _PackUnpackSequenceCUDAKernel:
         B = cute.size(mX, mode=[0])
         S = cute.size(mX, mode=[1])
 
-        kernel = self.kernel(gX=mX, gY=mY, gC=mC, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mX.shape)
+        kernel = self.kernel(
+            gX=mX, gY=mY, gC=mC, gCu_seqlens=mCu_seqlens, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mX.shape
+        )
+
         kernel.launch(grid=(S, B, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
 
