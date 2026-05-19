@@ -10,7 +10,7 @@ import cuda.bindings.driver as cuda
 import torch
 
 import cutlass.cute as cute
-from cutlass import const_expr
+from cutlass import const_expr, range_constexpr
 
 from ...custom_op import xma_op
 from ...cute_dsl_utils import get_fake_cute_tensor
@@ -41,15 +41,15 @@ class _PackUnpackSequenceCUDAKernel:
 
         for i in range(THREAD_ID, N_vec, self.BLOCK_SIZE):
             if self.pack:
-                src = cute.local_tile(gX[BLOCK_ID_B, BLOCK_ID_S], (vector_size,), (i * vector_size,))
-                dst = cute.local_tile(gY[t], (vector_size,), (i * vector_size,))
+                src = cute.local_tile(gX[BLOCK_ID_B, BLOCK_ID_S, None], (vector_size,), (i * vector_size,))
+                dst = cute.local_tile(gY[t, None], (vector_size,), (i * vector_size,))
             else:
-                src = cute.local_tile(gX[t], (vector_size,), (i * vector_size,))
-                dst = cute.local_tile(gY[BLOCK_ID_B, BLOCK_ID_S], (vector_size,), (i * vector_size,))
+                src = cute.local_tile(gX[t, None], (vector_size,), (i * vector_size,))
+                dst = cute.local_tile(gY[BLOCK_ID_B, BLOCK_ID_S, None], (vector_size,), (i * vector_size,))
 
-            rX = cute.make_rmem_tensor_like(src)
-            cute.copy(copy_atom, src, rX)
-            cute.copy(copy_atom, rX, dst)
+            # rX = cute.make_rmem_tensor_like(src)
+            # cute.copy(copy_atom, src, rX)
+            # cute.copy(copy_atom, rX, dst)
 
     @cute.kernel
     def kernel(
