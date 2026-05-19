@@ -16,5 +16,4 @@ def _pack_unpack_sequence_cuda(
     cu_seqlens: torch.Tensor,
     padding_side: str,
     pack: bool,
-    BLOCK_SIZE: int,
 ) -> None: ...

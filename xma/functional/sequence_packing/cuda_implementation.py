@@ -4,12 +4,15 @@
 
 from __future__ import annotations
 
+import math
+
 import cuda.bindings.driver as cuda
 import torch
 
 import cutlass.cute as cute
 
 from ...custom_op import xma_op
+from ...cute_dsl_utils import get_fake_cute_tensor
 
 
 class _PackUnpackSequenceCUDAKernel:
@@ -53,7 +56,37 @@ class _PackUnpackSequenceCUDAKernel:
         kernel.launch(grid=(S, B, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
 
+def _get_tensor_parameters(x: torch.Tensor) -> tuple[int, int, int]:
+    B, S = x.size()[:2]
+    N = x.numel() // (B * S)
+    return B, S, N
+
+
+_CACHE = {}
+
+
 @xma_op(mutates_args={"y"})
 def _pack_unpack_sequence_cuda(
-    x: torch.Tensor, y: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
-) -> None: ...
+    x: torch.Tensor, y: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool, BLOCK_SIZE: int
+) -> None:
+    N = x.size(-1)
+    x_div = math.gcd(16 // x.dtype.itemsize, N)
+
+    key = (x.dtype, N)
+    function = _CACHE.get(key, None)
+
+    stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
+
+    if function is None:
+        _x = get_fake_cute_tensor(dtype=x.dtype, shape=(cute.sym_int(), cute.sym_int(), N), divisibility=x_div)
+        _y = get_fake_cute_tensor(dtype=x.dtype, shape=(cute.sym_int(), N), divisibility=x_div)
+
+        if not pack:
+            _x, _y = _y, _x
+
+        function = _PackUnpackSequenceCUDAKernel(N=N, BLOCK_SIZE=BLOCK_SIZE)
+
+        function = cute.compile(function, _x, _y, stream, options="--enable-tvm-ffi")
+        _CACHE[key] = function
+
+    function(x, y, stream)
