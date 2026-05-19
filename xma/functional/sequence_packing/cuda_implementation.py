@@ -23,7 +23,32 @@ class _PackUnpackSequenceCUDAKernel:
         self.pack = pack
         self.BLOCK_SIZE = BLOCK_SIZE
 
-    def _copy_array(self, copy_atom: cute.CopyAtom, tiled_copy: cute.TiledCopy) -> None: ...
+    def _copy_array(
+        self,
+        gX: cute.Tensor,
+        gY: cute.Tensor,
+        gC: cute.Tensor,
+        copy_atom: cute.CopyAtom,
+        tiled_copy: cute.TiledCopy,
+        S: int,
+        N: int,
+        BLOCK_ID_B: int,
+        BLOCK_ID_S: int,
+        t: int,
+    ) -> None:
+        vector_size = 128 // gX.element_type.width
+        N_vec = N // vector_size
+
+        unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N_vec
+        packed_offset = t * N_vec
+
+        THREAD_ID = cute.arch.thread_idx()[0]
+
+        for i in range(THREAD_ID, N_vec, self.BLOCK_SIZE):
+            if self.pack:
+                ...
+            else:
+                ...
 
     @cute.kernel
     def kernel(
@@ -37,7 +62,6 @@ class _PackUnpackSequenceCUDAKernel:
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID_S, BLOCK_ID_B, _ = cute.arch.block_idx()
-        THREAD_ID, _, _ = cute.arch.thread_idx()
 
         start = gCu_seqlens[BLOCK_ID_B]
         end = gCu_seqlens[BLOCK_ID_B + 1]
@@ -49,9 +73,29 @@ class _PackUnpackSequenceCUDAKernel:
             pad_tokens = S - seqlens
 
             if BLOCK_ID_S >= pad_tokens:
-                ...
+                self._copy_array(
+                    gX=gX,
+                    gY=gY,
+                    gC=gC,
+                    copy_atom=copy_atom,
+                    tiled_copy=tiled_copy,
+                    S=S,
+                    BLOCK_ID_B=BLOCK_ID_B,
+                    BLOCK_ID_S=BLOCK_ID_S,
+                    t=start + BLOCK_ID_S - pad_tokens,
+                )
         elif BLOCK_ID_S < seqlens:
-            ...
+            self._copy_array(
+                gX=gX,
+                gY=gY,
+                gC=gC,
+                copy_atom=copy_atom,
+                tiled_copy=tiled_copy,
+                S=S,
+                BLOCK_ID_B=BLOCK_ID_B,
+                BLOCK_ID_S=BLOCK_ID_S,
+                t=start + BLOCK_ID_S,
+            )
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, mCu_seqlens: cute.Tensor, stream: cuda.CUstream) -> None:
