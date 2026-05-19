@@ -40,7 +40,7 @@ class _PackUnpackSequenceCUDAKernel:
         THREAD_ID = cute.arch.thread_idx()[0]
 
         for i in range(THREAD_ID, N_vec, self.BLOCK_SIZE):
-            if self.pack:
+            if const_expr(self.pack):
                 src = cute.local_tile(gX[BLOCK_ID_B, BLOCK_ID_S, None], (vector_size,), (i * vector_size,))
                 dst = cute.local_tile(gY[t, None], (vector_size,), (i * vector_size,))
             else:
