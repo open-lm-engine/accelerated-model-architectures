@@ -56,16 +56,16 @@ def _pack_unpack_sequence_triton_kernel(
             BLOCK += BLOCK_SIZE
 
 
-@xma_op(mutates_args={"output"})
+@xma_op(mutates_args={"y"})
 def _pack_unpack_sequence_triton(
-    x: torch.Tensor, output: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
+    x: torch.Tensor, y: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
 ) -> None:
     if pack:
         B, S = x.size()[:2]
         N = x.numel() // (B * S)
     else:
-        B, S = output.size()[:2]
-        N = output.numel() // (B * S)
+        B, S = y.size()[:2]
+        N = y.numel() // (B * S)
 
     BLOCK_SIZE = 4096
     NUM_WARPS = 32
@@ -73,8 +73,8 @@ def _pack_unpack_sequence_triton(
     _pack_unpack_sequence_triton_kernel[S, B](
         x_ptr=x,
         x_stride=x.stride(),
-        y_ptr=output,
-        y_stride=output.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=cu_seqlens.stride(),
         S=S,
