@@ -23,24 +23,19 @@ class _PackUnpackSequenceCUDAKernel:
         self.pack = pack
         self.BLOCK_SIZE = BLOCK_SIZE
 
+    @cute.jit
     def _copy_array(
         self,
         gX: cute.Tensor,
         gY: cute.Tensor,
-        gC: cute.Tensor,
         copy_atom: cute.CopyAtom,
-        tiled_copy: cute.TiledCopy,
         S: int,
-        N: int,
         BLOCK_ID_B: int,
         BLOCK_ID_S: int,
         t: int,
     ) -> None:
-        vector_size = 128 // gX.element_type.width
-        N_vec = N // vector_size
-
-        unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N_vec
-        packed_offset = t * N_vec
+        vector_size = const_expr(128 // gX.element_type.width)
+        N_vec = self.N // vector_size
 
         THREAD_ID = cute.arch.thread_idx()[0]
 
@@ -82,9 +77,8 @@ class _PackUnpackSequenceCUDAKernel:
                 self._copy_array(
                     gX=gX,
                     gY=gY,
-                    gC=gC,
+                    # gC=gC,
                     copy_atom=copy_atom,
-                    tiled_copy=tiled_copy,
                     S=S,
                     BLOCK_ID_B=BLOCK_ID_B,
                     BLOCK_ID_S=BLOCK_ID_S,
@@ -94,9 +88,8 @@ class _PackUnpackSequenceCUDAKernel:
             self._copy_array(
                 gX=gX,
                 gY=gY,
-                gC=gC,
+                # gC=gC,
                 copy_atom=copy_atom,
-                tiled_copy=tiled_copy,
                 S=S,
                 BLOCK_ID_B=BLOCK_ID_B,
                 BLOCK_ID_S=BLOCK_ID_S,
