@@ -47,9 +47,9 @@ class _PackUnpackSequenceCUDAKernel:
                 src = cute.local_tile(gX[t, None], (vector_size,), (i * vector_size,))
                 dst = cute.local_tile(gY[BLOCK_ID_B, BLOCK_ID_S, None], (vector_size,), (i * vector_size,))
 
-            # rX = cute.make_rmem_tensor_like(src)
-            # cute.copy(copy_atom, src, rX)
-            # cute.copy(copy_atom, rX, dst)
+            rX = cute.make_rmem_tensor_like(src)
+            cute.copy(copy_atom, src, rX)
+            cute.copy(copy_atom, rX, dst)
 
     @cute.kernel
     def kernel(
