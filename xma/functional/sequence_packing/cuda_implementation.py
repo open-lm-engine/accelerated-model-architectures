@@ -100,14 +100,8 @@ def _pack_unpack_sequence_cuda(
         x_div = math.gcd(16 // x.dtype.itemsize, N)
         cu_seqlens_div = math.gcd(16 // cu_seqlens.dtype.itemsize, B + 1)
 
-        x_shape = [cute.sym_int(), cute.sym_int(), N]
-        y_shape = [cute.sym_int(), N]
-
-        if not pack:
-            x_shape, y_shape = y_shape, x_shape
-
-        _x = get_fake_cute_tensor(dtype=x.dtype, shape=x_shape, divisibility=x_div)
-        _y = get_fake_cute_tensor(dtype=x.dtype, shape=y_shape, divisibility=x_div)
+        _x = get_fake_cute_tensor(dtype=x.dtype, shape=(cute.sym_int(), cute.sym_int(), N), divisibility=x_div)
+        _y = get_fake_cute_tensor(dtype=x.dtype, shape=(cute.sym_int(), N), divisibility=x_div)
         _cu_seqlens = get_fake_cute_tensor(
             dtype=cu_seqlens.dtype, shape=(cute.sym_int(),), divisibility=cu_seqlens_div
         )
