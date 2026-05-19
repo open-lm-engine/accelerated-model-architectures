@@ -10,15 +10,17 @@ import cuda.bindings.driver as cuda
 import torch
 
 import cutlass.cute as cute
+from cutlass import const_expr
 
 from ...custom_op import xma_op
 from ...cute_dsl_utils import get_fake_cute_tensor
 
 
 class _PackUnpackSequenceCUDAKernel:
-    def __init__(self, N: int, padding_side: str, BLOCK_SIZE: int) -> _PackUnpackSequenceCUDAKernel:
+    def __init__(self, N: int, padding_side: str, pack: bool, BLOCK_SIZE: int) -> _PackUnpackSequenceCUDAKernel:
         self.N = N
         self.padding_side = padding_side
+        self.pack = pack
         self.BLOCK_SIZE = BLOCK_SIZE
 
     @cute.kernel
@@ -27,12 +29,27 @@ class _PackUnpackSequenceCUDAKernel:
         gX: cute.Tensor,
         gY: cute.Tensor,
         gC: cute.Tensor,
+        gCu_seqlens: cute.Tensor,
         copy_atom: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID_S, BLOCK_ID_B, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
+
+        start = gCu_seqlens[BLOCK_ID_B]
+        end = gCu_seqlens[BLOCK_ID_B + 1]
+        seqlens = end - start
+
+        S = cute.size(gX if const_expr(self.pack) else gY, mode=[1])
+
+        if const_expr(self.padding_side == "left"):
+            pad_tokens = S - seqlens
+
+            if BLOCK_ID_S >= pad_tokens:
+                ...
+        elif BLOCK_ID_S < seqlens:
+            ...
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, stream: cuda.CUstream) -> None:
