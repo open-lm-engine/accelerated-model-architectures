@@ -105,7 +105,7 @@ def _pack_unpack_sequence_cuda(
 
         function = _PackUnpackSequenceCUDAKernel(N=N, padding_side=padding_side, pack=pack, BLOCK_SIZE=BLOCK_SIZE)
 
-        function = cute.compile(function, _x, _y, stream, options="--enable-tvm-ffi")
+        function = cute.compile(function, _x, _y, cu_seqlens, stream, options="--enable-tvm-ffi")
         _CACHE[key] = function
 
     function(x, y, stream)
