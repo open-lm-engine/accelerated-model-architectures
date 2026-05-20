@@ -9,19 +9,16 @@ import torch
 
 from xma import KernelBackend, pack_sequence, unpack_sequence
 
-from ..utils import (
-    assert_equal_tensors,
-    get_2d_tensor_sizes,
-    get_random_duplicated_tensors,
-    skip_if_incompatible_kernel_backend,
-)
+from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
 
 
 def _get_problem_shapes(packed: bool) -> list[tuple[int]]:
-    if packed:
-        sizes = [(621, i, j) for i, j in get_2d_tensor_sizes()]
-    else:
-        sizes = [(7, 1000, i, j) for i, j in get_2d_tensor_sizes()]
+    sizes = []
+    for i, j in [(14, 16), (12, 14), (12, 21), (9, 7), (1, 1), (11, 11), (19, 19)]:
+        if packed:
+            sizes.append((621, i, j))
+        else:
+            sizes.append((7, 1000, i, j))
 
     return sizes
 
