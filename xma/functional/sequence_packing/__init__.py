@@ -173,7 +173,7 @@ class _UnpackSequence(CustomOp):
                 BLOCK_SIZE=1024,
             )
         elif kernel_backend == KernelBackend.triton:
-            _pack_unpack_sequence_triton(x=dy, output=dx, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
+            _pack_unpack_sequence_triton(x=dy, y=dx, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
         else:
             raise ValueError(f"unexpected padding_side ({padding_side})")
 
