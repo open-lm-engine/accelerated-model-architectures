@@ -2,11 +2,13 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from functools import partial
+
 import torch
 import torch.nn.functional as F
 from tabulate import tabulate
 
-from xma import Accelerator, pack_sequence
+from xma import Accelerator, KernelBackend, pack_sequence
 
 
 n = 100
@@ -22,14 +24,19 @@ attention_mask = [
 attention_mask = torch.stack(attention_mask, dim=0).to(torch.cuda.current_device()).to(torch.bool)
 
 
-def _hf_compatible_pack(x, attention_mask: torch.Tensor):
-    seqlens: torch.Tensor = attention_mask.sum(dim=-1, dtype=torch.int32)
-    cu_seqlens = F.pad(torch.cumsum(seqlens, dim=0, dtype=torch.int32), (1, 0))
-    return pack_sequence([x], cu_seqlens=cu_seqlens, total_tokens=T)[0]
+seqlens: torch.Tensor = attention_mask.sum(dim=-1, dtype=torch.int32)
+cu_seqlens = F.pad(torch.cumsum(seqlens, dim=0, dtype=torch.int32), (1, 0))
+
+
+def _hf_compatible_pack(x, kernel_backend: KernelBackend):
+    return pack_sequence([x], cu_seqlens=cu_seqlens, total_tokens=T, kernel_backend=kernel_backend)[0]
 
 
 headers = ["dtype", "pack_sequence (GB/s)"]
-kernels = [_hf_compatible_pack]
+kernels = [
+    partial(_hf_compatible_pack, kernel_backend=KernelBackend.cuda),
+    partial(_hf_compatible_pack, kernel_backend=KernelBackend.triton),
+]
 
 table = []
 
@@ -41,14 +48,14 @@ for dtype in [torch.float32, torch.float16, torch.bfloat16]:
     row = [str(dtype)]
     for kernel in kernels:
         for _ in range(n):
-            z = kernel(x, attention_mask)
+            z = kernel(x)
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
 
         s.record()
         for _ in range(n):
-            z = kernel(x, attention_mask)
+            z = kernel(x)
         e.record()
 
         Accelerator.synchronize()
