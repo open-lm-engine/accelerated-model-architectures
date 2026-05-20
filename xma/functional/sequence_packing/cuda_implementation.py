@@ -34,12 +34,9 @@ class _PackUnpackSequenceCUDAKernel:
         shape: cute.Shape,
     ) -> None:
         vector_size = const_expr(128 // bXgX.element_type.width)
-        N_vec = self.N // vector_size
-
         THREAD_ID = cute.arch.thread_idx()[0]
-        start = THREAD_ID * vector_size
 
-        while start < self.N:
+        for start in range(THREAD_ID, self.N, self.BLOCK_SIZE):
             tXgX = cute.local_tile(bXgX, (vector_size,), (start,))
             tXgY = cute.local_tile(bXgY, (vector_size,), (start,))
             tXgC = cute.local_tile(bXgC, (vector_size,), (start,))
@@ -57,19 +54,6 @@ class _PackUnpackSequenceCUDAKernel:
             else:
                 cute.copy(copy_atom, tXgX, rX, pred=rC)
                 cute.copy(copy_atom, rX, tXgY, pred=rC)
-
-            # tXrX = cute.make_rmem_tensor_like(src)
-            # cute.copy(copy_atom, src, tXrX)
-            # cute.copy(copy_atom, tXrX, dst)
-
-            start += vector_size
-
-        # src = cute.local_tile(tXgX, (vector_size,), (self.N * vector_size,))
-        # dst = cute.local_tile(tXgY, (vector_size,), (self.N * vector_size,))
-
-        # tXrX = cute.make_rmem_tensor_like(src)
-        # cute.copy(copy_atom, src, tXrX)
-        # cute.copy(copy_atom, tXrX, dst)
 
     @cute.kernel
     def kernel(
