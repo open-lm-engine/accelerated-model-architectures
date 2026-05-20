@@ -13,7 +13,8 @@ n = 100
 B = 7
 S = 4096
 T = 691
-x = torch.randn(B, S, 32, 128, device=torch.cuda.current_device(), dtype=torch.float32)
+INNER = (32, 128)
+
 cu_seqlens = torch.tensor([0, 70, 170, 295, 393, 412, 515, T], device=torch.cuda.current_device(), dtype=torch.uint32)
 attention_mask = [
     torch.cat([torch.zeros(S - i), torch.ones(i)], dim=-1) for i in cu_seqlens[1:].int() - cu_seqlens[:-1].int()
@@ -27,29 +28,33 @@ def _hf_compatible_pack(x, attention_mask: torch.Tensor):
     return pack_sequence([x], cu_seqlens=cu_seqlens, total_tokens=T)[0]
 
 
-headers = ["dtype", "pack_sequence"]
+headers = ["dtype", "pack_sequence (GB/s)"]
 kernels = [_hf_compatible_pack]
-
 
 table = []
 
-for dtype in [torch.float32]:
+for dtype in [torch.float32, torch.float16, torch.bfloat16]:
+    x = torch.randn(B, S, *INNER, device=torch.cuda.current_device(), dtype=dtype)
+    # read T tokens + write T tokens
+    bytes_moved = 2 * T * x[0, 0].numel() * x.element_size()
+
     row = [str(dtype)]
     for kernel in kernels:
-        for i in range(n):
+        for _ in range(n):
             z = kernel(x, attention_mask)
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
 
         s.record()
-        for i in range(n):
+        for _ in range(n):
             z = kernel(x, attention_mask)
         e.record()
 
         Accelerator.synchronize()
 
-        row.append(s.elapsed_time(e) / n)
+        time_ms = s.elapsed_time(e) / n
+        row.append(f"{bytes_moved / (time_ms * 1e-3) / 1e9:.2f}")
     table.append(row)
 
 
