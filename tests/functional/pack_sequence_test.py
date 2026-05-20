@@ -26,16 +26,7 @@ def _get_problem_shapes(packed: bool) -> list[tuple[int]]:
     return sizes
 
 
-@pytest.mark.parametrize(
-    "size",
-    [
-        (7, 1000, 12, 14),
-        (
-            7,
-            1000,
-        ),
-    ],
-)
+@pytest.mark.parametrize("size", _get_problem_shapes(False))
 @pytest.mark.parametrize("cu_seqlens", [[0, 70, 170, 295, 393, 412, 515, 691]])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("padding_side", ["left", "right"])
@@ -79,7 +70,7 @@ def test_pack_sequence(
     assert_equal_tensors(x_kernel.grad, x_expected.grad, True)
 
 
-@pytest.mark.parametrize("size", [(691, 12, 14)])
+@pytest.mark.parametrize("size", _get_problem_shapes(True))
 @pytest.mark.parametrize("cu_seqlens", [[0, 70, 170, 295, 393, 412, 515, 691]])
 @pytest.mark.parametrize("sequence_length", [1000])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
