@@ -3,6 +3,7 @@
 # **************************************************
 
 import torch
+import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
@@ -316,8 +317,8 @@ def gru(
     if input_state is not None:
         assert input_state.size() == (B, N, H)
 
-    if gradient_clipping is not None and gradient_clipping < 0:
-        gradient_clipping = -gradient_clipping
+    if gradient_clipping is not None:
+        assert gradient_clipping > 0
 
     input, input_state = _GRU.run(
         x=input,

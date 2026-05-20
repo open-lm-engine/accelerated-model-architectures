@@ -5,6 +5,7 @@
 from functools import partial
 
 import torch
+import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
@@ -320,8 +321,8 @@ def m2rnn(
     if input_state is not None:
         assert input_state.size() == (B, N, K, V)
 
-    if gradient_clipping is not None and gradient_clipping < 0:
-        gradient_clipping = -gradient_clipping
+    if gradient_clipping is not None:
+        assert gradient_clipping > 0
 
     output, input_state = _M2RNN.run(
         q=query,
