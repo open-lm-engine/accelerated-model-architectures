@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import math
+from functools import partial
 
 import cuda.bindings.driver as cuda
 import torch
@@ -70,31 +71,17 @@ class _PackUnpackSequenceCUDAKernel:
 
         S = cute.size(gX if const_expr(self.pack) else gY, mode=[1])
 
+        function = partial(
+            self._copy_array, gX=gX, gY=gY, copy_atom=copy_atom, S=S, BLOCK_ID_B=BLOCK_ID_B, BLOCK_ID_S=BLOCK_ID_S
+        )
+
         if const_expr(self.padding_side == "left"):
             pad_tokens = S - seqlens
 
             if BLOCK_ID_S >= pad_tokens:
-                self._copy_array(
-                    gX=gX,
-                    gY=gY,
-                    # gC=gC,
-                    copy_atom=copy_atom,
-                    S=S,
-                    BLOCK_ID_B=BLOCK_ID_B,
-                    BLOCK_ID_S=BLOCK_ID_S,
-                    t=start + BLOCK_ID_S - pad_tokens,
-                )
+                function(t=start + BLOCK_ID_S - pad_tokens)
         elif BLOCK_ID_S < seqlens:
-            self._copy_array(
-                gX=gX,
-                gY=gY,
-                # gC=gC,
-                copy_atom=copy_atom,
-                S=S,
-                BLOCK_ID_B=BLOCK_ID_B,
-                BLOCK_ID_S=BLOCK_ID_S,
-                t=start + BLOCK_ID_S,
-            )
+            function(t=start + BLOCK_ID_S)
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, mCu_seqlens: cute.Tensor, stream: cuda.CUstream) -> None:
