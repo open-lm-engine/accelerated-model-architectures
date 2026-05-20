@@ -4,10 +4,9 @@
 
 import torch
 import torch.nn.functional as F
-from flash_attn.bert_padding import unpad_input
 from tabulate import tabulate
 
-from xma import device_synchronize, pack_sequence
+from xma import Accelerator, pack_sequence
 
 
 n = 100
@@ -29,8 +28,8 @@ def _hf_compatible_pack(x, attention_mask: torch.Tensor):
     return pack_sequence(x, cu_seqlens)
 
 
-headers = ["dtype", "pack_sequence", "unpad_input"]
-kernels = [_hf_compatible_pack, unpad_input]
+headers = ["dtype", "pack_sequence"]
+kernels = [_hf_compatible_pack]
 
 
 table = []
@@ -49,7 +48,7 @@ for dtype in [torch.float32]:
             z = kernel(x, attention_mask)
         e.record()
 
-        device_synchronize()
+        Accelerator.synchronize()
 
         row.append(s.elapsed_time(e) / n)
     table.append(row)
