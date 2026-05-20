@@ -24,7 +24,7 @@ attention_mask = torch.stack(attention_mask, dim=0).to(torch.cuda.current_device
 def _hf_compatible_pack(x, attention_mask: torch.Tensor):
     seqlens: torch.Tensor = attention_mask.sum(dim=-1, dtype=torch.int32)
     cu_seqlens = F.pad(torch.cumsum(seqlens, dim=0, dtype=torch.int32), (1, 0))
-    return pack_sequence(x, cu_seqlens, T)
+    return pack_sequence([x], cu_seqlens=cu_seqlens, total_tokens=T)[0]
 
 
 headers = ["dtype", "pack_sequence"]
