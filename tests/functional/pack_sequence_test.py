@@ -16,7 +16,7 @@ def _get_problem_shapes(packed: bool) -> list[tuple[int]]:
     sizes = []
     for i, j in [(14, 16), (12, 14), (12, 21), (9, 7), (1, 1), (11, 11), (19, 19)]:
         if packed:
-            sizes.append((621, i, j))
+            sizes.append((691, i, j))
         else:
             sizes.append((7, 1000, i, j))
 
