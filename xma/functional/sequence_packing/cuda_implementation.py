@@ -63,7 +63,6 @@ class _PackUnpackSequenceCUDAKernel:
         gC: cute.Tensor,
         gCu_seqlens: cute.Tensor,
         copy_atom: cute.CopyAtom,
-        tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID_S, BLOCK_ID_B, _ = cute.arch.block_idx()
@@ -88,28 +87,19 @@ class _PackUnpackSequenceCUDAKernel:
 
         if const_expr(self.padding_side == "left"):
             if BLOCK_ID_S >= pad_tokens:
-                self._copy_array(bXgX=bXgX, bXgY=bXgY, bXgC=bXgC, copy_atom=copy_atom, shape=gX.shape)
+                self._copy_array(bXgX=bXgX, bXgY=bXgY, bXgC=bXgC, copy_atom=copy_atom, shape=shape)
         elif BLOCK_ID_S < seqlens:
-            self._copy_array(bXgX=bXgX, bXgY=bXgY, bXgC=bXgC, copy_atom=copy_atom, shape=gX.shape)
+            self._copy_array(bXgX=bXgX, bXgY=bXgY, bXgC=bXgC, copy_atom=copy_atom, shape=shape)
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, mCu_seqlens: cute.Tensor, stream: cuda.CUstream) -> None:
-        vector_size = 128 // mX.element_type.width
-
-        thr_layout = cute.make_ordered_layout((1, self.BLOCK_SIZE), order=(1, 0))
-        val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
-
         mC = cute.make_identity_tensor(mX.shape)
-
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mX.element_type)
-        tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
 
         B = cute.size(mX, mode=[0])
         S = cute.size(mX, mode=[1])
 
-        kernel = self.kernel(
-            gX=mX, gY=mY, gC=mC, gCu_seqlens=mCu_seqlens, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mX.shape
-        )
+        kernel = self.kernel(gX=mX, gY=mY, gC=mC, gCu_seqlens=mCu_seqlens, copy_atom=copy_atom, shape=mX.shape)
 
         kernel.launch(grid=(S, B, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
