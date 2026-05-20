@@ -11,7 +11,7 @@ import cuda.bindings.driver as cuda
 import torch
 
 import cutlass.cute as cute
-from cutlass import const_expr, range_constexpr
+from cutlass import Boolean, const_expr, range_constexpr
 
 from ...custom_op import xma_op
 from ...cute_dsl_utils import get_fake_cute_tensor
@@ -27,30 +27,49 @@ class _PackUnpackSequenceCUDAKernel:
     @cute.jit
     def _copy_array(
         self,
-        gX: cute.Tensor,
-        gY: cute.Tensor,
+        bXgX: cute.Tensor,
+        bXgY: cute.Tensor,
+        bXgC: cute.Tensor,
         copy_atom: cute.CopyAtom,
-        S: int,
-        BLOCK_ID_B: int,
-        BLOCK_ID_S: int,
-        t: int,
+        shape: cute.Shape,
     ) -> None:
-        vector_size = const_expr(128 // gX.element_type.width)
+        vector_size = const_expr(128 // bXgX.element_type.width)
         N_vec = self.N // vector_size
 
         THREAD_ID = cute.arch.thread_idx()[0]
+        start = THREAD_ID * vector_size
 
-        for i in range(THREAD_ID, N_vec, self.BLOCK_SIZE):
-            if const_expr(self.pack):
-                src = cute.local_tile(gX[BLOCK_ID_B, BLOCK_ID_S, None], (vector_size,), (i * vector_size,))
-                dst = cute.local_tile(gY[t, None], (vector_size,), (i * vector_size,))
+        while start < self.N:
+            tXgX = cute.local_tile(bXgX, (vector_size,), (start,))
+            tXgY = cute.local_tile(bXgY, (vector_size,), (start,))
+            tXgC = cute.local_tile(bXgC, (vector_size,), (start,))
+
+            rX = cute.make_rmem_tensor_like(tXgX)
+            rC = cute.make_rmem_tensor_like(tXgC, dtype=Boolean)
+            for i in range_constexpr(cute.size(rC)):
+                rC[i] = cute.elem_less(tXgC[i], shape)
+
+            is_within_boundary = cute.elem_less(tXgC[cute.size(tXgC) - 1], shape)
+
+            if is_within_boundary:
+                cute.copy(copy_atom, tXgX, rX)
+                cute.copy(copy_atom, rX, tXgY)
             else:
-                src = cute.local_tile(gX[t, None], (vector_size,), (i * vector_size,))
-                dst = cute.local_tile(gY[BLOCK_ID_B, BLOCK_ID_S, None], (vector_size,), (i * vector_size,))
+                cute.copy(copy_atom, tXgX, rX, pred=rC)
+                cute.copy(copy_atom, rX, tXgY, pred=rC)
 
-            rX = cute.make_rmem_tensor_like(src)
-            cute.copy(copy_atom, src, rX)
-            cute.copy(copy_atom, rX, dst)
+            # tXrX = cute.make_rmem_tensor_like(src)
+            # cute.copy(copy_atom, src, tXrX)
+            # cute.copy(copy_atom, tXrX, dst)
+
+            start += vector_size
+
+        # src = cute.local_tile(tXgX, (vector_size,), (self.N * vector_size,))
+        # dst = cute.local_tile(tXgY, (vector_size,), (self.N * vector_size,))
+
+        # tXrX = cute.make_rmem_tensor_like(src)
+        # cute.copy(copy_atom, src, tXrX)
+        # cute.copy(copy_atom, tXrX, dst)
 
     @cute.kernel
     def kernel(
@@ -71,17 +90,23 @@ class _PackUnpackSequenceCUDAKernel:
 
         S = cute.size(gX if const_expr(self.pack) else gY, mode=[1])
 
-        function = partial(
-            self._copy_array, gX=gX, gY=gY, copy_atom=copy_atom, S=S, BLOCK_ID_B=BLOCK_ID_B, BLOCK_ID_S=BLOCK_ID_S
-        )
+        pad_tokens = (S - seqlens) if const_expr(self.padding_side == "left") else 0
+        t = start + BLOCK_ID_S - pad_tokens
+
+        if const_expr(self.pack):
+            bXgX = gX[BLOCK_ID_B, BLOCK_ID_S, None]
+            bXgC = gC[BLOCK_ID_B, BLOCK_ID_S, None]
+            bXgY = gY[t, None]
+        else:
+            bXgX = gX[t, None]
+            bXgC = gC[t, None]
+            bXgY = gY[BLOCK_ID_B, BLOCK_ID_S, None]
 
         if const_expr(self.padding_side == "left"):
-            pad_tokens = S - seqlens
-
             if BLOCK_ID_S >= pad_tokens:
-                function(t=start + BLOCK_ID_S - pad_tokens)
+                self._copy_array(bXgX=bXgX, bXgY=bXgY, bXgC=bXgC, copy_atom=copy_atom, shape=gX.shape)
         elif BLOCK_ID_S < seqlens:
-            function(t=start + BLOCK_ID_S)
+            self._copy_array(bXgX=bXgX, bXgY=bXgY, bXgC=bXgC, copy_atom=copy_atom, shape=gX.shape)
 
     @cute.jit
     def __call__(self, mX: cute.Tensor, mY: cute.Tensor, mCu_seqlens: cute.Tensor, stream: cuda.CUstream) -> None:
