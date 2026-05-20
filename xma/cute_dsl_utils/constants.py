@@ -3,7 +3,6 @@
 # **************************************************
 
 import torch
-
 from cutlass import BFloat16, Float16, Float32, Int32, Int64, Numeric, Uint32
 
 

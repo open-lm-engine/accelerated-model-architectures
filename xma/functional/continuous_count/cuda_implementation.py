@@ -7,10 +7,9 @@ from __future__ import annotations
 import math
 
 import cuda.bindings.driver as cuda
-import torch
-
 import cutlass
 import cutlass.cute as cute
+import torch
 
 from ...custom_op import xma_op
 from ...cute_dsl_utils import get_fake_cute_tensor
