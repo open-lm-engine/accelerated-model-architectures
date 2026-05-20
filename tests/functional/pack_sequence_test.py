@@ -9,10 +9,33 @@ import torch
 
 from xma import KernelBackend, pack_sequence, unpack_sequence
 
-from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
+from ..utils import (
+    assert_equal_tensors,
+    get_2d_tensor_sizes,
+    get_random_duplicated_tensors,
+    skip_if_incompatible_kernel_backend,
+)
 
 
-@pytest.mark.parametrize("size", [(7, 1000, 12, 14)])
+def _get_problem_shapes(packed: bool) -> list[tuple[int]]:
+    if packed:
+        sizes = [(621, i, j) for i, j in get_2d_tensor_sizes()]
+    else:
+        sizes = [(7, 1000, i, j) for i, j in get_2d_tensor_sizes()]
+
+    return sizes
+
+
+@pytest.mark.parametrize(
+    "size",
+    [
+        (7, 1000, 12, 14),
+        (
+            7,
+            1000,
+        ),
+    ],
+)
 @pytest.mark.parametrize("cu_seqlens", [[0, 70, 170, 295, 393, 412, 515, 691]])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("padding_side", ["left", "right"])

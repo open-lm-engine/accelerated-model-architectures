@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import math
-from functools import partial
 
 import cuda.bindings.driver as cuda
 import torch
