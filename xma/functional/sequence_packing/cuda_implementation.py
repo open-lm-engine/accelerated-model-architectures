@@ -36,10 +36,10 @@ class _PackUnpackSequenceCUDAKernel:
         vector_size = const_expr(128 // bXgX.element_type.width)
         THREAD_ID = cute.arch.thread_idx()[0]
 
-        for start in range(THREAD_ID, self.N, self.BLOCK_SIZE):
-            tXgX = cute.local_tile(bXgX, (vector_size,), (start,))
-            tXgY = cute.local_tile(bXgY, (vector_size,), (start,))
-            tXgC = cute.local_tile(bXgC, (vector_size,), (start,))
+        for i in range(THREAD_ID, self.N, self.BLOCK_SIZE):
+            tXgX = cute.local_tile(bXgX, (vector_size,), (i,))
+            tXgY = cute.local_tile(bXgY, (vector_size,), (i,))
+            tXgC = cute.local_tile(bXgC, (vector_size,), (i,))
 
             rX = cute.make_rmem_tensor_like(tXgX)
             rC = cute.make_rmem_tensor_like(tXgC, dtype=Boolean)
