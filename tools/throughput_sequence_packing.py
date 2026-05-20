@@ -10,7 +10,7 @@ from xma import Accelerator, pack_sequence
 
 
 n = 100
-B = 8
+B = 7
 S = 4096
 T = 691
 x = torch.randn(B, S, 32, 128, device=torch.cuda.current_device(), dtype=torch.float32)
