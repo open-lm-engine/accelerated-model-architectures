@@ -96,11 +96,14 @@ class _PackUnpackSequenceCUDAKernel:
         mC = cute.make_identity_tensor(mX.shape)
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), mX.element_type)
 
-        B = cute.size(mX, mode=[0])
-        S = cute.size(mX, mode=[1])
+        if const_expr(self.pack):
+            B = cute.size(mX, mode=[0])
+            S = cute.size(mX, mode=[1])
+        else:
+            B = cute.size(mY, mode=[0])
+            S = cute.size(mY, mode=[1])
 
         kernel = self.kernel(gX=mX, gY=mY, gC=mC, gCu_seqlens=mCu_seqlens, copy_atom=copy_atom, shape=mX.shape)
-
         kernel.launch(grid=(S, B, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
 
