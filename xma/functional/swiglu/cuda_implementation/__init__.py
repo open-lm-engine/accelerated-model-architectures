@@ -1,6 +1,6 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from .backward import swiglu_backward_cuda
-from .forward import swiglu_forward_cuda
+from .backward import _swiglu_backward_cuda
+from .forward import _swiglu_forward_cuda

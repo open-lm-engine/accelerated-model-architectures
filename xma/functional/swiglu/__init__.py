@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 import torch
@@ -14,19 +14,29 @@ from ...utils import (
     is_torch_xla_available,
     is_triton_available,
 )
+from .mps_implementation import _swiglu_backward_mps, _swiglu_forward_mps
+
+
+_FUNCTIONS = {KernelBackend.mps: (_swiglu_forward_mps, _swiglu_backward_mps)}
 
 
 if is_cute_dsl_available():
-    from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
+    from .cuda_implementation import _swiglu_backward_cuda, _swiglu_forward_cuda
+
+    _FUNCTIONS[KernelBackend.cuda] = (_swiglu_forward_cuda, _swiglu_backward_cuda)
 
 if is_torch_neuronx_available():
-    from .nki_implementation import swiglu_backward_nki, swiglu_forward_nki
+    from .nki_implementation import _swiglu_backward_nki, _swiglu_forward_nki
+
+    _FUNCTIONS[KernelBackend.nki] = (_swiglu_forward_nki, _swiglu_backward_nki)
 
 if is_torch_xla_available():
-    from .pallas_implementation import swiglu_backward_pallas, swiglu_forward_pallas
+    from .pallas_implementation import _swiglu_backward_pallas, _swiglu_forward_pallas
 
 if is_triton_available():
-    from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
+    from .triton_implementation import _swiglu_backward_triton, _swiglu_forward_triton
+
+    _FUNCTIONS[KernelBackend.triton] = (_swiglu_forward_triton, _swiglu_backward_triton)
 
 
 class _Swiglu(CustomOp):
@@ -53,18 +63,13 @@ class _Swiglu(CustomOp):
         ctx_save_for_backward(ctx, g, u)
 
         if kernel_backend == KernelBackend.pallas:
-            return swiglu_forward_pallas(g=g, u=u)
+            return _swiglu_forward_pallas(g=g, u=u)
 
         y = empty_like_contiguous(g)
 
-        if kernel_backend == KernelBackend.cuda:
-            swiglu_forward_cuda(g=g, u=u, y=y)
-        elif kernel_backend == KernelBackend.nki:
-            swiglu_forward_nki(g=g, u=u, y=y)
-        elif kernel_backend == KernelBackend.triton:
-            swiglu_forward_triton(g=g, u=u, y=y)
-        else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+        forward_function, backward_function = _FUNCTIONS[kernel_backend]
+        forward_function(g=g, u=u, y=y)
+        ctx.backward_function = backward_function
 
         return y
 
@@ -77,20 +82,13 @@ class _Swiglu(CustomOp):
             dy = dy.contiguous()
 
         if kernel_backend == KernelBackend.pallas:
-            dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
+            dg, du = _swiglu_backward_pallas(g=g, u=u, dy=dy)
             return dg, du, None
 
         dg = empty_like_contiguous(g)
         du = empty_like_contiguous(u)
 
-        if kernel_backend == KernelBackend.cuda:
-            swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
-        elif kernel_backend == KernelBackend.nki:
-            swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
-        elif kernel_backend == KernelBackend.triton:
-            swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
-        else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+        ctx.backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dg, du, None
 

@@ -1,11 +1,12 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 import torch
 import triton
 import triton.language as tl
 
+from ...accelerator import Accelerator
 from ...custom_op import xma_op
 from ...math import ceil_divide
 
@@ -41,7 +42,7 @@ from ...math import ceil_divide
     key=[],
 )
 @triton.jit
-def bmm_triton_kernel(
+def _bmm_triton_kernel(
     A_ptr,
     A_stride,
     B_ptr,
@@ -149,7 +150,7 @@ def bmm_triton_kernel(
 
 
 @xma_op(mutates_args={"D"})
-def bmm_triton(
+def _bmm_triton(
     A: torch.Tensor,
     B: torch.Tensor,
     C: torch.Tensor | None,
@@ -170,7 +171,7 @@ def bmm_triton(
         L,
     )
 
-    bmm_triton_kernel[GRID](
+    _bmm_triton_kernel[GRID](
         A_ptr=A,
         A_stride=A.stride(),
         B_ptr=B,

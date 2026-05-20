@@ -19,15 +19,31 @@ Layers
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 16 16 16 16 16
+   :widths: 20 13 13 13 13 13 13
 
    * - Layer
      - CUDA
+     - MPS
      - Pallas
      - NKI
      - ROCm
      - Triton
    * - GRU
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - LinearAttention
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - M2RNN
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -38,8 +54,10 @@ Layers
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - RNN
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -51,15 +69,17 @@ Functional
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 14 14 14 14 14
+   :widths: 24 13 13 13 13 13 13
 
    * - Function
      - CUDA
+     - MPS
      - Pallas
      - NKI
      - ROCm
      - Triton
    * - bmm
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -71,7 +91,9 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
    * - cross_entropy
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -82,14 +104,38 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
    * - fused_residual_add_rmsnorm
      - ❌
      - ❌
      - ❌
      - ❌
+     - ❌
      - ✅
-   * - rmsnorm
+   * - gru
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - linear_attention
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - m2rnn
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - p_norm
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -100,8 +146,24 @@ Functional
      - ❌
      - ❌
      - ❌
+     - ❌
+     - ✅
+   * - rmsnorm
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ✅
+   * - rnn
+     - ❌
+     - ❌
+     - ❌
+     - ❌
+     - ❌
      - ✅
    * - softmax
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -111,16 +173,19 @@ Functional
      - ✅
      - ✅
      - ✅
+     - ✅
      - ❌
      - ✅
    * - swiglu_packed
      - ✅
+     - ❌
      - ✅
      - ✅
      - ❌
      - ✅
    * - unpack_sequence
      - ✅
+     - ❌
      - ❌
      - ❌
      - ❌
@@ -138,6 +203,7 @@ Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested
 
    xma.functional
    xma.layers
+   xma.optimizers
 
 .. toctree::
    :maxdepth: 4

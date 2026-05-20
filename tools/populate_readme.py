@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 from pathlib import Path
@@ -14,7 +14,18 @@ TOOLS_DIR = Path(__file__).parent
 ROOT_DIR = TOOLS_DIR.parent
 
 kernels = yaml.full_load(open(TOOLS_DIR / "kernels.yml"))
-backends = [("CUDA", "cuda"), ("Pallas", "pallas"), ("NKI", "nki"), ("ROCm", "rocm"), ("Triton", "triton")]
+
+# sort kernels within each section
+for key in kernels:
+    kernels[key] = dict(sorted(kernels[key].items()))
+backends = [
+    ("CUDA", "cuda"),
+    ("MPS", "mps"),
+    ("Pallas", "pallas"),
+    ("NKI", "nki"),
+    ("ROCm", "rocm"),
+    ("Triton", "triton"),
+]
 
 
 def get_md_table(key: str) -> str:
@@ -100,12 +111,12 @@ Installation
 Layers
 ------
 
-{get_rst_table('layers', 'Layer', '20 16 16 16 16 16')}
+{get_rst_table('layers', 'Layer', ' '.join(['20'] + ['13'] * len(backends)))}
 
 Functional
 ----------
 
-{get_rst_table('functional', 'Function', '30 14 14 14 14 14')}
+{get_rst_table('functional', 'Function', ' '.join(['24'] + ['13'] * len(backends)))}
 
 Community
 ---------
@@ -119,6 +130,7 @@ Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested
 
    xma.functional
    xma.layers
+   xma.optimizers
 
 .. toctree::
    :maxdepth: 4

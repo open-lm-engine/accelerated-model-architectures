@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 import torch
@@ -10,7 +10,7 @@ from ...custom_op import xma_op
 
 
 @triton.jit
-def pack_unpack_sequence_triton_kernel(
+def _pack_unpack_sequence_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
@@ -56,25 +56,25 @@ def pack_unpack_sequence_triton_kernel(
             BLOCK += BLOCK_SIZE
 
 
-@xma_op(mutates_args={"output"})
-def pack_unpack_sequence_triton(
-    x: torch.Tensor, output: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
+@xma_op(mutates_args={"y"})
+def _pack_unpack_sequence_triton(
+    x: torch.Tensor, y: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
 ) -> None:
     if pack:
         B, S = x.size()[:2]
         N = x.numel() // (B * S)
     else:
-        B, S = output.size()[:2]
-        N = output.numel() // (B * S)
+        B, S = y.size()[:2]
+        N = y.numel() // (B * S)
 
     BLOCK_SIZE = 4096
     NUM_WARPS = 32
 
-    pack_unpack_sequence_triton_kernel[S, B](
+    _pack_unpack_sequence_triton_kernel[S, B](
         x_ptr=x,
         x_stride=x.stride(),
-        y_ptr=output,
-        y_stride=output.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=cu_seqlens.stride(),
         S=S,

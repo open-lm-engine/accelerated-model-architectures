@@ -1,6 +1,6 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from .backward import swiglu_backward_pallas
-from .forward import swiglu_forward_pallas
+from .backward import _swiglu_backward_pallas
+from .forward import _swiglu_forward_pallas

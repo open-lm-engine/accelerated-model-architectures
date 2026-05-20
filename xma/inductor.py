@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2025, Mayank Mishra
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 from __future__ import annotations
@@ -18,11 +18,6 @@ from .functional import fused_residual_add_rmsnorm, rmsnorm
 
 _ALL_TRACE_FUNCTIONS = [joint_fwd_bwd, fwd_only]
 _ALL_DTYPES = [torch.float32, torch.float16, torch.bfloat16]
-
-
-def init_inductor(cache_size_limit: int) -> None:
-    torch._dynamo.config.cache_size_limit = cache_size_limit
-    torch._dynamo.config.accumulated_cache_size_limit = cache_size_limit
 
 
 def partialize_and_update_signature(func: Callable, **kwargs) -> Callable:
@@ -51,7 +46,7 @@ def _get_example_input(dim: int, device: torch.device, dtype: torch.dtype) -> to
 
 
 def get_rmsnorm_replacer(
-    device: torch.device,
+    device: torch.device, kernel_backend: KernelBackend | None = None
 ) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor]]]:
     for dtype in _ALL_DTYPES:
         example_inputs = (
@@ -64,14 +59,14 @@ def get_rmsnorm_replacer(
         )
 
         replacement_function = partialize_and_update_signature(
-            rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.triton
+            rmsnorm, eps=None, memory_efficient=False, kernel_backend=kernel_backend
         )
 
         yield search_function, replacement_function, example_inputs
 
 
 def get_fused_residual_add_rmsnorm_replacer(
-    device: torch.device,
+    device: torch.device, kernel_backend: KernelBackend | None = None
 ) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor, torch.Tensor]]]:
     for dtype in _ALL_DTYPES:
         for dim in range(1, 5):
@@ -94,7 +89,7 @@ def get_fused_residual_add_rmsnorm_replacer(
                 eps=None,
                 multiplier=None,
                 memory_efficient=False,
-                kernel_backend=KernelBackend.triton,
+                kernel_backend=kernel_backend,
             )
 
             yield search_function, replacement_function, example_inputs
@@ -106,11 +101,13 @@ _MAPPING = {
 }
 
 
-def enable_kernels(kernels: list[str], _patterns: PatternMatcherPass = patterns) -> None:
-    device = torch.cuda.current_device()
-
-    for kernel in kernels:
-        for search_function, replacement_function, example_inputs in _MAPPING[kernel](device):
+def enable_kernels(
+    kernels: list[tuple[str, KernelBackend | None]],
+    _patterns: PatternMatcherPass = patterns,
+    device: torch.device = None,
+) -> None:
+    for kernel, kernel_backend in kernels:
+        for search_function, replacement_function, example_inputs in _MAPPING[kernel](device, kernel_backend):
             for trace_function in _ALL_TRACE_FUNCTIONS:
                 register_replacement(
                     search_fn=search_function,
