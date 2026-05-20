@@ -33,17 +33,18 @@ class _PackUnpackSequenceCUDAKernel:
         shape: cute.Shape,
     ) -> None:
         vector_size = const_expr(128 // bXgX.element_type.width)
+        N_vec = (self.N + vector_size - 1) // vector_size
         THREAD_ID = cute.arch.thread_idx()[0]
 
-        for i in range(THREAD_ID, self.N, self.BLOCK_SIZE):
+        for i in range(THREAD_ID, N_vec, self.BLOCK_SIZE):
             tXgX = cute.local_tile(bXgX, (vector_size,), (i,))
             tXgY = cute.local_tile(bXgY, (vector_size,), (i,))
             tXgC = cute.local_tile(bXgC, (vector_size,), (i,))
 
             rX = cute.make_rmem_tensor_like(tXgX)
             rC = cute.make_rmem_tensor_like(tXgC, dtype=Boolean)
-            for i in range_constexpr(cute.size(rC)):
-                rC[i] = cute.elem_less(tXgC[i], shape)
+            for j in range_constexpr(cute.size(rC)):
+                rC[j] = cute.elem_less(tXgC[j], shape)
 
             is_within_boundary = cute.elem_less(tXgC[cute.size(tXgC) - 1], shape)
 
