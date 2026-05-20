@@ -15,7 +15,7 @@ n = 100
 B = 7
 S = 4096
 T = 691
-INNER = (32, 128)
+INNER = (128, 512)
 
 cu_seqlens = torch.tensor([0, 70, 170, 295, 393, 412, 515, T], device=torch.cuda.current_device(), dtype=torch.uint32)
 attention_mask = [
