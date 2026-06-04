@@ -2,9 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-import torch
-
 import cutlass.cute as cute
+import torch
 from cutlass.cute.runtime import from_dlpack
 
 from ..cute_dsl_utils import get_cute_dtype_from_torch_dtype

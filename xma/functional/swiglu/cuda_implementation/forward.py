@@ -7,9 +7,8 @@ from __future__ import annotations
 import math
 
 import cuda.bindings.driver as cuda
-import torch
-
 import cutlass.cute as cute
+import torch
 from cutlass import Boolean, Float32, range_constexpr
 
 from ....constants import LOG_WARP_SIZE, WARP_SIZE
