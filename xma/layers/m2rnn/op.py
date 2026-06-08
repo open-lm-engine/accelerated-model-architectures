@@ -1,5 +1,5 @@
 # **************************************************
-# Copyright (c) 2026, Mayank Mishra, Chuk Uzowihe
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
 from functools import partial

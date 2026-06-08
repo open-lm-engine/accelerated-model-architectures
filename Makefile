@@ -14,7 +14,7 @@ update-precommit:
 
 style:
 	uv run python tools/populate_readme.py
-	uv run python submodules/copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) $$(date +%Y), __authors__" --extra-name "Mayank Mishra"
+	uv run python submodules/copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) $$(date +%Y), __authors__" --extra-name "Mayank Mishra" --no-contributors
 	uv run --extra dev --no-default-groups pre-commit run --all-files
 
 website:
