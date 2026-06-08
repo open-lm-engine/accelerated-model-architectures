@@ -88,93 +88,95 @@ def _bmm_triton_kernel(
         BLOCK_ID_M = FIRST_BLOCK_M_IN_GROUP + ((BLOCK_ID_MN % NUM_BLOCKS_IN_GROUP) % CURRENT_GROUP_SIZE_M)
         BLOCK_ID_N = (BLOCK_ID_MN % NUM_BLOCKS_IN_GROUP) // CURRENT_GROUP_SIZE_M
 
-        if BLOCK_ID_N < NUM_BLOCKS_N:
-            D = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+        if BLOCK_ID_N >= NUM_BLOCKS_N:
+            continue
 
-            for k in range(tl.cdiv(K, BLOCK_SIZE_K)):
-                if IS_A_TRANSPOSED:
-                    A_ptrs = tl.make_block_ptr(
-                        A_ptr + BLOCK_ID_L * A_stride[0],
-                        shape=(K, M),
-                        strides=(A_stride[1], A_stride[2]),
-                        offsets=(k * BLOCK_SIZE_K, BLOCK_ID_M * BLOCK_SIZE_M),
-                        block_shape=(BLOCK_SIZE_K, BLOCK_SIZE_M),
-                        order=(1, 0),
-                    )
-                else:
-                    A_ptrs = tl.make_block_ptr(
-                        A_ptr + BLOCK_ID_L * A_stride[0],
-                        shape=(M, K),
-                        strides=(A_stride[1], A_stride[2]),
-                        offsets=(BLOCK_ID_M * BLOCK_SIZE_M, k * BLOCK_SIZE_K),
-                        block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_K),
-                        order=(1, 0),
-                    )
+        D = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
 
-                A = tl.load(A_ptrs, boundary_check=(0, 1))
-
-                if IS_A_TRANSPOSED:
-                    A = A.T
-
-                if IS_B_TRANSPOSED:
-                    B_ptrs = tl.make_block_ptr(
-                        B_ptr + BLOCK_ID_L * B_stride[0],
-                        shape=(N, K),
-                        strides=(B_stride[1], B_stride[2]),
-                        offsets=(BLOCK_ID_N * BLOCK_SIZE_N, k * BLOCK_SIZE_K),
-                        block_shape=(BLOCK_SIZE_N, BLOCK_SIZE_K),
-                        order=(1, 0),
-                    )
-                else:
-                    B_ptrs = tl.make_block_ptr(
-                        B_ptr + BLOCK_ID_L * B_stride[0],
-                        shape=(K, N),
-                        strides=(B_stride[1], B_stride[2]),
-                        offsets=(k * BLOCK_SIZE_K, BLOCK_ID_N * BLOCK_SIZE_N),
-                        block_shape=(BLOCK_SIZE_K, BLOCK_SIZE_N),
-                        order=(1, 0),
-                    )
-
-                B = tl.load(B_ptrs, boundary_check=(0, 1))
-
-                if IS_B_TRANSPOSED:
-                    B = B.T
-
-                D = tl.dot(A, B, D, allow_tf32=True)
-
-            if alpha is not None:
-                D *= alpha
-
-            if C_ptr is not None:
-                C = tl.load(
-                    tl.make_block_ptr(
-                        C_ptr + BLOCK_ID_L * C_stride[0],
-                        shape=(M, N),
-                        strides=(C_stride[1], C_stride[2]),
-                        offsets=(BLOCK_ID_M * BLOCK_SIZE_M, BLOCK_ID_N * BLOCK_SIZE_N),
-                        block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N),
-                        order=(1, 0),
-                    ),
-                    boundary_check=(0, 1),
+        for k in range(tl.cdiv(K, BLOCK_SIZE_K)):
+            if IS_A_TRANSPOSED:
+                A_ptrs = tl.make_block_ptr(
+                    A_ptr + BLOCK_ID_L * A_stride[0],
+                    shape=(K, M),
+                    strides=(A_stride[1], A_stride[2]),
+                    offsets=(k * BLOCK_SIZE_K, BLOCK_ID_M * BLOCK_SIZE_M),
+                    block_shape=(BLOCK_SIZE_K, BLOCK_SIZE_M),
+                    order=(1, 0),
+                )
+            else:
+                A_ptrs = tl.make_block_ptr(
+                    A_ptr + BLOCK_ID_L * A_stride[0],
+                    shape=(M, K),
+                    strides=(A_stride[1], A_stride[2]),
+                    offsets=(BLOCK_ID_M * BLOCK_SIZE_M, k * BLOCK_SIZE_K),
+                    block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_K),
+                    order=(1, 0),
                 )
 
-                if beta is not None:
-                    C *= beta
+            A = tl.load(A_ptrs, boundary_check=(0, 1))
 
-                D += C
+            if IS_A_TRANSPOSED:
+                A = A.T
 
-            tl.store(
+            if IS_B_TRANSPOSED:
+                B_ptrs = tl.make_block_ptr(
+                    B_ptr + BLOCK_ID_L * B_stride[0],
+                    shape=(N, K),
+                    strides=(B_stride[1], B_stride[2]),
+                    offsets=(BLOCK_ID_N * BLOCK_SIZE_N, k * BLOCK_SIZE_K),
+                    block_shape=(BLOCK_SIZE_N, BLOCK_SIZE_K),
+                    order=(1, 0),
+                )
+            else:
+                B_ptrs = tl.make_block_ptr(
+                    B_ptr + BLOCK_ID_L * B_stride[0],
+                    shape=(K, N),
+                    strides=(B_stride[1], B_stride[2]),
+                    offsets=(k * BLOCK_SIZE_K, BLOCK_ID_N * BLOCK_SIZE_N),
+                    block_shape=(BLOCK_SIZE_K, BLOCK_SIZE_N),
+                    order=(1, 0),
+                )
+
+            B = tl.load(B_ptrs, boundary_check=(0, 1))
+
+            if IS_B_TRANSPOSED:
+                B = B.T
+
+            D = tl.dot(A, B, D, allow_tf32=True)
+
+        if alpha is not None:
+            D *= alpha
+
+        if C_ptr is not None:
+            C = tl.load(
                 tl.make_block_ptr(
-                    D_ptr + BLOCK_ID_L * D_stride[0],
+                    C_ptr + BLOCK_ID_L * C_stride[0],
                     shape=(M, N),
-                    strides=(D_stride[1], D_stride[2]),
+                    strides=(C_stride[1], C_stride[2]),
                     offsets=(BLOCK_ID_M * BLOCK_SIZE_M, BLOCK_ID_N * BLOCK_SIZE_N),
                     block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N),
                     order=(1, 0),
                 ),
-                D.to(D_ptr.dtype.element_ty),
                 boundary_check=(0, 1),
             )
+
+            if beta is not None:
+                C *= beta
+
+            D += C
+
+        tl.store(
+            tl.make_block_ptr(
+                D_ptr + BLOCK_ID_L * D_stride[0],
+                shape=(M, N),
+                strides=(D_stride[1], D_stride[2]),
+                offsets=(BLOCK_ID_M * BLOCK_SIZE_M, BLOCK_ID_N * BLOCK_SIZE_N),
+                block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N),
+                order=(1, 0),
+            ),
+            D.to(D_ptr.dtype.element_ty),
+            boundary_check=(0, 1),
+        )
 
 
 @xma_op(mutates_args={"D"})
