@@ -1,3 +1,3 @@
-[submodule "copyright"]
+[submodule "submodules/copyright"]
 	path = submodules/copyright
-	url = https://github.com/mayank31398/copyright
+	url = https://github.com/mayank31398/copyright.git
