@@ -85,56 +85,75 @@ def _bmm_triton_kernel(
     if BLOCK_ID_N >= NUM_BLOCKS_N:
         return
 
-    BLOCK_M = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    BLOCK_N = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
-
-    MASK_M = BLOCK_M < M
-    MASK_N = BLOCK_N < N
-
     D = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
-    BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
 
-    for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
-        MASK_K = BLOCK_K < K
-
+    for k in range(tl.cdiv(K, BLOCK_SIZE_K)):
         if IS_A_TRANSPOSED:
-            A_ptrs = A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_K[:, None] * A_stride[1] + BLOCK_M[None, :] * A_stride[2]
-            MASK_A = MASK_K[:, None] & MASK_M[None, :]
+            A_ptrs = tl.make_block_ptr(
+                A_ptr + BLOCK_ID_L * A_stride[0],
+                shape=(K, M),
+                strides=(A_stride[1], A_stride[2]),
+                offsets=(k * BLOCK_SIZE_K, BLOCK_ID_M * BLOCK_SIZE_M),
+                block_shape=(BLOCK_SIZE_K, BLOCK_SIZE_M),
+                order=(1, 0),
+            )
         else:
-            A_ptrs = A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_M[:, None] * A_stride[1] + BLOCK_K[None, :] * A_stride[2]
-            MASK_A = MASK_M[:, None] & MASK_K[None, :]
+            A_ptrs = tl.make_block_ptr(
+                A_ptr + BLOCK_ID_L * A_stride[0],
+                shape=(M, K),
+                strides=(A_stride[1], A_stride[2]),
+                offsets=(BLOCK_ID_M * BLOCK_SIZE_M, k * BLOCK_SIZE_K),
+                block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_K),
+                order=(1, 0),
+            )
 
-        A = tl.load(A_ptrs, mask=MASK_A)
+        A = tl.load(A_ptrs, boundary_check=(0, 1))
 
         if IS_A_TRANSPOSED:
             A = A.T
 
         if IS_B_TRANSPOSED:
-            B_ptrs = B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_N[:, None] * B_stride[1] + BLOCK_K[None, :] * B_stride[2]
-            MASK_B = MASK_N[:, None] & MASK_K[None, :]
+            B_ptrs = tl.make_block_ptr(
+                B_ptr + BLOCK_ID_L * B_stride[0],
+                shape=(N, K),
+                strides=(B_stride[1], B_stride[2]),
+                offsets=(BLOCK_ID_N * BLOCK_SIZE_N, k * BLOCK_SIZE_K),
+                block_shape=(BLOCK_SIZE_N, BLOCK_SIZE_K),
+                order=(1, 0),
+            )
         else:
-            B_ptrs = B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_K[:, None] * B_stride[1] + BLOCK_N[None, :] * B_stride[2]
-            MASK_B = MASK_K[:, None] & MASK_N[None, :]
+            B_ptrs = tl.make_block_ptr(
+                B_ptr + BLOCK_ID_L * B_stride[0],
+                shape=(K, N),
+                strides=(B_stride[1], B_stride[2]),
+                offsets=(k * BLOCK_SIZE_K, BLOCK_ID_N * BLOCK_SIZE_N),
+                block_shape=(BLOCK_SIZE_K, BLOCK_SIZE_N),
+                order=(1, 0),
+            )
 
-        B = tl.load(B_ptrs, mask=MASK_B)
+        B = tl.load(B_ptrs, boundary_check=(0, 1))
 
         if IS_B_TRANSPOSED:
             B = B.T
 
         D = tl.dot(A, B, D, allow_tf32=True)
-        BLOCK_K += BLOCK_SIZE_K
 
     D = D.to(A_ptr.dtype.element_ty)
 
     if alpha is not None:
         D *= alpha
 
-    MASK_MN = MASK_M[:, None] & MASK_N[None, :]
-
     if C_ptr is not None:
         C = tl.load(
-            C_ptr + BLOCK_ID_L * C_stride[0] + BLOCK_M[:, None] * C_stride[1] + BLOCK_N[None, :] * C_stride[2],
-            mask=MASK_MN,
+            tl.make_block_ptr(
+                C_ptr + BLOCK_ID_L * C_stride[0],
+                shape=(M, N),
+                strides=(C_stride[1], C_stride[2]),
+                offsets=(BLOCK_ID_M * BLOCK_SIZE_M, BLOCK_ID_N * BLOCK_SIZE_N),
+                block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N),
+                order=(1, 0),
+            ),
+            boundary_check=(0, 1),
         )
 
         if beta is not None:
@@ -143,9 +162,16 @@ def _bmm_triton_kernel(
         D += C
 
     tl.store(
-        D_ptr + BLOCK_ID_L * D_stride[0] + BLOCK_M[:, None] * D_stride[1] + BLOCK_N[None, :] * D_stride[2],
+        tl.make_block_ptr(
+            D_ptr + BLOCK_ID_L * D_stride[0],
+            shape=(M, N),
+            strides=(D_stride[1], D_stride[2]),
+            offsets=(BLOCK_ID_M * BLOCK_SIZE_M, BLOCK_ID_N * BLOCK_SIZE_N),
+            block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N),
+            order=(1, 0),
+        ),
         D,
-        mask=MASK_MN,
+        boundary_check=(0, 1),
     )
 
 
