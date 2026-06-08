@@ -170,7 +170,7 @@ def _bmm_triton_kernel(
             block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N),
             order=(1, 0),
         ),
-        D,
+        D.to(D_ptr.dtype.element_ty),
         boundary_check=(0, 1),
     )
 
