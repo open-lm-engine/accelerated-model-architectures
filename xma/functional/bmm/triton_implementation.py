@@ -137,8 +137,6 @@ def _bmm_triton_kernel(
 
         D = tl.dot(A, B, D, allow_tf32=True)
 
-    D = D.to(A_ptr.dtype.element_ty)
-
     if alpha is not None:
         D *= alpha
 
