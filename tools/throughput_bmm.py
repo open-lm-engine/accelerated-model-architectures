@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from xma import Accelerator, KernelBackend, bmm
+from xma import KernelBackend, bmm, device_synchronize
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -45,7 +45,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
             z = kernel(x, w, C=None, beta=0)
         e.record()
 
-        Accelerator.synchronize()
+        device_synchronize()
 
         t = s.elapsed_time(e) / n / 1e3
         row.append(2 * L * M * N * K / t / 1e12)

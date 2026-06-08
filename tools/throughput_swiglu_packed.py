@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from xma import Accelerator, KernelBackend, swiglu_packed
+from xma import KernelBackend, device_synchronize, swiglu_packed
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -57,7 +57,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
                 torch.autograd.grad(z, x, grad_outputs=dy, retain_graph=True)
         e.record()
 
-        Accelerator.synchronize()
+        device_synchronize()
 
         t = s.elapsed_time(e) / n / 1e3
         row.append((3 if run_forward else 5) * B * H * dtype.itemsize / t / 1e12)
