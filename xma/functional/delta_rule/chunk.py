@@ -10,16 +10,19 @@
 #   https://github.com/fla-org/flash-linear-attention/graphs/contributors
 
 import torch
-from fla.ops.common.chunk_delta_h import chunk_gated_delta_rule_bwd_dhu as fla_chunk_gated_delta_rule_bwd_dhu
-from fla.ops.common.chunk_delta_h import chunk_gated_delta_rule_fwd_h as fla_chunk_gated_delta_rule_fwd_h
-from fla.ops.common.chunk_o import chunk_bwd_dqkwg, chunk_bwd_dv_local, chunk_fwd_o
+
 from fla.ops.cp import FLACPContext
 from fla.ops.cp.chunk_delta_h import compress_h0, expand_h0
-from fla.ops.gated_delta_rule.chunk_fwd import chunk_gated_delta_rule_fwd_intra as fla_chunk_gated_delta_rule_fwd_intra
-from fla.ops.gated_delta_rule.wy_fast import recompute_w_u_fwd
 
+from .chunk_delta_h import (
+    chunk_gated_delta_rule_fwd_h,
+    chunk_gated_delta_rule_bwd_dhu,
+    chunk_bwd_dqkw_pair,
+)
 from .chunk_delta_h_cp import chunk_gated_delta_rule_bwd_dhu_pre_process, chunk_gated_delta_rule_fwd_h_pre_process
-from .wy_fast import prepare_wy_repr_bwd as fla_prepare_wy_repr_bwd
+from .chunk_fwd import chunk_gated_delta_rule_fwd_intra
+from .chunk_o import chunk_bwd_dqkwg, chunk_bwd_dv_local
+from .wy_fast import recompute_w_u_fwd, prepare_wy_repr_bwd
 
 
 def chunk_delta_rule_fwd(
@@ -35,16 +38,20 @@ def chunk_delta_rule_fwd(
     chunk_indices: torch.LongTensor | None = None,
     transpose_state_layout: bool = False,
 ):
-    assert q.shape[2] == k.shape[2] == v.shape[2] == beta.shape[2]
+    assert q.shape[2] == k.shape[2] == beta.shape[2]
+    assert q.shape[2] % v.shape[2] == 0
     if cp_context is not None:
         # i.e., batch size = 1
         assert cu_seqlens is not None
         assert cu_seqlens.ndim == 1
         assert cu_seqlens.shape[0] == 2
 
-    # obtain WY representation. u is actually the new v.
+    # upstream FLA's `chunk_gated_delta_rule_fwd_kkt_solve_kernel` computes offset with int32
+    assert k.numel() <= torch.iinfo(torch.int32).max
+
+    # obtain WY representation.
     # fused kkt + solve_tril + recompute_w_u
-    w, u, A = fla_chunk_gated_delta_rule_fwd_intra(
+    w, A = chunk_gated_delta_rule_fwd_intra(
         k=k,
         v=v,
         g=None,
@@ -62,42 +69,98 @@ def chunk_delta_rule_fwd(
             k=k,
             v=v,
             w=w,
-            u=u,
+            beta=beta,
+            A=A,
             cu_seqlens=cu_seqlens,
             initial_state=initial_state,
             context=cp_context,
             transpose_state_layout=transpose_state_layout,
+            fuse_u=True,
         )
     else:
         initial_state_cp = initial_state
 
-    h, v_new, final_state = fla_chunk_gated_delta_rule_fwd_h(
+    o, _, _, final_state = chunk_gated_delta_rule_fwd_h(
+        q=q,
         k=k,
+        v=v,
+        beta=beta,
+        A=A,
         w=w,
-        u=u,
-        g=None,
+        scale=scale,
         initial_state=initial_state_cp,
         output_final_state=output_final_state,
+        save_new_value=False,
         cu_seqlens=cu_seqlens,
         chunk_indices=chunk_indices,
         transpose_state_layout=transpose_state_layout,
+        fuse_o=True,
     )
 
     if cp_context is not None:
         initial_state_cp = compress_h0(initial_state_cp, context=cp_context)
 
-    o = chunk_fwd_o(
+    return o, A, final_state, initial_state_cp
+
+
+def _backward_dh_and_dv(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    w: torch.Tensor,
+    scale: float,
+    initial_state: torch.Tensor | None,
+    do: torch.Tensor,
+    dht: torch.Tensor | None,
+    cu_seqlens: torch.LongTensor | None,
+    cp_context: FLACPContext | None,
+    chunk_indices: torch.LongTensor | None,
+    transpose_state_layout: bool,
+    ckpt_pair: bool,
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor | None]:
+    dv = chunk_bwd_dv_local(
         q=q,
         k=k,
-        v=v_new,
-        h=h,
         g=None,
+        do=do,
+        scale=scale,
+        cu_seqlens=cu_seqlens,
+        chunk_indices=chunk_indices,
+    )
+
+    if cp_context is not None:
+        if dht is not None:
+            assert dht.ndim == 4
+            assert dht.shape[0] == 1
+            dht = dht.squeeze(dim=0)
+        dht = chunk_gated_delta_rule_bwd_dhu_pre_process(
+            q=q,
+            k=k,
+            w=w,
+            do=do,
+            dv=dv,
+            scale=scale,
+            cu_seqlens=cu_seqlens,
+            dht=dht,
+            context=cp_context,
+            transpose_state_layout=transpose_state_layout,
+        )
+
+    dh, dh0, dv = chunk_gated_delta_rule_bwd_dhu(
+        q=q,
+        k=k,
+        w=w,
+        g=None,
+        h0=initial_state,
+        dht=dht,
+        do=do,
+        dv=dv,
         scale=scale,
         cu_seqlens=cu_seqlens,
         chunk_indices=chunk_indices,
         transpose_state_layout=transpose_state_layout,
+        ckpt_pair=ckpt_pair,
     )
-    return o, A, final_state, initial_state_cp
+    return dh, dh0, dv, dht
 
 
 def chunk_delta_rule_bwd(
@@ -115,14 +178,15 @@ def chunk_delta_rule_bwd(
     chunk_indices: torch.LongTensor | None = None,
     transpose_state_layout: bool = False,
 ):
-    assert q.shape[2] == k.shape[2] == v.shape[2] == beta.shape[2]
+    assert q.shape[2] == k.shape[2] == beta.shape[2]
+    assert q.shape[2] % v.shape[2] == 0
     if cp_context is not None:
         # i.e., batch size = 1
         assert cu_seqlens is not None
         assert cu_seqlens.ndim == 1
         assert cu_seqlens.shape[0] == 2
 
-    w, u = recompute_w_u_fwd(
+    w, _ = recompute_w_u_fwd(
         k=k,
         v=v,
         beta=beta,
@@ -130,81 +194,77 @@ def chunk_delta_rule_bwd(
         g=None,
         cu_seqlens=cu_seqlens,
         chunk_indices=chunk_indices,
+        compute_u=False,
     )
 
     if cp_context is not None:
         initial_state = expand_h0(initial_state, context=cp_context)
 
-    h, v_new, _ = fla_chunk_gated_delta_rule_fwd_h(
+    CKPT_PAIR = True
+    dh, dh0, dv, dht = _backward_dh_and_dv(
+        q=q,
         k=k,
         w=w,
-        u=u,
-        g=None,
+        scale=scale,
+        initial_state=initial_state,
+        do=do,
+        dht=dht,
+        cu_seqlens=cu_seqlens,
+        cp_context=cp_context,
+        chunk_indices=chunk_indices,
+        transpose_state_layout=transpose_state_layout,
+        ckpt_pair=CKPT_PAIR,
+    )
+    _, h, v_new, _ = chunk_gated_delta_rule_fwd_h(
+        q=None,
+        k=k,
+        v=v,
+        beta=beta,
+        A=A,
+        w=w,
+        scale=None,
         initial_state=initial_state,
         output_final_state=False,
+        save_new_value=True,
         cu_seqlens=cu_seqlens,
         chunk_indices=chunk_indices,
         transpose_state_layout=transpose_state_layout,
+        fuse_o=False,
+        ckpt_pair=CKPT_PAIR,
     )
-    dv = chunk_bwd_dv_local(
-        q=q,
-        k=k,
-        g=None,
-        do=do,
-        scale=scale,
-        cu_seqlens=cu_seqlens,
-        chunk_indices=chunk_indices,
-    )
-
-    if cp_context is not None:
-        if dht is not None:
-            assert dht.ndim == 4
-            assert dht.shape[0] == 1
-            dht = dht.squeeze(dim=0)
-        dht, initial_state = chunk_gated_delta_rule_bwd_dhu_pre_process(
+    if CKPT_PAIR:
+        assert chunk_indices is None
+        dq, dk, dw = chunk_bwd_dqkw_pair(
             q=q,
             k=k,
             w=w,
+            v_new=v_new,
             do=do,
             dv=dv,
+            h=h,
+            dh=dh,
             scale=scale,
             cu_seqlens=cu_seqlens,
-            dht=dht,
-            initial_state=initial_state,
-            context=cp_context,
             transpose_state_layout=transpose_state_layout,
         )
-
-    dh, dh0, dv = fla_chunk_gated_delta_rule_bwd_dhu(
-        q=q,
-        k=k,
-        w=w,
-        g=None,
-        h0=initial_state,
-        dht=dht,
-        do=do,
-        dv=dv,
-        scale=scale,
-        cu_seqlens=cu_seqlens,
-        chunk_indices=chunk_indices,
-        transpose_state_layout=transpose_state_layout,
-    )
-    dq, dk, dw, _ = chunk_bwd_dqkwg(
-        q=q,
-        k=k,
-        v=v_new,
-        w=w,
-        g=None,
-        h=h,
-        dv=dv,
-        do=do,
-        dh=dh,
-        scale=scale,
-        cu_seqlens=cu_seqlens,
-        chunk_indices=chunk_indices,
-        transpose_state_layout=transpose_state_layout,
-    )
-    dk2, dv, db, _ = fla_prepare_wy_repr_bwd(
+    else:
+        dq, dk, dw, _ = chunk_bwd_dqkwg(
+            q=q,
+            k=k,
+            v=v_new,
+            w=w,
+            g=None,
+            h=h,
+            dv=dv,
+            do=do,
+            dh=dh,
+            scale=scale,
+            cu_seqlens=cu_seqlens,
+            chunk_indices=chunk_indices,
+            transpose_state_layout=transpose_state_layout,
+        )
+    del h, dh
+    dk2, dv, db, _ = prepare_wy_repr_bwd(
         k=k,
         v=v,
         beta=beta,

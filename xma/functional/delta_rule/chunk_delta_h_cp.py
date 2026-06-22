@@ -317,9 +317,9 @@ def merge_fwd_bwd_kernel(
             return
 
         # Load offsets for this sequence
-        ss_start = tl.load(seq_offsets + i_seq).to(tl.int32)
-        ss_end = tl.load(seq_offsets + i_seq + 1).to(tl.int32)
-        init_base = tl.load(init_offsets + i_seq).to(tl.int32)
+        ss_start = tl.load(seq_offsets + i_seq).to(tl.int64)
+        ss_end = tl.load(seq_offsets + i_seq + 1).to(tl.int64)
+        init_base = tl.load(init_offsets + i_seq).to(tl.int64)
         num_subseqs = ss_end - ss_start
 
         stride_hm_s = H * K * (V + K)
@@ -327,7 +327,7 @@ def merge_fwd_bwd_kernel(
 
         # Initialize from h0 if provided
         if HAS_H0:
-            orig_seq_id = tl.load(h0_seq_ids + i_seq).to(tl.int32)
+            orig_seq_id = tl.load(h0_seq_ids + i_seq).to(tl.int64)
             if TRANSPOSE_STATE:
                 p_h0 = tl.make_block_ptr(
                     h0 + (orig_seq_id * H + i_h) * V * K, (V, K), (K, 1), (i_v * BV, 0), (BV, BK), (1, 0)
@@ -376,7 +376,7 @@ def merge_fwd_bwd_kernel(
     else:
         # CP mode
         i_h = tl.program_id(1)
-        num_ranks = pre_or_post_num_ranks.to(tl.int32)
+        num_ranks = pre_or_post_num_ranks.to(tl.int64)
         h += i_h * K * V
         ag_hm += i_h * K * (K + V)
         stride = H * K * (K + V)
@@ -432,8 +432,7 @@ def merge_fwd_bwd_kernel(
         for num_warps in [2, 4]
         for num_stages in ([4, 3, 2] if check_shared_mem("ampere") else [1])
     ],
-    # key=['H', 'HV', 'K', 'V', 'BT', 'BLOCK_SIZE', 'BK1', 'IS_VARLEN', 'HAS_DHT'],
-    key=["H", "K", "V", "BT", "BLOCK_SIZE", "BK1", "IS_VARLEN", "HAS_DHT"],
+    key=["H", "HO", "K", "V", "BT", "BLOCK_SIZE", "BK1", "IS_VARLEN", "HAS_DHT"],
     use_cuda_graph=USE_CUDA_GRAPH,
     **autotune_cache_kwargs,
 )
@@ -450,7 +449,7 @@ def pre_process_bwd_kernel_merged(
     scale,
     T,
     H: tl.constexpr,
-    # HV: tl.constexpr,
+    HO: tl.constexpr,
     K: tl.constexpr,
     V: tl.constexpr,
     BT: tl.constexpr,
@@ -491,8 +490,10 @@ def pre_process_bwd_kernel_merged(
 
     if is_dh_part:
         # ====== Stage 1: Compute dh (K x V) ======
-        do += ((bos * H + i_h) * V).to(tl.int64)
+        i_ho = i_h // (H // HO)
+        do += ((bos * HO + i_ho) * V).to(tl.int64)
         dv += ((bos * H + i_h) * V).to(tl.int64)
+        stride_do = HO * V
         stride_v = H * V
         i_v = i_col
 
@@ -533,7 +534,7 @@ def pre_process_bwd_kernel_merged(
         for i_t in range(NT - 1, -1, -1):
 
             p_dv = tl.make_block_ptr(dv, (T, V), (stride_v, 1), (i_t * BT, i_v * BLOCK_SIZE), (BT, BLOCK_SIZE), (1, 0))
-            p_do = tl.make_block_ptr(do, (T, V), (stride_v, 1), (i_t * BT, i_v * BLOCK_SIZE), (BT, BLOCK_SIZE), (1, 0))
+            p_do = tl.make_block_ptr(do, (T, V), (stride_do, 1), (i_t * BT, i_v * BLOCK_SIZE), (BT, BLOCK_SIZE), (1, 0))
             b_do = tl.load(p_do, boundary_check=(0, 1))
 
             # Update dv
@@ -749,18 +750,18 @@ def chunk_gated_delta_rule_bwd_dhu_pre_process(
     scale: float | None = None,
     cu_seqlens: torch.LongTensor | None = None,
     dht: torch.Tensor | None = None,
-    initial_state: torch.Tensor | None = None,
     context: FLACPContext | None = None,
     transpose_state_layout: bool = False,
-) -> tuple[torch.Tensor, torch.Tensor | None]:
+) -> torch.Tensor | None:
     if context is None or context.group is None:
-        return dht, initial_state
+        return dht
     rank = dist.get_rank(context.group)
 
-    B, T, H, K, V = *q.shape, do.shape[-1]
+    B, T, H, K, V, HO = *q.shape, do.shape[-1], do.shape[2]
     # N: the actual number of sequences in the batch with either equal or variable lengths
     BT = 64
     assert K <= 256, "current kernel does not support head dimension being larger than 256."
+    assert H % HO == 0, f"H={H} must be a multiple of HO={HO}"
     BK = triton.next_power_of_2(K)
 
     if cu_seqlens is None:
@@ -797,7 +798,7 @@ def chunk_gated_delta_rule_bwd_dhu_pre_process(
             scale=scale,
             T=T,
             H=H,
-            # HV=HV,
+            HO=HO,
             K=K,
             V=V,
             BT=BT,
@@ -831,4 +832,4 @@ def chunk_gated_delta_rule_bwd_dhu_pre_process(
             TRANSPOSE_STATE=transpose_state_layout,
         )
 
-    return dht_cp, initial_state
+    return dht_cp

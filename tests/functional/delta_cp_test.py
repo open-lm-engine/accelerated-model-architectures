@@ -22,7 +22,7 @@ def test_delta_rule_context_parallel() -> None:
         "--nproc_per_node",
         str(gpus_per_node),
         "-m",
-        "tests.functional.delta_cp",
+        "tests.functional.delta_test",
     ]
 
     subprocess.run(command, check=True)

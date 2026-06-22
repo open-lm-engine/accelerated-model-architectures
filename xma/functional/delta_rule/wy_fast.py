@@ -12,27 +12,105 @@
 import torch
 import triton
 import triton.language as tl
+
 from fla.ops.utils import prepare_chunk_indices
 from fla.ops.utils.op import exp, exp2
 from fla.utils import autotune_cache_kwargs, check_shared_mem
 
 
-@triton.heuristics(
-    {
-        "USE_G": lambda args: args["g"] is not None,
-        "IS_VARLEN": lambda args: args["cu_seqlens"] is not None,
-    }
+@triton.heuristics({
+    'USE_G': lambda args: args['g'] is not None,
+    'IS_VARLEN': lambda args: args['cu_seqlens'] is not None,
+})
+@triton.autotune(
+    configs=[
+        triton.Config({}, num_warps=num_warps, num_stages=num_stages)
+        for num_warps in [2, 4, 8]
+        for num_stages in [2, 3, 4]
+    ],
+    key=['H', 'HV', 'K', 'V', 'BT', 'BK', 'BV', 'USE_G', 'USE_EXP2', 'IS_VARLEN', 'COMPUTE_U'],
+    **autotune_cache_kwargs,
 )
+@triton.jit(do_not_specialize=['T'])
+def recompute_w_u_fwd_kernel(
+    k,
+    v,
+    beta,
+    w,
+    u,
+    A,
+    g,
+    cu_seqlens,
+    chunk_indices,
+    T,
+    H: tl.constexpr,
+    HV: tl.constexpr,
+    K: tl.constexpr,
+    V: tl.constexpr,
+    BT: tl.constexpr,
+    BK: tl.constexpr,
+    BV: tl.constexpr,
+    USE_G: tl.constexpr,
+    USE_EXP2: tl.constexpr,
+    IS_VARLEN: tl.constexpr,
+    COMPUTE_U: tl.constexpr,
+):
+    i_t, i_bh = tl.program_id(0), tl.program_id(1)
+    i_b, i_h = i_bh // H, i_bh % H
+    i_hv = i_h // (H // HV)
+    if IS_VARLEN:
+        i_n, i_t = tl.load(chunk_indices + i_t * 2).to(tl.int32), tl.load(chunk_indices + i_t * 2 + 1).to(tl.int32)
+        bos, eos = tl.load(cu_seqlens + i_n).to(tl.int32), tl.load(cu_seqlens + i_n + 1).to(tl.int32)
+        T = eos - bos
+    else:
+        bos, eos = i_b * T, i_b * T + T
+    p_b = tl.make_block_ptr(beta + bos*H + i_h, (T,), (H,), (i_t * BT,), (BT,), (0,))
+    b_b = tl.load(p_b, boundary_check=(0,))
+
+    p_A = tl.make_block_ptr(A + (bos*H + i_h).to(tl.int64) * BT, (T, BT), (H*BT, 1), (i_t * BT, 0), (BT, BT), (1, 0))
+    b_A = tl.load(p_A, boundary_check=(0, 1))
+
+    if COMPUTE_U:
+        for i_v in range(tl.cdiv(V, BV)):
+            p_v = tl.make_block_ptr(v + (bos*HV + i_hv).to(tl.int64) * V, (T, V), (HV*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+            p_u = tl.make_block_ptr(u + (bos*H + i_h).to(tl.int64) * V, (T, V), (H*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+            b_v = tl.load(p_v, boundary_check=(0, 1))
+            b_vb = (b_v * b_b[:, None]).to(b_v.dtype)
+            b_u = tl.dot(b_A, b_vb, allow_tf32=False)
+            tl.store(p_u, b_u.to(p_u.dtype.element_ty), boundary_check=(0, 1))
+
+    if USE_G:
+        p_g = tl.make_block_ptr(g + (bos*H + i_h), (T,), (H,), (i_t * BT,), (BT,), (0,))
+        if USE_EXP2:
+            b_g = exp2(tl.load(p_g, boundary_check=(0,)))
+        else:
+            b_g = exp(tl.load(p_g, boundary_check=(0,)))
+
+    for i_k in range(tl.cdiv(K, BK)):
+        p_k = tl.make_block_ptr(k + (bos*H + i_h).to(tl.int64) * K, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+        p_w = tl.make_block_ptr(w + (bos*H + i_h).to(tl.int64) * K, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+        b_k = tl.load(p_k, boundary_check=(0, 1))
+        b_kb = b_k * b_b[:, None]
+        if USE_G:
+            b_kb *= b_g[:, None]
+        b_w = tl.dot(b_A, b_kb.to(b_k.dtype))
+        tl.store(p_w, b_w.to(p_w.dtype.element_ty), boundary_check=(0, 1))
+
+
+@triton.heuristics({
+    'USE_G': lambda args: args['g'] is not None,
+    'IS_VARLEN': lambda args: args['cu_seqlens'] is not None,
+})
 @triton.autotune(
     configs=[
         triton.Config({}, num_warps=num_warps, num_stages=num_stages)
         for num_warps in [2, 4]
         for num_stages in [2, 3, 4]
     ],
-    key=["H", "HV", "K", "V", "BT", "BK", "BV", "IS_VARLEN"],
+    key=['H', 'HV', 'K', 'V', 'BT', 'BK', 'BV', 'USE_G', 'USE_EXP2', 'IS_VARLEN'],
     **autotune_cache_kwargs,
 )
-@triton.jit(do_not_specialize=["T"])
+@triton.jit(do_not_specialize=['T'])
 def prepare_wy_repr_bwd_kernel(
     k,
     v,
@@ -59,8 +137,10 @@ def prepare_wy_repr_bwd_kernel(
     USE_EXP2: tl.constexpr,
     IS_VARLEN: tl.constexpr,
 ):
-    i_t, i_bh = tl.program_id(0), tl.program_id(1)
-    i_b, i_h = i_bh // HV, i_bh % HV
+    # reordered launch grid
+    i_bh, i_t = tl.program_id(0), tl.program_id(1)
+    i_b, i_h = i_bh // H, i_bh % H
+    i_hv = i_h // (H // HV)
     if IS_VARLEN:
         i_n, i_t = tl.load(chunk_indices + i_t * 2).to(tl.int32), tl.load(chunk_indices + i_t * 2 + 1).to(tl.int32)
         bos, eos = tl.load(cu_seqlens + i_n).to(tl.int32), tl.load(cu_seqlens + i_n + 1).to(tl.int32)
@@ -68,9 +148,9 @@ def prepare_wy_repr_bwd_kernel(
     else:
         bos, eos = i_b * T, i_b * T + T
 
-    p_b = tl.make_block_ptr(beta + (bos * HV + i_h), (T,), (HV,), (i_t * BT,), (BT,), (0,))
-    p_db = tl.make_block_ptr(db + (bos * HV + i_h), (T,), (HV,), (i_t * BT,), (BT,), (0,))
-    p_A = tl.make_block_ptr(A + (bos * HV + i_h) * BT, (BT, T), (1, HV * BT), (0, i_t * BT), (BT, BT), (0, 1))
+    p_b = tl.make_block_ptr(beta + (bos*H + i_h), (T,), (H,), (i_t * BT,), (BT,), (0,))
+    p_db = tl.make_block_ptr(db + (bos*H + i_h), (T,), (H,), (i_t * BT,), (BT,), (0,))
+    p_A = tl.make_block_ptr(A + (bos*H + i_h).to(tl.int64) * BT, (BT, T), (1, H*BT), (0, i_t * BT), (BT, BT), (0, 1))
 
     b_b = tl.load(p_b, boundary_check=(0,))
     b_db = tl.zeros([BT], dtype=tl.float32)
@@ -78,7 +158,7 @@ def prepare_wy_repr_bwd_kernel(
     b_dA = tl.zeros([BT, BT], dtype=tl.float32)
 
     if USE_G:
-        p_g = tl.make_block_ptr(g + (bos * HV + i_h), (T,), (HV,), (i_t * BT,), (BT,), (0,))
+        p_g = tl.make_block_ptr(g + (bos*H + i_h), (T,), (H,), (i_t * BT,), (BT,), (0,))
         b_g = tl.load(p_g, boundary_check=(0,))
         if USE_EXP2:
             b_g_exp = exp2(b_g)
@@ -87,15 +167,9 @@ def prepare_wy_repr_bwd_kernel(
         b_dg = tl.zeros([BT], dtype=tl.float32)
 
     for i_k in range(tl.cdiv(K, BK)):
-        p_k = tl.make_block_ptr(
-            k + (bos * H + i_h // (HV // H)) * K, (T, K), (H * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0)
-        )
-        p_dk = tl.make_block_ptr(
-            dk + (bos * HV + i_h) * K, (T, K), (HV * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0)
-        )
-        p_dw = tl.make_block_ptr(
-            dw + (bos * HV + i_h) * K, (T, K), (HV * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0)
-        )
+        p_k = tl.make_block_ptr(k + (bos*H + i_h).to(tl.int64) * K, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+        p_dk = tl.make_block_ptr(dk + (bos*H + i_h).to(tl.int64) * K, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+        p_dw = tl.make_block_ptr(dw + (bos*H + i_h).to(tl.int64) * K, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
         # [BT, BK]
         b_k = tl.load(p_k, boundary_check=(0, 1))
         if USE_G:
@@ -116,13 +190,9 @@ def prepare_wy_repr_bwd_kernel(
         tl.store(p_dk, b_dk.to(p_dk.dtype.element_ty), boundary_check=(0, 1))
 
     for i_v in range(tl.cdiv(V, BV)):
-        p_v = tl.make_block_ptr(v + (bos * HV + i_h) * V, (T, V), (HV * V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
-        p_dv = tl.make_block_ptr(
-            dv + (bos * HV + i_h) * V, (T, V), (HV * V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0)
-        )
-        p_du = tl.make_block_ptr(
-            du + (bos * HV + i_h) * V, (T, V), (HV * V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0)
-        )
+        p_v = tl.make_block_ptr(v + (bos*HV + i_hv).to(tl.int64) * V, (T, V), (HV*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+        p_dv = tl.make_block_ptr(dv + (bos*H + i_h).to(tl.int64) * V, (T, V), (H*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+        p_du = tl.make_block_ptr(du + (bos*H + i_h).to(tl.int64) * V, (T, V), (H*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
         b_v = tl.load(p_v, boundary_check=(0, 1))
         b_vb = (b_v * b_b[:, None]).to(b_v.dtype)
         b_du = tl.load(p_du, boundary_check=(0, 1))
@@ -150,12 +220,8 @@ def prepare_wy_repr_bwd_kernel(
 
     tl.debug_barrier()
     for i_k in range(tl.cdiv(K, BK)):
-        p_k = tl.make_block_ptr(
-            k + (bos * H + i_h // (HV // H)) * K, (T, K), (H * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0)
-        )
-        p_dk = tl.make_block_ptr(
-            dk + (bos * HV + i_h) * K, (T, K), (HV * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0)
-        )
+        p_k = tl.make_block_ptr(k + (bos*H + i_h).to(tl.int64) * K, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+        p_dk = tl.make_block_ptr(dk + (bos*H + i_h).to(tl.int64) * K, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
         b_k = tl.load(p_k, boundary_check=(0, 1))
         b_kt = tl.trans(b_k)
         b_kb = b_k * b_b[:, None]
@@ -172,9 +238,56 @@ def prepare_wy_repr_bwd_kernel(
     b_A *= b_b[:, None]
     if USE_G:
         b_AdA = b_dA * b_A
-        p_dg = tl.make_block_ptr(dg + (bos * HV + i_h), (T,), (HV,), (i_t * BT,), (BT,), (0,))
+        p_dg = tl.make_block_ptr(dg + (bos*H + i_h), (T,), (H,), (i_t * BT,), (BT,), (0,))
         b_dg += tl.sum(b_AdA, axis=1) - tl.sum(b_AdA, axis=0)
         tl.store(p_dg, b_dg.to(p_dg.dtype.element_ty), boundary_check=(0,))
+
+
+def recompute_w_u_fwd(
+    k: torch.Tensor,
+    v: torch.Tensor,
+    beta: torch.Tensor,
+    A: torch.Tensor,
+    g: torch.Tensor | None = None,
+    cu_seqlens: torch.LongTensor | None = None,
+    chunk_indices: torch.LongTensor | None = None,
+    use_exp2: bool = False,
+    compute_u: bool = True,
+) -> tuple[torch.Tensor, torch.Tensor | None]:
+    B, T, H, K, V, HV = *k.shape, v.shape[-1], v.shape[2]
+    assert H % HV == 0, f"H={H} must be a multiple of HV={HV}"
+    BT = A.shape[-1]
+    BK = 64
+    BV = 64
+
+    if chunk_indices is None and cu_seqlens is not None:
+        chunk_indices = prepare_chunk_indices(cu_seqlens, BT)
+    NT = triton.cdiv(T, BT) if cu_seqlens is None else len(chunk_indices)
+
+    w = k.new_empty(B, T, H, K)
+    u = v.new_empty(B, T, H, V) if compute_u else None
+    recompute_w_u_fwd_kernel[(NT, B*H)](
+        k=k,
+        v=v,
+        beta=beta,
+        w=w,
+        u=u,
+        A=A,
+        g=g,
+        cu_seqlens=cu_seqlens,
+        chunk_indices=chunk_indices,
+        T=T,
+        H=H,
+        HV=HV,
+        K=K,
+        V=V,
+        BT=BT,
+        BK=BK,
+        BV=BV,
+        USE_EXP2=use_exp2,
+        COMPUTE_U=compute_u,
+    )
+    return w, u
 
 
 def prepare_wy_repr_bwd(
@@ -184,12 +297,13 @@ def prepare_wy_repr_bwd(
     A: torch.Tensor,
     dw: torch.Tensor,
     du: torch.Tensor,
-    g: torch.Tensor = None,
+    g: torch.Tensor | None = None,
     cu_seqlens: torch.LongTensor | None = None,
     chunk_indices: torch.LongTensor | None = None,
     use_exp2: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     B, T, H, K, V, HV = *k.shape, v.shape[-1], v.shape[2]
+    assert H % HV == 0, f"H={H} must be a multiple of HV={HV}"
     BT = 64
     if chunk_indices is None and cu_seqlens is not None:
         chunk_indices = prepare_chunk_indices(cu_seqlens, BT)
@@ -198,11 +312,13 @@ def prepare_wy_repr_bwd(
     BK = min(max(triton.next_power_of_2(K), 16), CONST_TILING)
     BV = min(max(triton.next_power_of_2(V), 16), CONST_TILING)
 
-    dk = k.new_empty(B, T, HV, K)
-    dv = torch.empty_like(v)
+    dk = k.new_empty(B, T, H, K)
+    dv = v.new_empty(B, T, H, V)
     dg = torch.empty_like(g) if g is not None else None
     db = torch.empty_like(beta)
-    prepare_wy_repr_bwd_kernel[(NT, B * HV)](
+    # reorder the launch so `head` dimension moves fastest
+    # to take advantages of L2 cache reuse when heads are tied
+    prepare_wy_repr_bwd_kernel[(B * H, NT)](
         k=k,
         v=v,
         beta=beta,
@@ -227,5 +343,5 @@ def prepare_wy_repr_bwd(
         USE_EXP2=use_exp2,
     )
     if H != HV:
-        dk = dk.view(B, T, H, HV // H, K).sum(3)
+        dv = dv.view(B, T, HV, H // HV, V).sum(3)
     return dk, dv, db, dg
