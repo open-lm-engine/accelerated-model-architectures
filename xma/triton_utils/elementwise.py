@@ -41,13 +41,13 @@ def elementwise_2d_kernel(
     BLOCK_ID_B = tl.program_id(0)
     BLOCK_ID_H = tl.program_id(1)
 
-    off_b = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    off_h = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
-    MASK = (off_b < B)[:, None] & (off_h < H)[None, :]
+    MASK = (BLOCK_B < B)[:, None] & (BLOCK_H < H)[None, :]
 
-    x0 = tl.load(x0_ptr + off_b[:, None] * x0_stride[0] + off_h[None, :] * x0_stride[1], mask=MASK)
-    x1 = tl.load(x1_ptr + off_b[:, None] * x1_stride[0] + off_h[None, :] * x1_stride[1], mask=MASK)
+    x0 = tl.load(x0_ptr + BLOCK_B[:, None] * x0_stride[0] + BLOCK_H[None, :] * x0_stride[1], mask=MASK)
+    x1 = tl.load(x1_ptr + BLOCK_B[:, None] * x1_stride[0] + BLOCK_H[None, :] * x1_stride[1], mask=MASK)
 
     if x2_ptr is None:
         if y1_ptr is None:
@@ -55,14 +55,14 @@ def elementwise_2d_kernel(
         else:
             y0, y1 = COMPUTE_FN(x0, x1)
     else:
-        x2 = tl.load(x2_ptr + off_b[:, None] * x2_stride[0] + off_h[None, :] * x2_stride[1], mask=MASK)
+        x2 = tl.load(x2_ptr + BLOCK_B[:, None] * x2_stride[0] + BLOCK_H[None, :] * x2_stride[1], mask=MASK)
 
         if y1_ptr is None:
             y0 = COMPUTE_FN(x0, x1, x2)
         else:
             y0, y1 = COMPUTE_FN(x0, x1, x2)
 
-    tl.store(y0_ptr + off_b[:, None] * y0_stride[0] + off_h[None, :] * y0_stride[1], y0, mask=MASK)
+    tl.store(y0_ptr + BLOCK_B[:, None] * y0_stride[0] + BLOCK_H[None, :] * y0_stride[1], y0, mask=MASK)
 
     if y1_ptr is not None:
-        tl.store(y1_ptr + off_b[:, None] * y1_stride[0] + off_h[None, :] * y1_stride[1], y1, mask=MASK)
+        tl.store(y1_ptr + BLOCK_B[:, None] * y1_stride[0] + BLOCK_H[None, :] * y1_stride[1], y1, mask=MASK)
