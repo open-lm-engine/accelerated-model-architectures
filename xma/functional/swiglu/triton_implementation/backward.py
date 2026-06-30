@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....custom_op import xma_op
 from ....math import ceil_divide
-from ....triton_utils import elementwise_3in_2out_kernel, sigmoid
+from ....triton_utils import elementwise_2d_kernel, sigmoid
 
 
 @triton.jit
@@ -30,7 +30,7 @@ def _swiglu_backward_triton(
     B, H = g.size()
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
-    elementwise_3in_2out_kernel[GRID](
+    elementwise_2d_kernel[GRID](
         x0_ptr=g,
         x0_stride=g.stride(),
         x1_ptr=u,

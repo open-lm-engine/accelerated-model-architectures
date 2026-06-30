@@ -14,6 +14,6 @@ from .activations import (
     tanh_backward,
 )
 from .cu_seqlens import get_start_end
-from .elementwise import elementwise_2in_1out_kernel, elementwise_3in_2out_kernel, get_elementwise_2d_configs
+from .elementwise import elementwise_2d_kernel, get_elementwise_2d_configs
 from .math import compute_p_norm
 from .matmul import matmul
