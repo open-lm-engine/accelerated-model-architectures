@@ -95,16 +95,10 @@ class ElementwiseCUDAKernel:
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
         block_coord = ((None, None), BLOCK_ID)
-
-        bY0 = gY0[block_coord]
         bC = gC[block_coord]
 
         thr_copy = tiled_copy.get_slice(THREAD_ID)
-
-        tY0 = thr_copy.partition_D(bY0)
         tC = thr_copy.partition_S(bC)
-
-        rY0 = cute.make_rmem_tensor_like(tY0)
 
         rC = cute.make_rmem_tensor(tC.shape, Boolean)
         for i in range_constexpr(cute.size(rC)):
