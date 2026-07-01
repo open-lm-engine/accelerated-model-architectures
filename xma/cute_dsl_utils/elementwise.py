@@ -28,7 +28,7 @@ def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, examp
     return fn
 
 
-def _load_store(
+def _load(
     gX: cute.Tensor, rC: cute.Tensor, thr_copy, copy_atom: cute.CopyAtom, block_coord, is_within_boundary
 ) -> cute.TensorSSA:
     bX = gX[block_coord]
@@ -41,6 +41,27 @@ def _load_store(
         cute.copy(copy_atom, tX, rX, pred=rC)
 
     return rX.load()
+
+
+def _store(
+    gY: cute.Tensor,
+    y: cute.TensorSSA,
+    rC: cute.Tensor,
+    thr_copy,
+    copy_atom: cute.CopyAtom,
+    block_coord,
+    is_within_boundary,
+) -> None:
+    bY = gY[block_coord]
+    tY = thr_copy.partition_D(bY)
+    rY = cute.make_rmem_tensor_like(tY)
+
+    rY.store(y)
+
+    if is_within_boundary:
+        cute.copy(copy_atom, rY, tY)
+    else:
+        cute.copy(copy_atom, rY, tY, pred=rC)
 
 
 class ElementwiseCUDAKernel:
@@ -87,7 +108,7 @@ class ElementwiseCUDAKernel:
 
         is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
-        x0 = _load_store(
+        x0 = _load(
             gX=gX0,
             rC=rC,
             thr_copy=thr_copy,
@@ -97,7 +118,7 @@ class ElementwiseCUDAKernel:
         )
 
         if not is_x1_none:
-            x1 = _load_store(
+            x1 = _load(
                 gX=gX1,
                 rC=rC,
                 thr_copy=thr_copy,
@@ -109,7 +130,7 @@ class ElementwiseCUDAKernel:
         if not is_x2_none:
             assert not is_x1_none
 
-            x2 = _load_store(
+            x2 = _load(
                 gX=gX2,
                 rC=rC,
                 thr_copy=thr_copy,
@@ -130,22 +151,26 @@ class ElementwiseCUDAKernel:
         else:
             y0, y1 = y
 
-        rY0.store(y0)
+        _store(
+            gY=gY0,
+            y=y0,
+            rC=rC,
+            thr_copy=thr_copy,
+            copy_atom=copy_atom,
+            block_coord=block_coord,
+            is_within_boundary=is_within_boundary,
+        )
 
-        if is_within_boundary:
-            cute.copy(copy_atom, rY0, tY0)
-        else:
-            cute.copy(copy_atom, rY0, tY0, pred=rC)
-
-        if self.HAS_Y1:
-            bY1 = gY1[block_coord]
-            tY1 = thr_copy.partition_D(bY1)
-            rY1 = cute.make_rmem_tensor_like(tY1)
-            rY1.store(y1)
-            if is_within_boundary:
-                cute.copy(copy_atom, rY1, tY1)
-            else:
-                cute.copy(copy_atom, rY1, tY1, pred=rC)
+        if not is_y1_none:
+            _store(
+                gY=gY1,
+                y=y1,
+                rC=rC,
+                thr_copy=thr_copy,
+                copy_atom=copy_atom,
+                block_coord=block_coord,
+                is_within_boundary=is_within_boundary,
+            )
 
     @cute.jit
     def __call__(
