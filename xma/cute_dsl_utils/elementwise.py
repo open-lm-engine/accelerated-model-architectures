@@ -28,100 +28,12 @@ def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, examp
     return fn
 
 
-class Elementwise2in1outCUDAKernel:
-    def __init__(self, BLOCK_SIZE: int = 128) -> None:
-        self.BLOCK_SIZE = BLOCK_SIZE
+class ElementwiseCUDAKernel:
+    BLOCK_SIZE: int = 128
+    HAS_X2: bool = False
+    HAS_Y1: bool = False
 
-    def compute(self, x0, x1):
-        raise NotImplementedError
-
-    @cute.kernel
-    def kernel(
-        self,
-        gX0: cute.Tensor,
-        gX1: cute.Tensor,
-        gY: cute.Tensor,
-        gC: cute.Tensor,
-        copy_atom: cute.CopyAtom,
-        tiled_copy: cute.TiledCopy,
-        shape: cute.Shape,
-    ) -> None:
-        BLOCK_ID, _, _ = cute.arch.block_idx()
-        THREAD_ID, _, _ = cute.arch.thread_idx()
-
-        block_coord = ((None, None), BLOCK_ID)
-
-        bX0 = gX0[block_coord]
-        bX1 = gX1[block_coord]
-        bY = gY[block_coord]
-        bC = gC[block_coord]
-
-        thr_copy = tiled_copy.get_slice(THREAD_ID)
-
-        tX0 = thr_copy.partition_S(bX0)
-        tX1 = thr_copy.partition_S(bX1)
-        tY = thr_copy.partition_D(bY)
-        tC = thr_copy.partition_S(bC)
-
-        rX0 = cute.make_rmem_tensor_like(tX0)
-        rX1 = cute.make_rmem_tensor_like(tX1)
-        rY = cute.make_rmem_tensor_like(tY)
-
-        rC = cute.make_rmem_tensor(tC.shape, Boolean)
-        for i in range_constexpr(cute.size(rC)):
-            rC[i] = cute.elem_less(tC[i], shape)
-
-        is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
-
-        if is_within_boundary:
-            cute.copy(copy_atom, tX0, rX0)
-            cute.copy(copy_atom, tX1, rX1)
-        else:
-            cute.copy(copy_atom, tX0, rX0, pred=rC)
-            cute.copy(copy_atom, tX1, rX1, pred=rC)
-
-        x0 = rX0.load()
-        x1 = rX1.load()
-
-        y = self.compute(x0, x1)
-
-        rY.store(y)
-
-        if is_within_boundary:
-            cute.copy(copy_atom, rY, tY)
-        else:
-            cute.copy(copy_atom, rY, tY, pred=rC)
-
-    @cute.jit
-    def __call__(self, mX0: cute.Tensor, mX1: cute.Tensor, mY: cute.Tensor, stream: cuda.CUstream) -> None:
-        vector_size = 128 // mX0.element_type.width
-
-        thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-        val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
-        tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
-
-        mC = cute.make_identity_tensor(mX0.shape)
-
-        gX0 = cute.zipped_divide(mX0, tiler_mn)
-        gX1 = cute.zipped_divide(mX1, tiler_mn)
-        gY = cute.zipped_divide(mY, tiler_mn)
-        gC = cute.zipped_divide(mC, tiler_mn)
-
-        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
-        tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
-
-        NUM_BLOCKS = cute.size(gX0, mode=[1])
-
-        self.kernel(
-            gX0=gX0, gX1=gX1, gY=gY, gC=gC, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mX0.shape
-        ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
-
-
-class Elementwise3in2outCUDAKernel:
-    def __init__(self, BLOCK_SIZE: int = 128) -> None:
-        self.BLOCK_SIZE = BLOCK_SIZE
-
-    def compute(self, x0, x1, x2):
+    def compute(self, *inputs):
         raise NotImplementedError
 
     @cute.kernel
@@ -144,25 +56,19 @@ class Elementwise3in2outCUDAKernel:
 
         bX0 = gX0[block_coord]
         bX1 = gX1[block_coord]
-        bX2 = gX2[block_coord]
         bY0 = gY0[block_coord]
-        bY1 = gY1[block_coord]
         bC = gC[block_coord]
 
         thr_copy = tiled_copy.get_slice(THREAD_ID)
 
         tX0 = thr_copy.partition_S(bX0)
         tX1 = thr_copy.partition_S(bX1)
-        tX2 = thr_copy.partition_S(bX2)
         tY0 = thr_copy.partition_D(bY0)
-        tY1 = thr_copy.partition_D(bY1)
         tC = thr_copy.partition_S(bC)
 
         rX0 = cute.make_rmem_tensor_like(tX0)
         rX1 = cute.make_rmem_tensor_like(tX1)
-        rX2 = cute.make_rmem_tensor_like(tX2)
         rY0 = cute.make_rmem_tensor_like(tY0)
-        rY1 = cute.make_rmem_tensor_like(tY1)
 
         rC = cute.make_rmem_tensor(tC.shape, Boolean)
         for i in range_constexpr(cute.size(rC)):
@@ -173,27 +79,50 @@ class Elementwise3in2outCUDAKernel:
         if is_within_boundary:
             cute.copy(copy_atom, tX0, rX0)
             cute.copy(copy_atom, tX1, rX1)
-            cute.copy(copy_atom, tX2, rX2)
         else:
             cute.copy(copy_atom, tX0, rX0, pred=rC)
             cute.copy(copy_atom, tX1, rX1, pred=rC)
-            cute.copy(copy_atom, tX2, rX2, pred=rC)
 
         x0 = rX0.load()
         x1 = rX1.load()
-        x2 = rX2.load()
 
-        y0, y1 = self.compute(x0, x1, x2)
+        if self.HAS_X2:
+            bX2 = gX2[block_coord]
+            tX2 = thr_copy.partition_S(bX2)
+            rX2 = cute.make_rmem_tensor_like(tX2)
+            if is_within_boundary:
+                cute.copy(copy_atom, tX2, rX2)
+            else:
+                cute.copy(copy_atom, tX2, rX2, pred=rC)
+            x2 = rX2.load()
+
+        if self.HAS_X2:
+            if self.HAS_Y1:
+                y0, y1 = self.compute(x0, x1, x2)
+            else:
+                y0 = self.compute(x0, x1, x2)
+        else:
+            if self.HAS_Y1:
+                y0, y1 = self.compute(x0, x1)
+            else:
+                y0 = self.compute(x0, x1)
 
         rY0.store(y0)
-        rY1.store(y1)
 
         if is_within_boundary:
             cute.copy(copy_atom, rY0, tY0)
-            cute.copy(copy_atom, rY1, tY1)
         else:
             cute.copy(copy_atom, rY0, tY0, pred=rC)
-            cute.copy(copy_atom, rY1, tY1, pred=rC)
+
+        if self.HAS_Y1:
+            bY1 = gY1[block_coord]
+            tY1 = thr_copy.partition_D(bY1)
+            rY1 = cute.make_rmem_tensor_like(tY1)
+            rY1.store(y1)
+            if is_within_boundary:
+                cute.copy(copy_atom, rY1, tY1)
+            else:
+                cute.copy(copy_atom, rY1, tY1, pred=rC)
 
     @cute.jit
     def __call__(
