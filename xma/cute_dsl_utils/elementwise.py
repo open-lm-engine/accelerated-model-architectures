@@ -62,6 +62,10 @@ class ElementwiseCUDAKernel:
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
     ) -> None:
+        is_x1_none = const_expr(gX1 is None)
+        is_x2_none = const_expr(gX2 is None)
+        is_y1_none = const_expr(gY1 is None)
+
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
@@ -91,10 +95,6 @@ class ElementwiseCUDAKernel:
             block_coord=block_coord,
             is_within_boundary=is_within_boundary,
         )
-
-        is_x1_none = const_expr(gX1 is None)
-        is_x2_none = const_expr(gX2 is None)
-        is_y1_none = const_expr(gY1 is None)
 
         if not is_x1_none:
             x1 = _load_store(
@@ -151,10 +151,10 @@ class ElementwiseCUDAKernel:
     def __call__(
         self,
         mX0: cute.Tensor,
-        mX1: cute.Tensor,
-        mX2: cute.Tensor,
+        mX1: cute.Tensor | None,
+        mX2: cute.Tensor | None,
         mY0: cute.Tensor,
-        mY1: cute.Tensor,
+        mY1: cute.Tensor | None,
         stream: cuda.CUstream,
     ) -> None:
         vector_size = 128 // mX0.element_type.width
@@ -165,12 +165,24 @@ class ElementwiseCUDAKernel:
 
         mC = cute.make_identity_tensor(mX0.shape)
 
-        gX0 = cute.zipped_divide(mX0, tiler_mn)
-        gX1 = cute.zipped_divide(mX1, tiler_mn)
-        gX2 = cute.zipped_divide(mX2, tiler_mn)
-        gY0 = cute.zipped_divide(mY0, tiler_mn)
-        gY1 = cute.zipped_divide(mY1, tiler_mn)
+        is_x1_none = const_expr(mX1 is None)
+        is_x2_none = const_expr(mX2 is None)
+        is_y1_none = const_expr(mY1 is None)
+
         gC = cute.zipped_divide(mC, tiler_mn)
+        gX0 = cute.zipped_divide(mX0, tiler_mn)
+
+        if not is_x1_none:
+            gX1 = cute.zipped_divide(mX1, tiler_mn)
+
+        if not is_x2_none:
+            assert not is_x2_none
+            gX2 = cute.zipped_divide(mX2, tiler_mn)
+
+        gY0 = cute.zipped_divide(mY0, tiler_mn)
+
+        if not is_y1_none:
+            gY1 = cute.zipped_divide(mY1, tiler_mn)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
