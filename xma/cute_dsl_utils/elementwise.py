@@ -7,7 +7,7 @@ from __future__ import annotations
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
 import torch
-from cutlass import Boolean, range_constexpr
+from cutlass import Boolean, const_expr, range_constexpr
 
 from ..constants import LOG_WARP_SIZE, WARP_SIZE
 from .utils import get_fake_cute_tensor
@@ -28,11 +28,25 @@ def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, examp
     return fn
 
 
+def _load(
+    gX: cute.Tensor, rC: cute.Tensor, thr_copy, copy_atom: cute.CopyAtom, block_coord, is_within_boundary
+) -> cute.TensorSSA:
+    bX = gX[block_coord]
+    tX = thr_copy.partition_S(bX)
+    rX = cute.make_rmem_tensor_like(tX)
+
+    if is_within_boundary:
+        cute.copy(copy_atom, tX, rX)
+    else:
+        cute.copy(copy_atom, tX, rX, pred=rC)
+
+    x = rX.load()
+
+    return x
+
+
 class ElementwiseCUDAKernel:
     BLOCK_SIZE: int = 128
-    HAS_X1: bool = False
-    HAS_X2: bool = False
-    HAS_Y1: bool = False
 
     def compute(self, *inputs):
         raise NotImplementedError
@@ -41,10 +55,10 @@ class ElementwiseCUDAKernel:
     def kernel(
         self,
         gX0: cute.Tensor,
-        gX1: cute.Tensor,
-        gX2: cute.Tensor,
+        gX1: cute.Tensor | None,
+        gX2: cute.Tensor | None,
         gY0: cute.Tensor,
-        gY1: cute.Tensor,
+        gY1: cute.Tensor | None,
         gC: cute.Tensor,
         copy_atom: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
@@ -55,17 +69,14 @@ class ElementwiseCUDAKernel:
 
         block_coord = ((None, None), BLOCK_ID)
 
-        bX0 = gX0[block_coord]
         bY0 = gY0[block_coord]
         bC = gC[block_coord]
 
         thr_copy = tiled_copy.get_slice(THREAD_ID)
 
-        tX0 = thr_copy.partition_S(bX0)
         tY0 = thr_copy.partition_D(bY0)
         tC = thr_copy.partition_S(bC)
 
-        rX0 = cute.make_rmem_tensor_like(tX0)
         rY0 = cute.make_rmem_tensor_like(tY0)
 
         rC = cute.make_rmem_tensor(tC.shape, Boolean)
@@ -74,36 +85,52 @@ class ElementwiseCUDAKernel:
 
         is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
-        if is_within_boundary:
-            cute.copy(copy_atom, tX0, rX0)
+        x0 = _load(
+            gX=gX0,
+            rC=rC,
+            thr_copy=thr_copy,
+            copy_atom=copy_atom,
+            block_coord=block_coord,
+            is_within_boundary=is_within_boundary,
+        )
+
+        is_x1_none = const_expr(gX1 is None)
+        is_x2_none = const_expr(gX2 is None)
+        is_y1_none = const_expr(gY1 is None)
+
+        if not is_x1_none:
+            x1 = _load(
+                gX=gX1,
+                rC=rC,
+                thr_copy=thr_copy,
+                copy_atom=copy_atom,
+                block_coord=block_coord,
+                is_within_boundary=is_within_boundary,
+            )
+
+        if not is_x2_none:
+            assert self.HAS_X1
+
+            x2 = _load(
+                gX=gX2,
+                rC=rC,
+                thr_copy=thr_copy,
+                copy_atom=copy_atom,
+                block_coord=block_coord,
+                is_within_boundary=is_within_boundary,
+            )
+
+        if is_x1_none:
+            y = self.compute(x0)
+        elif is_x2_none:
+            y = self.compute(x0, x1)
         else:
-            cute.copy(copy_atom, tX0, rX0, pred=rC)
+            y = self.compute(x0, x1, x2)
 
-        x0 = rX0.load()
-
-        if self.HAS_X1:
-            bX1 = gX1[block_coord]
-            tX1 = thr_copy.partition_S(bX1)
-            rX1 = cute.make_rmem_tensor_like(tX1)
-
-            if is_within_boundary:
-                cute.copy(copy_atom, tX1, rX1)
-            else:
-                cute.copy(copy_atom, tX1, rX1, pred=rC)
-
-            x1 = rX1.load()
-
-        if self.HAS_X2:
-            bX2 = gX2[block_coord]
-            tX2 = thr_copy.partition_S(bX2)
-            rX2 = cute.make_rmem_tensor_like(tX2)
-
-            if is_within_boundary:
-                cute.copy(copy_atom, tX2, rX2)
-            else:
-                cute.copy(copy_atom, tX2, rX2, pred=rC)
-
-            x2 = rX2.load()
+        if is_y1_none:
+            y0 = y
+        else:
+            y0, y1 = y
 
         if self.HAS_X1:
             if self.HAS_X2:

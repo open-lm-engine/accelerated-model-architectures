@@ -8,7 +8,7 @@ from typing import Callable
 import pytest
 import torch
 
-from xma import KernelBackend, ceil_divide, swiglu
+from xma import KernelBackend, swiglu
 
 from ..utils import (
     assert_equal_tensors,
