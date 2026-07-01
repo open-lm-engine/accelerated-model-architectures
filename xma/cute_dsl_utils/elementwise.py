@@ -28,9 +28,9 @@ def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, examp
     return fn
 
 
-def _load(
+def _load_store(
     gX: cute.Tensor, rC: cute.Tensor, thr_copy, copy_atom: cute.CopyAtom, block_coord, is_within_boundary
-) -> cute.TensorSSA:
+) -> cute.Tensor:
     bX = gX[block_coord]
     tX = thr_copy.partition_S(bX)
     rX = cute.make_rmem_tensor_like(tX)
@@ -40,9 +40,7 @@ def _load(
     else:
         cute.copy(copy_atom, tX, rX, pred=rC)
 
-    x = rX.load()
-
-    return x
+    return rX
 
 
 class ElementwiseCUDAKernel:
@@ -85,40 +83,40 @@ class ElementwiseCUDAKernel:
 
         is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
-        x0 = _load(
+        x0 = _load_store(
             gX=gX0,
             rC=rC,
             thr_copy=thr_copy,
             copy_atom=copy_atom,
             block_coord=block_coord,
             is_within_boundary=is_within_boundary,
-        )
+        ).load()
 
         is_x1_none = const_expr(gX1 is None)
         is_x2_none = const_expr(gX2 is None)
         is_y1_none = const_expr(gY1 is None)
 
         if not is_x1_none:
-            x1 = _load(
+            x1 = _load_store(
                 gX=gX1,
                 rC=rC,
                 thr_copy=thr_copy,
                 copy_atom=copy_atom,
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
-            )
+            ).load()
 
         if not is_x2_none:
             assert self.HAS_X1
 
-            x2 = _load(
+            x2 = _load_store(
                 gX=gX2,
                 rC=rC,
                 thr_copy=thr_copy,
                 copy_atom=copy_atom,
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
-            )
+            ).load()
 
         if is_x1_none:
             y = self.compute(x0)
@@ -131,23 +129,6 @@ class ElementwiseCUDAKernel:
             y0 = y
         else:
             y0, y1 = y
-
-        if self.HAS_X1:
-            if self.HAS_X2:
-                if self.HAS_Y1:
-                    y0, y1 = self.compute(x0, x1, x2)
-                else:
-                    y0 = self.compute(x0, x1, x2)
-            else:
-                if self.HAS_Y1:
-                    y0, y1 = self.compute(x0, x1)
-                else:
-                    y0 = self.compute(x0, x1)
-        else:
-            if self.HAS_Y1:
-                y0, y1 = self.compute(x0)
-            else:
-                y0 = self.compute(x0)
 
         rY0.store(y0)
 
