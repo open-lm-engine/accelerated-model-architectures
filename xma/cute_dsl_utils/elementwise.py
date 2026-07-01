@@ -17,8 +17,12 @@ def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, examp
     fn = cache.get(key)
     if fn is None:
         fake_tensors = [
-            get_fake_cute_tensor(
-                dtype=t.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
+            (
+                None
+                if t is None
+                else get_fake_cute_tensor(
+                    dtype=t.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
+                )
             )
             for t in example_tensors
         ]
@@ -199,15 +203,21 @@ class ElementwiseCUDAKernel:
 
         if not is_x1_none:
             gX1 = cute.zipped_divide(mX1, tiler_mn)
+        else:
+            gX1 = None
 
         if not is_x2_none:
-            assert not is_x2_none
+            assert not is_x1_none
             gX2 = cute.zipped_divide(mX2, tiler_mn)
+        else:
+            gX2 = None
 
         gY0 = cute.zipped_divide(mY0, tiler_mn)
 
         if not is_y1_none:
             gY1 = cute.zipped_divide(mY1, tiler_mn)
+        else:
+            gY1 = None
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)

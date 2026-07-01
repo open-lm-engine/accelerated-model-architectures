@@ -16,9 +16,6 @@ from ....cute_dsl_utils.elementwise import ElementwiseCUDAKernel, get_compiled_e
 
 
 class SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
-    HAS_X2 = True
-    HAS_Y1 = True
-
     def compute(self, g, u, dy):
         dtype = g.dtype
         g = g.to(Float32)
