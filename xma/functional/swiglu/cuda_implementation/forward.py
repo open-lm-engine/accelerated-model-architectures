@@ -12,10 +12,13 @@ from cutlass import Float32
 
 from ....custom_op import xma_op
 from ....cute_dsl_utils import sigmoid
-from ....cute_dsl_utils.elementwise import Elementwise2in1outCUDAKernel, get_compiled_elementwise_cuda_fn
+from ....cute_dsl_utils.elementwise import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_fn
 
 
-class SwiGLUForwardCUDAKernel(Elementwise2in1outCUDAKernel):
+class SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
+    HAS_X2 = False
+    HAS_Y1 = False
+
     def compute(self, g, u):
         dtype = g.dtype
         g = g.to(Float32)
@@ -32,5 +35,5 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> N
     div = math.gcd(16 // g.dtype.itemsize, N)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
-    fn = get_compiled_elementwise_cuda_fn(_CACHE, (g.dtype, div), SwiGLUForwardCUDAKernel, (g, u, y), div)
-    fn(g, u, y, stream)
+    fn = get_compiled_elementwise_cuda_fn(_CACHE, (g.dtype, div), SwiGLUForwardCUDAKernel, (g, u, g, y, y), div)
+    fn(g, u, g, y, y, stream)
