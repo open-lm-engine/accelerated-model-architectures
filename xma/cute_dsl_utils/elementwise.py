@@ -121,7 +121,7 @@ class ElementwiseCUDAKernel:
             is_within_boundary=is_within_boundary,
         )
 
-        if not is_x1_none:
+        if const_expr(not is_x1_none):
             x1 = _load(
                 gX=gX1,
                 rC=rC,
@@ -131,7 +131,7 @@ class ElementwiseCUDAKernel:
                 is_within_boundary=is_within_boundary,
             )
 
-        if not is_x2_none:
+        if const_expr(not is_x2_none):
             assert not is_x1_none
 
             x2 = _load(
@@ -143,14 +143,14 @@ class ElementwiseCUDAKernel:
                 is_within_boundary=is_within_boundary,
             )
 
-        if is_x1_none:
+        if const_expr(is_x1_none):
             y = self.compute(x0)
-        elif is_x2_none:
+        elif const_expr(is_x2_none):
             y = self.compute(x0, x1)
         else:
             y = self.compute(x0, x1, x2)
 
-        if is_y1_none:
+        if const_expr(is_y1_none):
             y0 = y
         else:
             y0, y1 = y
@@ -165,7 +165,7 @@ class ElementwiseCUDAKernel:
             is_within_boundary=is_within_boundary,
         )
 
-        if not is_y1_none:
+        if const_expr(not is_y1_none):
             _store(
                 gY=gY1,
                 y=y1,
@@ -201,12 +201,12 @@ class ElementwiseCUDAKernel:
         gC = cute.zipped_divide(mC, tiler_mn)
         gX0 = cute.zipped_divide(mX0, tiler_mn)
 
-        if not is_x1_none:
+        if const_expr(not is_x1_none):
             gX1 = cute.zipped_divide(mX1, tiler_mn)
         else:
             gX1 = None
 
-        if not is_x2_none:
+        if const_expr(not is_x2_none):
             assert not is_x1_none
             gX2 = cute.zipped_divide(mX2, tiler_mn)
         else:
@@ -214,7 +214,7 @@ class ElementwiseCUDAKernel:
 
         gY0 = cute.zipped_divide(mY0, tiler_mn)
 
-        if not is_y1_none:
+        if const_expr(not is_y1_none):
             gY1 = cute.zipped_divide(mY1, tiler_mn)
         else:
             gY1 = None
