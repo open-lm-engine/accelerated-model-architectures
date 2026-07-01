@@ -32,6 +32,7 @@ def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, examp
     return fn
 
 
+@cute.jit
 def _load(
     gX: cute.Tensor, rC: cute.Tensor, thr_copy, copy_atom: cute.CopyAtom, block_coord, is_within_boundary
 ) -> cute.TensorSSA:
@@ -47,6 +48,7 @@ def _load(
     return rX.load()
 
 
+@cute.jit
 def _store(
     gY: cute.Tensor,
     y: cute.TensorSSA,
