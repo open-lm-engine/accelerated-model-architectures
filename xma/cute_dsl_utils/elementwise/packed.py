@@ -10,7 +10,7 @@ import torch
 from cutlass import Boolean, const_expr, range_constexpr
 
 from ..constants import LOG_WARP_SIZE, WARP_SIZE
-from .utils import get_fake_cute_tensor
+from ..utils import get_fake_cute_tensor
 
 
 def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, example_tensors: tuple, div: int):
@@ -70,7 +70,7 @@ def _store(
         cute.copy(copy_atom, rY, tY, pred=rC)
 
 
-class ElementwiseCUDAKernel:
+class ElementwisePackedCUDAKernel:
     BLOCK_SIZE: int = 128
 
     def compute(self, *inputs):
