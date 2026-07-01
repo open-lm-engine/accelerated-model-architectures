@@ -47,22 +47,27 @@ def elementwise_2d_kernel(
     MASK = (BLOCK_B < B)[:, None] & (BLOCK_H < H)[None, :]
 
     x0 = tl.load(x0_ptr + BLOCK_B[:, None] * x0_stride[0] + BLOCK_H[None, :] * x0_stride[1], mask=MASK)
-    x1 = tl.load(x1_ptr + BLOCK_B[:, None] * x1_stride[0] + BLOCK_H[None, :] * x1_stride[1], mask=MASK)
 
-    if x2_ptr is None:
-        if y1_ptr is None:
-            y0 = COMPUTE_FN(x0, x1)
-        else:
-            y0, y1 = COMPUTE_FN(x0, x1)
-    else:
+    if x1_ptr is not None:
+        x1 = tl.load(x1_ptr + BLOCK_B[:, None] * x1_stride[0] + BLOCK_H[None, :] * x1_stride[1], mask=MASK)
+
+    if x2_ptr is not None:
+        assert x1_ptr is not None
         x2 = tl.load(x2_ptr + BLOCK_B[:, None] * x2_stride[0] + BLOCK_H[None, :] * x2_stride[1], mask=MASK)
 
-        if y1_ptr is None:
-            y0 = COMPUTE_FN(x0, x1, x2)
-        else:
-            y0, y1 = COMPUTE_FN(x0, x1, x2)
+    if x1_ptr is None:
+        y = COMPUTE_FN(x0)
+    elif x2_ptr is None:
+        y = COMPUTE_FN(x0, x1)
+    else:
+        y = COMPUTE_FN(x0, x1, x2)
+
+    if y1_ptr is None:
+        y0 = y
+    else:
+        y0, y1 = y
 
     tl.store(y0_ptr + BLOCK_B[:, None] * y0_stride[0] + BLOCK_H[None, :] * y0_stride[1], y0, mask=MASK)
 
-    if y1_ptr is not None:
+    if y1_ptr is None:
         tl.store(y1_ptr + BLOCK_B[:, None] * y1_stride[0] + BLOCK_H[None, :] * y1_stride[1], y1, mask=MASK)
