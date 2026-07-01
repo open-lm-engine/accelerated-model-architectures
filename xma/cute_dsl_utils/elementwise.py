@@ -92,7 +92,8 @@ class ElementwiseCUDAKernel:
                 cute.copy(copy_atom, tX1, rX1, pred=rC)
 
             x1 = rX1.load()
-        elif self.HAS_X2:
+
+        if self.HAS_X2:
             bX2 = gX2[block_coord]
             tX2 = thr_copy.partition_S(bX2)
             rX2 = cute.make_rmem_tensor_like(tX2)
@@ -104,16 +105,22 @@ class ElementwiseCUDAKernel:
 
             x2 = rX2.load()
 
-        if self.HAS_X2:
-            if self.HAS_Y1:
-                y0, y1 = self.compute(x0, x1, x2)
+        if self.HAS_X1:
+            if self.HAS_X2:
+                if self.HAS_Y1:
+                    y0, y1 = self.compute(x0, x1, x2)
+                else:
+                    y0 = self.compute(x0, x1, x2)
             else:
-                y0 = self.compute(x0, x1, x2)
+                if self.HAS_Y1:
+                    y0, y1 = self.compute(x0, x1)
+                else:
+                    y0 = self.compute(x0, x1)
         else:
             if self.HAS_Y1:
-                y0, y1 = self.compute(x0, x1)
+                y0, y1 = self.compute(x0)
             else:
-                y0 = self.compute(x0, x1)
+                y0 = self.compute(x0)
 
         rY0.store(y0)
 

@@ -69,5 +69,5 @@ def elementwise_2d_kernel(
 
     tl.store(y0_ptr + BLOCK_B[:, None] * y0_stride[0] + BLOCK_H[None, :] * y0_stride[1], y0, mask=MASK)
 
-    if y1_ptr is None:
+    if y1_ptr is not None:
         tl.store(y1_ptr + BLOCK_B[:, None] * y1_stride[0] + BLOCK_H[None, :] * y1_stride[1], y1, mask=MASK)
