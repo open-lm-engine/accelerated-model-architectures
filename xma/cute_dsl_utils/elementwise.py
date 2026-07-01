@@ -30,7 +30,7 @@ def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, examp
 
 def _load_store(
     gX: cute.Tensor, rC: cute.Tensor, thr_copy, copy_atom: cute.CopyAtom, block_coord, is_within_boundary
-) -> cute.Tensor:
+) -> cute.TensorSSA:
     bX = gX[block_coord]
     tX = thr_copy.partition_S(bX)
     rX = cute.make_rmem_tensor_like(tX)
@@ -40,7 +40,7 @@ def _load_store(
     else:
         cute.copy(copy_atom, tX, rX, pred=rC)
 
-    return rX
+    return rX.load()
 
 
 class ElementwiseCUDAKernel:
@@ -90,7 +90,7 @@ class ElementwiseCUDAKernel:
             copy_atom=copy_atom,
             block_coord=block_coord,
             is_within_boundary=is_within_boundary,
-        ).load()
+        )
 
         is_x1_none = const_expr(gX1 is None)
         is_x2_none = const_expr(gX2 is None)
@@ -104,10 +104,10 @@ class ElementwiseCUDAKernel:
                 copy_atom=copy_atom,
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
-            ).load()
+            )
 
         if not is_x2_none:
-            assert self.HAS_X1
+            assert not is_x1_none
 
             x2 = _load_store(
                 gX=gX2,
@@ -116,7 +116,7 @@ class ElementwiseCUDAKernel:
                 copy_atom=copy_atom,
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
-            ).load()
+            )
 
         if is_x1_none:
             y = self.compute(x0)
