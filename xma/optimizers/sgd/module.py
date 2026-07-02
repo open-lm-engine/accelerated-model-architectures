@@ -7,20 +7,37 @@ from __future__ import annotations
 from typing import Callable
 
 import torch
-from torch.optim import SGD as _TorchSGD
+from torch.optim import Optimizer
+from torch.optim.optimizer import ParamsT
 
 from ...accelerator import KernelBackend
 from .op import sgd
 
 
-class SGD(_TorchSGD):
-    @torch.no_grad()
-    def step(self, closure: Callable | None = None, *, kernel_backend: KernelBackend | None = None) -> None:
-        loss = None
-        if closure is not None:
-            with torch.enable_grad():
-                loss = closure()
+class SGD(Optimizer):
+    def __init__(
+        self,
+        params: ParamsT,
+        lr: float | torch.Tensor = 1e-3,
+        momentum: float = 0,
+        dampening: float = 0,
+        weight_decay: float | torch.Tensor = 0,
+        nesterov: bool = False,
+        *,
+        maximize: bool = False,
+    ) -> SGD:
+        defaults = dict(
+            lr=lr,
+            momentum=momentum,
+            dampening=dampening,
+            weight_decay=weight_decay,
+            nesterov=nesterov,
+            maximize=maximize,
+        )
+        super().__init__(params, defaults)
 
+    @torch.no_grad()
+    def step(self, *, kernel_backend: KernelBackend | None = None) -> None:
         for group in self.param_groups:
             params = []
             grads = []
@@ -49,5 +66,3 @@ class SGD(_TorchSGD):
             if group["momentum"] != 0:
                 for p, m in zip(params, momentum_buffer_list, strict=True):
                     self.state[p]["momentum_buffer"] = m
-
-        return loss
