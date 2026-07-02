@@ -89,10 +89,6 @@ class ElementwiseUnpackedCUDAKernel:
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
     ) -> None:
-        is_x1_none = const_expr(gX1 is None)
-        is_x2_none = const_expr(gX2 is None)
-        is_y1_none = const_expr(gY1 is None)
-
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
@@ -117,7 +113,7 @@ class ElementwiseUnpackedCUDAKernel:
             is_within_boundary=is_within_boundary,
         )
 
-        if const_expr(not is_x1_none):
+        if const_expr(gX1 is not None):
             x1 = _load(
                 gX=gX1,
                 rC=rC,
@@ -127,8 +123,8 @@ class ElementwiseUnpackedCUDAKernel:
                 is_within_boundary=is_within_boundary,
             )
 
-        if const_expr(not is_x2_none):
-            assert not is_x1_none
+        if const_expr(gX2 is not None):
+            assert const_expr(gX1 is not None)
 
             x2 = _load(
                 gX=gX2,
@@ -139,14 +135,14 @@ class ElementwiseUnpackedCUDAKernel:
                 is_within_boundary=is_within_boundary,
             )
 
-        if const_expr(is_x1_none):
+        if const_expr(gX1 is None):
             y = self.compute(x0)
-        elif const_expr(is_x2_none):
+        elif const_expr(gX2 is None):
             y = self.compute(x0, x1)
         else:
             y = self.compute(x0, x1, x2)
 
-        if const_expr(is_y1_none):
+        if const_expr(gY1 is None):
             y0 = y
         else:
             y0, y1 = y
@@ -161,7 +157,7 @@ class ElementwiseUnpackedCUDAKernel:
             is_within_boundary=is_within_boundary,
         )
 
-        if const_expr(not is_y1_none):
+        if const_expr(gY1 is None):
             _store(
                 gY=gY1,
                 y=y1,
@@ -190,30 +186,26 @@ class ElementwiseUnpackedCUDAKernel:
 
         mC = cute.make_identity_tensor(mX0.shape)
 
-        is_x1_none = const_expr(mX1 is None)
-        is_x2_none = const_expr(mX2 is None)
-        is_y1_none = const_expr(mY1 is None)
-
         gC = cute.zipped_divide(mC, tiler_mn)
         gX0 = cute.zipped_divide(mX0, tiler_mn)
 
-        if const_expr(not is_x1_none):
-            gX1 = cute.zipped_divide(mX1, tiler_mn)
-        else:
+        if const_expr(mX1 is None):
             gX1 = None
-
-        if const_expr(not is_x2_none):
-            assert not is_x1_none
-            gX2 = cute.zipped_divide(mX2, tiler_mn)
         else:
+            gX1 = cute.zipped_divide(mX1, tiler_mn)
+
+        if const_expr(mX2 is None):
             gX2 = None
+        else:
+            assert const_expr(mX1 is not None)
+            gX2 = cute.zipped_divide(mX2, tiler_mn)
 
         gY0 = cute.zipped_divide(mY0, tiler_mn)
 
-        if const_expr(not is_y1_none):
-            gY1 = cute.zipped_divide(mY1, tiler_mn)
-        else:
+        if const_expr(mY1 is None):
             gY1 = None
+        else:
+            gY1 = cute.zipped_divide(mY1, tiler_mn)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
