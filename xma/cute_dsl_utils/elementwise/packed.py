@@ -6,30 +6,10 @@ from __future__ import annotations
 
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
-import torch
 from cutlass import Boolean, const_expr, range_constexpr
 
 from ..constants import LOG_WARP_SIZE, WARP_SIZE
-from ..utils import get_fake_cute_tensor
-
-
-def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, example_tensors: tuple, div: int):
-    fn = cache.get(key)
-    if fn is None:
-        fake_tensors = [
-            (
-                None
-                if t is None
-                else get_fake_cute_tensor(
-                    dtype=t.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
-                )
-            )
-            for t in example_tensors
-        ]
-        stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
-        fn = cute.compile(kernel_class(), *fake_tensors, stream, options="--enable-tvm-ffi")
-        cache[key] = fn
-    return fn
+from .unpacked import _load, _store
 
 
 class ElementwisePackedCUDAKernel:
