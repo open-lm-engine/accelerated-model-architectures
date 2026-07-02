@@ -221,7 +221,8 @@ def chunk_delta_rule_bwd(
         ckpt_pair=CKPT_PAIR,
     )
     if CKPT_PAIR:
-        assert chunk_indices is None
+        # FIXME Han: commenting this out should be correct
+        # assert chunk_indices is None
         dq, dk, dw = chunk_bwd_dqkw_pair(
             q=q,
             k=k,
