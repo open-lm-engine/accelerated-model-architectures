@@ -1,13 +1,6 @@
 # **************************************************
-# Copyright (c) 2026, Mayank Mishra, Han Guo
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
-
-# Copyright (c) 2023-2026, Songlin Yang, Yu Zhang, Zhiyuan Li
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-# For a list of all contributors, visit:
-#   https://github.com/fla-org/flash-linear-attention/graphs/contributors
 
 from __future__ import annotations
 
@@ -534,7 +527,9 @@ def pre_process_bwd_kernel_merged(
         for i_t in range(NT - 1, -1, -1):
 
             p_dv = tl.make_block_ptr(dv, (T, V), (stride_v, 1), (i_t * BT, i_v * BLOCK_SIZE), (BT, BLOCK_SIZE), (1, 0))
-            p_do = tl.make_block_ptr(do, (T, V), (stride_do, 1), (i_t * BT, i_v * BLOCK_SIZE), (BT, BLOCK_SIZE), (1, 0))
+            p_do = tl.make_block_ptr(
+                do, (T, V), (stride_do, 1), (i_t * BT, i_v * BLOCK_SIZE), (BT, BLOCK_SIZE), (1, 0)
+            )
             b_do = tl.load(p_do, boundary_check=(0, 1))
 
             # Update dv

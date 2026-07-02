@@ -1,15 +1,12 @@
-# Copyright (c) 2023-2026, Songlin Yang, Yu Zhang, Zhiyuan Li
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-# For a list of all contributors, visit:
-#   https://github.com/fla-org/flash-linear-attention/graphs/contributors
+# **************************************************
+# Copyright (c) 2026, Mayank Mishra
+# **************************************************
 
 import torch
 import triton
-
-from fla.ops.utils import prepare_chunk_indices
 from fla.ops.gated_delta_rule.chunk_fwd import chunk_gated_delta_rule_fwd_kkt_solve_kernel
+from fla.ops.utils import prepare_chunk_indices
+
 from .wy_fast import recompute_w_u_fwd
 
 

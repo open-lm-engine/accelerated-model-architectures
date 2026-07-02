@@ -1,28 +1,16 @@
 # **************************************************
-# Copyright (c) 2026, Mayank Mishra, Han Guo
+# Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-# Copyright (c) 2023-2026, Songlin Yang, Yu Zhang, Zhiyuan Li
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-# For a list of all contributors, visit:
-#   https://github.com/fla-org/flash-linear-attention/graphs/contributors
-
 import torch
-
 from fla.ops.cp import FLACPContext
 from fla.ops.cp.chunk_delta_h import compress_h0, expand_h0
 
-from .chunk_delta_h import (
-    chunk_gated_delta_rule_fwd_h,
-    chunk_gated_delta_rule_bwd_dhu,
-    chunk_bwd_dqkw_pair,
-)
+from .chunk_delta_h import chunk_bwd_dqkw_pair, chunk_gated_delta_rule_bwd_dhu, chunk_gated_delta_rule_fwd_h
 from .chunk_delta_h_cp import chunk_gated_delta_rule_bwd_dhu_pre_process, chunk_gated_delta_rule_fwd_h_pre_process
 from .chunk_fwd import chunk_gated_delta_rule_fwd_intra
 from .chunk_o import chunk_bwd_dqkwg, chunk_bwd_dv_local
-from .wy_fast import recompute_w_u_fwd, prepare_wy_repr_bwd
+from .wy_fast import prepare_wy_repr_bwd, recompute_w_u_fwd
 
 
 def chunk_delta_rule_fwd(

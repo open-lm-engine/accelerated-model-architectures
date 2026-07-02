@@ -1,37 +1,51 @@
-# Copyright (c) 2023-2026, Songlin Yang, Yu Zhang, Zhiyuan Li
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-# For a list of all contributors, visit:
-#   https://github.com/fla-org/flash-linear-attention/graphs/contributors
+# **************************************************
+# Copyright (c) 2026, Mayank Mishra
+# **************************************************
 
 import torch
 import triton
 import triton.language as tl
-
 from fla.ops.common.backends import dispatch
+from fla.ops.common.chunk_o import NUM_WARPS, chunk_fwd_o
 from fla.ops.utils import prepare_chunk_indices
 from fla.ops.utils.op import exp, exp2
 from fla.utils import IS_NVIDIA_HOPPER, TRITON_ABOVE_3_4_0, autotune_cache_kwargs, check_shared_mem
-from fla.ops.common.chunk_o import chunk_fwd_o, NUM_WARPS
 
 
-@triton.heuristics({
-    'USE_G': lambda args: args['g'] is not None,
-    'USE_G_GAMMA': lambda args: args['g_gamma'] is not None,
-    'USE_DW': lambda args: args['dw'] is not None,
-    'IS_VARLEN': lambda args: args['cu_seqlens'] is not None,
-})
+@triton.heuristics(
+    {
+        "USE_G": lambda args: args["g"] is not None,
+        "USE_G_GAMMA": lambda args: args["g_gamma"] is not None,
+        "USE_DW": lambda args: args["dw"] is not None,
+        "IS_VARLEN": lambda args: args["cu_seqlens"] is not None,
+    }
+)
 @triton.autotune(
     configs=[
         triton.Config({}, num_warps=num_warps, num_stages=num_stages)
         for num_warps in NUM_WARPS
         for num_stages in [2, 3, 4]
     ],
-    key=['B', 'H', 'HV', 'HO', 'K', 'V', 'BT', 'BK', 'BV', 'USE_G', 'USE_G_GAMMA', 'USE_EXP2', 'USE_DW', 'TRANSPOSE_STATE', 'IS_VARLEN'],
+    key=[
+        "B",
+        "H",
+        "HV",
+        "HO",
+        "K",
+        "V",
+        "BT",
+        "BK",
+        "BV",
+        "USE_G",
+        "USE_G_GAMMA",
+        "USE_EXP2",
+        "USE_DW",
+        "TRANSPOSE_STATE",
+        "IS_VARLEN",
+    ],
     **autotune_cache_kwargs,
 )
-@triton.jit(do_not_specialize=['T'])
+@triton.jit(do_not_specialize=["T"])
 def chunk_bwd_kernel_dqkwg(
     q,
     k,
@@ -85,8 +99,8 @@ def chunk_bwd_kernel_dqkwg(
     # offset calculation
     v += (bos * HV + i_h).to(tl.int64) * V
     do += (bos * HO + i_ho).to(tl.int64) * V
-    h += (i_tg * HV + i_h).to(tl.int64) * K*V
-    dh += (i_tg * HV + i_h).to(tl.int64) * K*V
+    h += (i_tg * HV + i_h).to(tl.int64) * K * V
+    dh += (i_tg * HV + i_h).to(tl.int64) * K * V
     q += (bos * H + i_h // (HV // H)).to(tl.int64) * K
     k += (bos * H + i_h // (HV // H)).to(tl.int64) * K
     dq += (bos * HV + i_h).to(tl.int64) * K
@@ -110,8 +124,8 @@ def chunk_bwd_kernel_dqkwg(
     b_dw = tl.zeros([BT, BK], dtype=tl.float32) if USE_DW else None
 
     for i_v in range(tl.cdiv(V, BV)):
-        p_v = tl.make_block_ptr(v, (T, V), (HV*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
-        p_do = tl.make_block_ptr(do, (T, V), (HO*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+        p_v = tl.make_block_ptr(v, (T, V), (HV * V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+        p_do = tl.make_block_ptr(do, (T, V), (HO * V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
         if TRANSPOSE_STATE:
             p_h = tl.make_block_ptr(h, (V, K), (K, 1), (i_v * BV, i_k * BK), (BV, BK), (1, 0))
             p_dh = tl.make_block_ptr(dh, (V, K), (K, 1), (i_v * BV, i_k * BK), (BV, BK), (1, 0))
@@ -125,7 +139,7 @@ def chunk_bwd_kernel_dqkwg(
         b_h = tl.load(p_h, boundary_check=(0, 1))
         b_dh = tl.load(p_dh, boundary_check=(0, 1))
         if USE_G:
-            b_dg_last += (tl.sum(b_h * b_dh))
+            b_dg_last += tl.sum(b_h * b_dh)
         # [BT, BV] @ [BV, BT] -> [BT, BT]
         b_ds += tl.dot(b_do, tl.trans(b_v))
         # [BT, BV] @ [BV, BK] -> [BT, BK]
@@ -133,22 +147,22 @@ def chunk_bwd_kernel_dqkwg(
         # [BT, BV] @ [BV, BK] -> [BT, BK]
         b_dk += tl.dot(b_v, b_dh.to(b_v.dtype))
         if USE_DW:
-            p_dv = tl.make_block_ptr(dv, (T, V), (HV*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+            p_dv = tl.make_block_ptr(dv, (T, V), (HV * V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
             b_dv = tl.load(p_dv, boundary_check=(0, 1))
             b_dw += tl.dot(b_dv.to(b_v.dtype), b_h.to(b_v.dtype))
 
     if USE_DW:
-        p_dw = tl.make_block_ptr(dw, (T, K), (HV*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+        p_dw = tl.make_block_ptr(dw, (T, K), (HV * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
         tl.store(p_dw, -b_dw.to(p_dw.dtype.element_ty), boundary_check=(0, 1))
 
     tl.debug_barrier()
-    p_q = tl.make_block_ptr(q, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
-    p_k = tl.make_block_ptr(k, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+    p_q = tl.make_block_ptr(q, (T, K), (H * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+    p_k = tl.make_block_ptr(k, (T, K), (H * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
     b_q = tl.load(p_q, boundary_check=(0, 1))
     b_k = tl.load(p_k, boundary_check=(0, 1))
 
-    p_dq = tl.make_block_ptr(dq, (T, K), (HV*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
-    p_dk = tl.make_block_ptr(dk, (T, K), (HV*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+    p_dq = tl.make_block_ptr(dq, (T, K), (HV * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+    p_dk = tl.make_block_ptr(dk, (T, K), (HV * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
 
     o_t = i_t * BT + tl.arange(0, BT)
     m_t = o_t < T
@@ -218,22 +232,24 @@ def chunk_bwd_kernel_dqkwg(
         tl.store(p_dk, b_dk.to(p_dk.dtype.element_ty), boundary_check=(0, 1))
 
 
-@triton.heuristics({
-    'USE_G': lambda args: args['g'] is not None,
-    'USE_G_GAMMA': lambda args: args['g_gamma'] is not None,
-    'USE_A': lambda args: args['A'] is not None,
-    'IS_VARLEN': lambda args: args['cu_seqlens'] is not None,
-})
+@triton.heuristics(
+    {
+        "USE_G": lambda args: args["g"] is not None,
+        "USE_G_GAMMA": lambda args: args["g_gamma"] is not None,
+        "USE_A": lambda args: args["A"] is not None,
+        "IS_VARLEN": lambda args: args["cu_seqlens"] is not None,
+    }
+)
 @triton.autotune(
     configs=[
         triton.Config({}, num_warps=num_warps, num_stages=num_stages)
         for num_warps in NUM_WARPS
         for num_stages in [2, 3, 4]
     ],
-    key=['H', 'HV', 'HO', 'K', 'V', 'BT', 'BK', 'BV', 'USE_G', 'USE_G_GAMMA', 'USE_EXP2', 'USE_A', 'IS_VARLEN'],
+    key=["H", "HV", "HO", "K", "V", "BT", "BK", "BV", "USE_G", "USE_G_GAMMA", "USE_EXP2", "USE_A", "IS_VARLEN"],
     **autotune_cache_kwargs,
 )
-@triton.jit(do_not_specialize=['T'])
+@triton.jit(do_not_specialize=["T"])
 def chunk_bwd_kernel_dv_local(
     q,
     k,
@@ -278,7 +294,9 @@ def chunk_bwd_kernel_dv_local(
     dv += (bos * HV + i_h).to(tl.int64) * V
 
     if USE_A:
-        p_A = tl.make_block_ptr(A + (bos * HV + i_h).to(tl.int64) * BT, (BT, T), (1, HV*BT), (0, i_t * BT), (BT, BT), (0, 1))
+        p_A = tl.make_block_ptr(
+            A + (bos * HV + i_h).to(tl.int64) * BT, (BT, T), (1, HV * BT), (0, i_t * BT), (BT, BT), (0, 1)
+        )
         b_A = tl.load(p_A, boundary_check=(0, 1))
     else:
         if USE_G:
@@ -291,8 +309,8 @@ def chunk_bwd_kernel_dv_local(
 
         b_A = tl.zeros([BT, BT], dtype=tl.float32)
         for i_k in range(tl.cdiv(K, BK)):
-            p_k = tl.make_block_ptr(k, (T, K), (H*K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
-            p_q = tl.make_block_ptr(q, (K, T), (1, H*K), (i_k * BK, i_t * BT), (BK, BT), (0, 1))
+            p_k = tl.make_block_ptr(k, (T, K), (H * K, 1), (i_t * BT, i_k * BK), (BT, BK), (1, 0))
+            p_q = tl.make_block_ptr(q, (K, T), (1, H * K), (i_k * BK, i_t * BT), (BK, BT), (0, 1))
 
             b_k = tl.load(p_k, boundary_check=(0, 1))
             b_q = tl.load(p_q, boundary_check=(0, 1))
@@ -309,8 +327,8 @@ def chunk_bwd_kernel_dv_local(
     b_A = tl.where(m_A, b_A, 0).to(do.dtype.element_ty)
 
     for i_v in range(tl.cdiv(V, BV)):
-        p_do = tl.make_block_ptr(do, (T, V), (HO*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
-        p_dv = tl.make_block_ptr(dv, (T, V), (HV*V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+        p_do = tl.make_block_ptr(do, (T, V), (HO * V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
+        p_dv = tl.make_block_ptr(dv, (T, V), (HV * V, 1), (i_t * BT, i_v * BV), (BT, BV), (1, 0))
         b_do = tl.load(p_do, boundary_check=(0, 1))
         b_dv = tl.dot(b_A.to(b_do.dtype), b_do)
         tl.store(p_dv, b_dv.to(p_dv.dtype.element_ty), boundary_check=(0, 1))
@@ -336,9 +354,9 @@ def chunk_bwd_dv_local(
     if chunk_indices is None and cu_seqlens is not None:
         chunk_indices = prepare_chunk_indices(cu_seqlens, BT)
     # H100 can have larger block size
-    if check_shared_mem('hopper', k.device.index):
+    if check_shared_mem("hopper", k.device.index):
         CONST_TILING = 128
-    elif check_shared_mem('ada', k.device.index):
+    elif check_shared_mem("ada", k.device.index):
         CONST_TILING = 64
     else:
         CONST_TILING = 32
@@ -375,7 +393,7 @@ def chunk_bwd_dv_local(
     return dv
 
 
-@dispatch('common')
+@dispatch("common")
 def chunk_bwd_dqkwg(
     q: torch.Tensor,
     k: torch.Tensor,
@@ -408,9 +426,9 @@ def chunk_bwd_dqkwg(
         chunk_indices = prepare_chunk_indices(cu_seqlens, BT)
     NT = triton.cdiv(T, BT) if cu_seqlens is None else len(chunk_indices)
 
-    if check_shared_mem('hopper', k.device.index):
+    if check_shared_mem("hopper", k.device.index):
         CONST_TILING = 128
-    elif check_shared_mem('ada', k.device.index):
+    elif check_shared_mem("ada", k.device.index):
         CONST_TILING = 64
     else:
         CONST_TILING = 32
