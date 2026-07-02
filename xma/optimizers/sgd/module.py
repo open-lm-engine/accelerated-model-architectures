@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-from typing import Callable
-
 import torch
 from torch.optim import Optimizer
 from torch.optim.optimizer import ParamsT
@@ -34,6 +32,7 @@ class SGD(Optimizer):
             nesterov=nesterov,
             maximize=maximize,
         )
+
         super().__init__(params, defaults)
 
     @torch.no_grad()
