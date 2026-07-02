@@ -23,7 +23,7 @@ def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
         product(
             get_2d_tensor_sizes(),
             [torch.float32, torch.float16, torch.bfloat16],
-            [KernelBackend.cuda] + [KernelBackend.triton] if add_triton else [],
+            [KernelBackend.cuda] + ([KernelBackend.triton] if add_triton else []),
             [function, torch.compile(function, fullgraph=True)],
         )
     )
