@@ -14,6 +14,7 @@ from .unpacked import _load, _store
 
 class ElementwisePackedCUDAKernel:
     BLOCK_SIZE: int = 128
+    INPUT_PACKED: bool = True
 
     def compute(self, *inputs):
         raise NotImplementedError
@@ -31,10 +32,6 @@ class ElementwisePackedCUDAKernel:
         tiled_copy: cute.TiledCopy,
         shape: cute.Shape,
     ) -> None:
-        is_x1_none = const_expr(gX1 is None)
-        is_x2_none = const_expr(gX2 is None)
-        is_y1_none = const_expr(gY1 is None)
-
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
@@ -119,16 +116,16 @@ class ElementwisePackedCUDAKernel:
         vector_size = 128 // mX.element_type.width
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-        val_layout_X = cute.make_ordered_layout((4, vector_size), order=(1, 0))
+        val_layout_X = cute.make_ordered_layout((4, vector_size >> (1 - self.INPUT_PACKED)), order=(1, 0))
         tiler_mn_X, tv_layout_X = cute.make_layout_tv(thr_layout, val_layout_X)
 
-        val_layout_Y = cute.make_ordered_layout((4, vector_size >> 1), order=(1, 0))
+        val_layout_Y = cute.make_ordered_layout((4, vector_size >> self.INPUT_PACKED), order=(1, 0))
         tiler_mn_Y, tv_layout_Y = cute.make_layout_tv(thr_layout, val_layout_Y)
 
         mC = cute.make_identity_tensor(mY.shape)
 
         gX = cute.zipped_divide(mX, tiler_mn_X)
-        gC = cute.zipped_divide(mC, tiler_mn_Y)
+        gC = cute.zipped_divide(mC, tiler_mn_Y if self.INPUT_PACKED else tiler_mn_X)
         gY = cute.zipped_divide(mY, tiler_mn_Y)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX.element_type)
