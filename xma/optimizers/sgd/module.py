@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import torch
-from torch.optim import Optimizer
+from torch.optim import SGD, Optimizer
 from torch.optim.optimizer import ParamsT
 
 from ...accelerator import KernelBackend
@@ -38,15 +38,9 @@ class SGD(Optimizer):
     @torch.no_grad()
     def step(self, *, kernel_backend: KernelBackend | None = None) -> None:
         for group in self.param_groups:
-            params = []
-            grads = []
-            momentum_buffer_list = []
-
-            has_sparse_grad = self._init_group(
+            params, grads, momentum_buffer_list = self._init_group(
                 group=group, params=params, grads=grads, momentum_buffer_list=momentum_buffer_list
             )
-
-            assert not has_sparse_grad
 
             sgd(
                 params=params,
@@ -65,3 +59,19 @@ class SGD(Optimizer):
             if group["momentum"] != 0:
                 for p, m in zip(params, momentum_buffer_list, strict=True):
                     self.state[p]["momentum_buffer"] = m
+
+    def _init_group(self, group, params, grads, momentum_buffer_list):
+        params = []
+        grads = []
+        momentum_buffer_list = []
+
+        for p in group["params"]:
+            if p.grad is None:
+                continue
+
+            params.append(p)
+            grads.append(p.grad)
+
+            if group["momentum"] != 0:
+                state = self.state[p]
+                momentum_buffer_list.append(state.get("momentum_buffer"))
