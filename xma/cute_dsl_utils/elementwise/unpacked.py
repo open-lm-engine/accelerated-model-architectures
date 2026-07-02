@@ -157,7 +157,7 @@ class ElementwiseUnpackedCUDAKernel:
             is_within_boundary=is_within_boundary,
         )
 
-        if const_expr(gY1 is None):
+        if const_expr(gY1 is not None):
             _store(
                 gY=gY1,
                 y=y1,
