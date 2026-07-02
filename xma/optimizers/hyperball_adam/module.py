@@ -71,14 +71,14 @@ class HyperballAdamW(Optimizer):
 
         for group in self.param_groups:
             beta1, beta2 = group["betas"]
+            params: list[torch.Tensor] = []
+            grads: list[torch.Tensor] = []
+            exp_avgs: list[torch.Tensor] = []
+            exp_avg_sqs: list[torch.Tensor] = []
+            state_steps: list[torch.Tensor | int] = []
 
             if group["hyperball"]:
-                params = []
-                grads = []
-                exp_avgs = []
-                exp_avg_sqs = []
                 Rs = []
-                state_steps = []
 
                 self._init_hyperball_group(
                     group=group,
@@ -106,12 +106,7 @@ class HyperballAdamW(Optimizer):
                     kernel_backend=kernel_backend,
                 )
             else:
-                params: list[torch.Tensor] = []
-                grads: list[torch.Tensor] = []
-                exp_avgs: list[torch.Tensor] = []
-                exp_avg_sqs: list[torch.Tensor] = []
                 max_exp_avg_sqs: list[torch.Tensor] = []
-                state_steps: list[torch.Tensor] = []
 
                 has_complex = AdamW._init_group(
                     self,
