@@ -1,1 +1,1 @@
-from .unpacked import get_compiled_elementwise_cuda_fn
+from .unpacked import ElementwiseUnpackedCUDAKernel, get_compiled_elementwise_cuda_fn

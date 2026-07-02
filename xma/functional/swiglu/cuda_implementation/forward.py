@@ -11,11 +11,10 @@ import torch
 from cutlass import Float32
 
 from ....custom_op import xma_op
-from ....cute_dsl_utils import sigmoid
-from ....cute_dsl_utils.elementwise import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_fn
+from ....cute_dsl_utils import ElementwiseUnpackedCUDAKernel, get_compiled_elementwise_cuda_fn, sigmoid
 
 
-class SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
+class SwiGLUForwardCUDAKernel(ElementwiseUnpackedCUDAKernel):
     def compute(self, g, u):
         dtype = g.dtype
         g = g.to(Float32)
