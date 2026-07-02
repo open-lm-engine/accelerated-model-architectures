@@ -9,7 +9,7 @@ import cutlass.cute as cute
 import torch
 from cutlass import Boolean, const_expr, range_constexpr
 
-from ..constants import LOG_WARP_SIZE, WARP_SIZE
+from ...constants import LOG_WARP_SIZE, WARP_SIZE
 from ..utils import get_fake_cute_tensor
 
 
