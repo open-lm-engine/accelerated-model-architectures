@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import torch
-from torch.optim import SGD, Optimizer
+from torch.optim import Optimizer
 from torch.optim.optimizer import ParamsT
 
 from ...accelerator import KernelBackend
