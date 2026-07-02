@@ -32,44 +32,6 @@ def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, examp
     return fn
 
 
-@cute.jit
-def _load(
-    gX: cute.Tensor, rC: cute.Tensor, thr_copy, copy_atom: cute.CopyAtom, block_coord, is_within_boundary
-) -> cute.TensorSSA:
-    bX = gX[block_coord]
-    tX = thr_copy.partition_S(bX)
-    rX = cute.make_rmem_tensor_like(tX)
-
-    if is_within_boundary:
-        cute.copy(copy_atom, tX, rX)
-    else:
-        cute.copy(copy_atom, tX, rX, pred=rC)
-
-    return rX.load()
-
-
-@cute.jit
-def _store(
-    gY: cute.Tensor,
-    y: cute.TensorSSA,
-    rC: cute.Tensor,
-    thr_copy,
-    copy_atom: cute.CopyAtom,
-    block_coord,
-    is_within_boundary,
-) -> None:
-    bY = gY[block_coord]
-    tY = thr_copy.partition_D(bY)
-    rY = cute.make_rmem_tensor_like(tY)
-
-    rY.store(y)
-
-    if is_within_boundary:
-        cute.copy(copy_atom, rY, tY)
-    else:
-        cute.copy(copy_atom, rY, tY, pred=rC)
-
-
 class ElementwisePackedCUDAKernel:
     BLOCK_SIZE: int = 128
 
@@ -173,61 +135,35 @@ class ElementwisePackedCUDAKernel:
             )
 
     @cute.jit
-    def __call__(
-        self,
-        mX0: cute.Tensor,
-        mX1: cute.Tensor | None,
-        mX2: cute.Tensor | None,
-        mY0: cute.Tensor,
-        mY1: cute.Tensor | None,
-        stream: cuda.CUstream,
-    ) -> None:
-        vector_size = 128 // mX0.element_type.width
+    def __call__(self, mX: cute.Tensor, mY: cute.Tensor, stream: cuda.CUstream) -> None:
+        vector_size = 128 // mX.element_type.width
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-        val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
-        tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
+        val_layout_X = cute.make_ordered_layout((4, vector_size), order=(1, 0))
+        tiler_mn_X, tv_layout_X = cute.make_layout_tv(thr_layout, val_layout_X)
 
-        mC = cute.make_identity_tensor(mX0.shape)
+        val_layout_Y = cute.make_ordered_layout((4, vector_size >> 1), order=(1, 0))
+        tiler_mn_Y, tv_layout_Y = cute.make_layout_tv(thr_layout, val_layout_Y)
 
-        is_x1_none = const_expr(mX1 is None)
-        is_x2_none = const_expr(mX2 is None)
-        is_y1_none = const_expr(mY1 is None)
+        mC = cute.make_identity_tensor(mY.shape)
 
-        gC = cute.zipped_divide(mC, tiler_mn)
-        gX0 = cute.zipped_divide(mX0, tiler_mn)
+        gX = cute.zipped_divide(mX, tiler_mn_X)
+        gC = cute.zipped_divide(mC, tiler_mn_Y)
+        gY = cute.zipped_divide(mY, tiler_mn_Y)
 
-        if const_expr(not is_x1_none):
-            gX1 = cute.zipped_divide(mX1, tiler_mn)
-        else:
-            gX1 = None
+        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX.element_type)
 
-        if const_expr(not is_x2_none):
-            assert not is_x1_none
-            gX2 = cute.zipped_divide(mX2, tiler_mn)
-        else:
-            gX2 = None
+        tiled_copy_X = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_X)
+        tiled_copy_Y = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_Y)
 
-        gY0 = cute.zipped_divide(mY0, tiler_mn)
-
-        if const_expr(not is_y1_none):
-            gY1 = cute.zipped_divide(mY1, tiler_mn)
-        else:
-            gY1 = None
-
-        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
-        tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
-
-        NUM_BLOCKS = cute.size(gX0, mode=[1])
+        NUM_BLOCKS = cute.size(gX, mode=[1])
 
         self.kernel(
-            gX0=gX0,
-            gX1=gX1,
-            gX2=gX2,
-            gY0=gY0,
-            gY1=gY1,
+            gX=gX,
+            gY=gY,
             gC=gC,
             copy_atom=copy_atom,
-            tiled_copy=tiled_copy,
-            shape=mX0.shape,
+            tiled_copy_X=tiled_copy_X,
+            tiled_copy=tiled_copy_Y,
+            shape=mY.shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
