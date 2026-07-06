@@ -2,7 +2,7 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-accelerator=cuda
+accelerator ?= $(shell uv run python -c "import torch; print('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')" 2>/dev/null || echo cpu)
 port=8001
 num_accelerators ?= $(shell uv run python -c "import torch; n=torch.cuda.device_count(); print(n if n > 0 else 1)" 2>/dev/null || echo 1)
 

@@ -63,7 +63,7 @@ requires-dist = [
     { name = "torch", specifier = "==2.10.0" },
     { name = "torch-xla", extras = ["pallas", "tpu"], marker = "extra == 'tpu'", specifier = "==2.8.0" },
 ]
-provides-extras = ["dev", "cuda", "tpu"]
+provides-extras = ["dev", "cpu", "mps", "cuda", "tpu"]
 
 [[package]]
 name = "accessible-pygments"
