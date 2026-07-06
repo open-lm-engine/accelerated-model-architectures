@@ -16,9 +16,9 @@ authors = [
     { name = "Mayank Mishra", email = "mayank31398@gmail.com" },
 ]
 dependencies = [
-    "ninja>=1.13.0",
-    "numpy>=2.3.4",
-    "pyyaml>=6.0.3",
+    "ninja==1.13.0",
+    "numpy==2.5.1",
+    "pyyaml==6.0.3",
     "torch==2.10.0",
 ]
 
@@ -28,21 +28,23 @@ Repository = "https://github.com/open-lm-engine/accelerated-model-architectures"
 
 [project.optional-dependencies]
 dev = [
-    "furo>=2025.12.19",
-    "pre-commit>=4.4.0",
-    "pytest>=9.0.1",
-    "pytest-xdist>=3.0.0",
-    "sphinx>=9.1.0",
-    "sphinx-autobuild>=2025.8.25",
+    "furo==2025.12.19",
+    "pre-commit==4.6.0",
+    "pytest==9.1.1",
+    "pytest-xdist==3.8.0",
+    "sphinx==9.1.0",
+    "sphinx-autobuild==2025.8.25",
 ]
+cpu = []
+mps = []
 cuda = [
-    "apache-tvm-ffi>=0.1.9",
-    "nvidia-cutlass-dsl>=4.2.1",
-    "tabulate>=0.9.0",
+    "apache-tvm-ffi==0.1.12",
+    "nvidia-cutlass-dsl==4.6.0",
+    "tabulate==0.10.0",
 ]
 tpu = [
     "torch-xla[pallas,tpu]==2.8.0",
-    "tabulate>=0.9.0",
+    "tabulate==0.10.0",
 ]
 
 [tool.hatch.build.targets.wheel]
