@@ -144,11 +144,11 @@ class ElementwisePackedCUDAKernel:
         vector_size = 128 // dtype.width
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-        val_layout_packed = cute.make_ordered_layout((4, vector_size >> 1), order=(1, 0))
-        tiler_mn_packed, tv_layout_packed = cute.make_layout_tv(thr_layout, val_layout_packed)
+        val_layout_2 = cute.make_ordered_layout((4, vector_size), order=(1, 0))
+        tiler_mn_2, tv_layout_2 = cute.make_layout_tv(thr_layout, val_layout_2)
 
-        val_layout_unpacked = cute.make_ordered_layout((4, vector_size), order=(1, 0))
-        tiler_mn_unpacked, tv_layout_unpacked = cute.make_layout_tv(thr_layout, val_layout_unpacked)
+        val_layout_1 = cute.make_ordered_layout((4, vector_size >> 1), order=(1, 0))
+        tiler_mn_1, tv_layout_1 = cute.make_layout_tv(thr_layout, val_layout_1)
 
         mC = cute.make_identity_tensor(mX0.shape)
 
