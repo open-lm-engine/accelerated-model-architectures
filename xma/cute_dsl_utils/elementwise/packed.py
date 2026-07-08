@@ -46,7 +46,7 @@ class ElementwisePackedCUDAKernel:
         self,
         gX0: cute.Tensor,
         gX1: cute.Tensor | None,
-        gY0: cute.Tensor,
+        gY: cute.Tensor,
         gC_1: cute.Tensor,
         gC_2: cute.Tensor,
         copy_atom: cute.CopyAtom,
@@ -105,24 +105,24 @@ class ElementwisePackedCUDAKernel:
         )
 
     @cute.jit
-    def __call__(self, mX0: cute.Tensor, mX1: cute.Tensor | None, mY0: cute.Tensor, stream: cuda.CUstream) -> None:
+    def __call__(self, mX0: cute.Tensor, mX1: cute.Tensor | None, mY: cute.Tensor, stream: cuda.CUstream) -> None:
         dtype = mX0.element_type
-        assert mY0.element_type == dtype
+        assert mY.element_type == dtype
 
         if const_expr(mX1 is not None):
             assert mX1.element_type == dtype
 
-        if const_expr(mY0 is not None):
-            assert mY0.element_type == dtype
+        if const_expr(mY is not None):
+            assert mY.element_type == dtype
 
         vector_size = 128 // dtype.width
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
 
         val_layout_1 = cute.make_ordered_layout((4, vector_size >> 1), order=(1, 0))
-        tiler_mn_1, tv_layout_1 = cute.make_layout_tv(thr_layout, val_layout_1)
-
         val_layout_2 = cute.make_ordered_layout((4, vector_size), order=(1, 0))
+
+        tiler_mn_1, tv_layout_1 = cute.make_layout_tv(thr_layout, val_layout_1)
         tiler_mn_2, tv_layout_2 = cute.make_layout_tv(thr_layout, val_layout_2)
 
         mC = cute.make_identity_tensor(mX0.shape)
@@ -137,7 +137,7 @@ class ElementwisePackedCUDAKernel:
             gX1 = cute.zipped_divide(mX1, tiler_mn_X1)
 
         tiler_mn_Y0 = tiler_mn_1 if self.Y0_PACKED else tiler_mn_2
-        gY0 = cute.zipped_divide(mY0, tiler_mn_Y0)
+        gY = cute.zipped_divide(mY, tiler_mn_Y0)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
         tiled_copy_1 = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_1)
@@ -148,7 +148,7 @@ class ElementwisePackedCUDAKernel:
         self.kernel(
             gX0=gX0,
             gX1=gX1,
-            gY0=gY0,
+            gY=gY,
             gC_1=gC_1,
             gC_2=gC_2,
             copy_atom=copy_atom,
