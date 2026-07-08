@@ -188,6 +188,9 @@ class ElementwiseCUDAKernel:
         if const_expr(mX2 is not None):
             assert mX2.element_type == dtype
 
+        if const_expr(mY0 is not None):
+            assert mY0.element_type == dtype
+
         if const_expr(mY1 is not None):
             assert mY1.element_type == dtype
 
