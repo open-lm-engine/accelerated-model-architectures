@@ -56,7 +56,7 @@ class ElementwisePackedCUDAKernel:
             is_within_boundary=is_within_boundary,
         )
 
-        if const_expr(not is_x1_none):
+        if const_expr(gX1 is not None):
             x1 = _load(
                 gX=gX1,
                 rC=rC,
@@ -66,8 +66,8 @@ class ElementwisePackedCUDAKernel:
                 is_within_boundary=is_within_boundary,
             )
 
-        if const_expr(not is_x2_none):
-            assert not is_x1_none
+        if const_expr(gX2 is not None):
+            assert const_expr(gX1 is not None)
 
             x2 = _load(
                 gX=gX2,
@@ -78,14 +78,14 @@ class ElementwisePackedCUDAKernel:
                 is_within_boundary=is_within_boundary,
             )
 
-        if const_expr(is_x1_none):
+        if const_expr(gX1 is None):
             y = self.compute(x0)
-        elif const_expr(is_x2_none):
+        elif const_expr(gX2 is None):
             y = self.compute(x0, x1)
         else:
             y = self.compute(x0, x1, x2)
 
-        if const_expr(is_y1_none):
+        if const_expr(gY1 is None):
             y0 = y
         else:
             y0, y1 = y
@@ -100,7 +100,7 @@ class ElementwisePackedCUDAKernel:
             is_within_boundary=is_within_boundary,
         )
 
-        if const_expr(not is_y1_none):
+        if const_expr(gY1 is not None):
             _store(
                 gY=gY1,
                 y=y1,
