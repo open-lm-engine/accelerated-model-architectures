@@ -84,12 +84,13 @@ class ElementwiseCUDAKernel:
     @cute.kernel
     def kernel(
         self,
-        gX0: cute.Tensor,
-        gX1: cute.Tensor | None,
-        gY: cute.Tensor,
+        gXs: list[cute.Tensor],
+        gYs: list[cute.Tensor],
         gC: cute.Tensor,
-        copy_atom: cute.CopyAtom,
-        tiled_copy: cute.TiledCopy,
+        copy_atom_Xs: list[cute.CopyAtom],
+        copy_atom_Ys: list[cute.CopyAtom],
+        tiled_copy_Xs: list[cute.TiledCopy],
+        tiled_copy_Ys: list[cute.TiledCopy],
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
@@ -145,7 +146,7 @@ class ElementwiseCUDAKernel:
         return [128 // i.element_type.width for i in mXs]
 
     @cute.jit
-    def __call__(self, mXs: tuple[cute.Tensor, ...], mYs: tuple[cute.Tensor], stream: cuda.CUstream) -> None:
+    def __call__(self, mXs: list[cute.Tensor], mYs: list[cute.Tensor], stream: cuda.CUstream) -> None:
         vector_size = max([128 // i.element_type.width for i in mXs])
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
