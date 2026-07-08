@@ -178,7 +178,20 @@ class ElementwiseCUDAKernel:
         mY1: cute.Tensor | None,
         stream: cuda.CUstream,
     ) -> None:
-        vector_size = 128 // mX0.element_type.width
+        dtype = mX0.element_type
+
+        assert mY0.element_type == dtype
+
+        if const_expr(mX1 is not None):
+            assert mX1.element_type == dtype
+
+        if const_expr(mX2 is not None):
+            assert mX2.element_type == dtype
+
+        if const_expr(mY1 is not None):
+            assert mY1.element_type == dtype
+
+        vector_size = 128 // dtype.width
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
