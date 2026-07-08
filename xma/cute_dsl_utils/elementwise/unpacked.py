@@ -70,7 +70,7 @@ def _store(
         cute.copy(copy_atom, rY, tY, pred=rC)
 
 
-class ElementwiseUnpackedCUDAKernel:
+class ElementwiseCUDAKernel:
     BLOCK_SIZE: int = 128
 
     def compute(self, *inputs):
