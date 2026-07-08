@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 
 import cuda.bindings.driver as cuda
+import cutlass.cute as cute
 import torch
 from cutlass import Float32
 
@@ -15,7 +16,7 @@ from ....cute_dsl_utils import ElementwiseCUDAKernel, get_compiled_elementwise_c
 
 
 class SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
-    def compute(self, g, u):
+    def compute(self, g: cute.TensorSSA, u: cute.TensorSSA) -> cute.TensorSSA:
         dtype = g.dtype
         g = g.to(Float32)
         y = u * g * sigmoid(g)
