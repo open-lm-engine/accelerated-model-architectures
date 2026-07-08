@@ -60,21 +60,21 @@ class ElementwisePackedCUDAKernel:
 
         x0 = _load(
             gX=gX0,
-            rC=rC_1 if self.X0_PACKED else rC_2,
-            thr_copy=thr_copy_1 if self.X0_PACKED else thr_copy_2,
+            rC=rC_1 if const_expr(self.X0_PACKED) else rC_2,
+            thr_copy=thr_copy_1 if const_expr(self.X0_PACKED) else thr_copy_2,
             copy_atom=copy_atom,
             block_coord=block_coord,
-            is_within_boundary=is_within_boundary_1 if self.X0_PACKED else is_within_boundary_2,
+            is_within_boundary=is_within_boundary_1 if const_expr(self.X0_PACKED) else is_within_boundary_2,
         )
 
         if const_expr(gX1 is not None):
             x1 = _load(
                 gX=gX1,
-                rC=rC_1 if self.X1_PACKED else rC_2,
-                thr_copy=thr_copy_1 if self.X1_PACKED else thr_copy_2,
+                rC=rC_1 if const_expr(self.X1_PACKED) else rC_2,
+                thr_copy=thr_copy_1 if const_expr(self.X1_PACKED) else thr_copy_2,
                 copy_atom=copy_atom,
                 block_coord=block_coord,
-                is_within_boundary=is_within_boundary_1 if self.X1_PACKED else is_within_boundary_2,
+                is_within_boundary=is_within_boundary_1 if const_expr(self.X1_PACKED) else is_within_boundary_2,
             )
 
         if const_expr(gX1 is None):
@@ -93,11 +93,11 @@ class ElementwisePackedCUDAKernel:
         _store(
             gY=gY0,
             y=y,
-            rC=rC_1 if self.Y0_PACKED else rC_2,
-            thr_copy=thr_copy_1 if self.Y0_PACKED else thr_copy_2,
+            rC=rC_1 if const_expr(self.Y0_PACKED) else rC_2,
+            thr_copy=thr_copy_1 if const_expr(self.Y0_PACKED) else thr_copy_2,
             copy_atom=copy_atom,
             block_coord=block_coord,
-            is_within_boundary=is_within_boundary_1 if self.Y0_PACKED else is_within_boundary_2,
+            is_within_boundary=is_within_boundary_1 if const_expr(self.Y0_PACKED) else is_within_boundary_2,
         )
 
     @cute.jit
