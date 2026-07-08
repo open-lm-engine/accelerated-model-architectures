@@ -179,7 +179,6 @@ class ElementwiseCUDAKernel:
         stream: cuda.CUstream,
     ) -> None:
         dtype = mX0.element_type
-
         assert mY0.element_type == dtype
 
         if const_expr(mX1 is not None):
@@ -205,22 +204,16 @@ class ElementwiseCUDAKernel:
         gC = cute.zipped_divide(mC, tiler_mn)
         gX0 = cute.zipped_divide(mX0, tiler_mn)
 
-        if const_expr(mX1 is None):
-            gX1 = None
-        else:
+        if const_expr(mX1 is not None):
             gX1 = cute.zipped_divide(mX1, tiler_mn)
 
-        if const_expr(mX2 is None):
-            gX2 = None
-        else:
+        if const_expr(mX2 is not None):
             assert const_expr(mX1 is not None)
             gX2 = cute.zipped_divide(mX2, tiler_mn)
 
         gY0 = cute.zipped_divide(mY0, tiler_mn)
 
-        if const_expr(mY1 is None):
-            gY1 = None
-        else:
+        if const_expr(mY1 is not None):
             gY1 = cute.zipped_divide(mY1, tiler_mn)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
