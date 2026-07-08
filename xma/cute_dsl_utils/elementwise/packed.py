@@ -14,7 +14,11 @@ from .base import _load, _store
 
 class ElementwisePackedCUDAKernel:
     BLOCK_SIZE: int = 128
-    INPUT_PACKED: bool = True
+    X0_PACKED: bool = True
+    X1_PACKED: bool = True
+    X2_PACKED: bool = True
+    Y0_PACKED: bool = True
+    Y1_PACKED: bool = True
 
     def compute(self, *inputs):
         raise NotImplementedError
@@ -79,7 +83,10 @@ class ElementwisePackedCUDAKernel:
             )
 
         if const_expr(gX1 is None):
-            y = self.compute(x0)
+            if self.INPUT_PACKED:
+                vector_size = cute.size(x0, mode=[1])
+                for i in range_constexpr(0, vector_size, 2):
+                    y = self.compute(x0[i], x0[i + 1])
         elif const_expr(gX2 is None):
             y = self.compute(x0, x1)
         else:
@@ -116,11 +123,11 @@ class ElementwisePackedCUDAKernel:
         vector_size = 128 // mX.element_type.width
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-        val_layout_X = cute.make_ordered_layout((4, vector_size >> (1 - self.INPUT_PACKED)), order=(1, 0))
-        tiler_mn_X, tv_layout_X = cute.make_layout_tv(thr_layout, val_layout_X)
+        val_layout_packed = cute.make_ordered_layout((4, vector_size >> 1), order=(1, 0))
+        tiler_mn_packed, tv_layout_packed = cute.make_layout_tv(thr_layout, val_layout_packed)
 
-        val_layout_Y = cute.make_ordered_layout((4, vector_size >> self.INPUT_PACKED), order=(1, 0))
-        tiler_mn_Y, tv_layout_Y = cute.make_layout_tv(thr_layout, val_layout_Y)
+        val_layout_unpacked = cute.make_ordered_layout((4, vector_size), order=(1, 0))
+        tiler_mn_unpacked, tv_layout_unpacked = cute.make_layout_tv(thr_layout, val_layout_unpacked)
 
         mC = cute.make_identity_tensor(mY.shape)
 
