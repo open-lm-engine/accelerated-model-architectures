@@ -81,9 +81,7 @@ class ElementwiseCUDAKernel:
         self,
         gX0: cute.Tensor,
         gX1: cute.Tensor | None,
-        gX2: cute.Tensor | None,
-        gY0: cute.Tensor,
-        gY1: cute.Tensor | None,
+        gY: cute.Tensor,
         gC: cute.Tensor,
         copy_atom: cute.CopyAtom,
         tiled_copy: cute.TiledCopy,
@@ -123,33 +121,14 @@ class ElementwiseCUDAKernel:
                 is_within_boundary=is_within_boundary,
             )
 
-        if const_expr(gX2 is not None):
-            assert const_expr(gX1 is not None)
-
-            x2 = _load(
-                gX=gX2,
-                rC=rC,
-                thr_copy=thr_copy,
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
-            )
-
         if const_expr(gX1 is None):
             y = self.compute(x0)
-        elif const_expr(gX2 is None):
+        else:
             y = self.compute(x0, x1)
-        else:
-            y = self.compute(x0, x1, x2)
-
-        if const_expr(gY1 is None):
-            y0 = y
-        else:
-            y0, y1 = y
 
         _store(
-            gY=gY0,
-            y=y0,
+            gY=gY,
+            y=y,
             rC=rC,
             thr_copy=thr_copy,
             copy_atom=copy_atom,
@@ -157,41 +136,16 @@ class ElementwiseCUDAKernel:
             is_within_boundary=is_within_boundary,
         )
 
-        if const_expr(gY1 is not None):
-            _store(
-                gY=gY1,
-                y=y1,
-                rC=rC,
-                thr_copy=thr_copy,
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
-            )
-
     @cute.jit
-    def __call__(
-        self,
-        mX0: cute.Tensor,
-        mX1: cute.Tensor | None,
-        mX2: cute.Tensor | None,
-        mY0: cute.Tensor,
-        mY1: cute.Tensor | None,
-        stream: cuda.CUstream,
-    ) -> None:
+    def __call__(self, mX0: cute.Tensor, mX1: cute.Tensor | None, mY: cute.Tensor, stream: cuda.CUstream) -> None:
         dtype = mX0.element_type
-        assert mY0.element_type == dtype
+        assert mY.element_type == dtype
 
         if const_expr(mX1 is not None):
             assert mX1.element_type == dtype
 
-        if const_expr(mX2 is not None):
-            assert mX2.element_type == dtype
-
-        if const_expr(mY0 is not None):
-            assert mY0.element_type == dtype
-
-        if const_expr(mY1 is not None):
-            assert mY1.element_type == dtype
+        if const_expr(mY is not None):
+            assert mY.element_type == dtype
 
         vector_size = 128 // dtype.width
 
@@ -207,14 +161,7 @@ class ElementwiseCUDAKernel:
         if const_expr(mX1 is not None):
             gX1 = cute.zipped_divide(mX1, tiler_mn)
 
-        if const_expr(mX2 is not None):
-            assert const_expr(mX1 is not None)
-            gX2 = cute.zipped_divide(mX2, tiler_mn)
-
-        gY0 = cute.zipped_divide(mY0, tiler_mn)
-
-        if const_expr(mY1 is not None):
-            gY1 = cute.zipped_divide(mY1, tiler_mn)
+        gY = cute.zipped_divide(mY, tiler_mn)
 
         copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
         tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
@@ -224,9 +171,7 @@ class ElementwiseCUDAKernel:
         self.kernel(
             gX0=gX0,
             gX1=gX1,
-            gX2=gX2,
-            gY0=gY0,
-            gY1=gY1,
+            gY=gY,
             gC=gC,
             copy_atom=copy_atom,
             tiled_copy=tiled_copy,
