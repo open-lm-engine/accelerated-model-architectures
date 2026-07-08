@@ -151,7 +151,7 @@ class ElementwiseCUDAKernel:
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
-        tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
+        tiler_mn, _ = cute.make_layout_tv(thr_layout, val_layout)
 
         mC = cute.make_identity_tensor(mX0.shape)
 
