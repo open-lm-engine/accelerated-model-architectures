@@ -107,7 +107,6 @@ class ElementwisePackedCUDAKernel:
     @cute.jit
     def __call__(self, mX0: cute.Tensor, mX1: cute.Tensor | None, mY0: cute.Tensor, stream: cuda.CUstream) -> None:
         dtype = mX0.element_type
-
         assert mY0.element_type == dtype
 
         if const_expr(mX1 is not None):
@@ -133,9 +132,7 @@ class ElementwisePackedCUDAKernel:
         tiler_mn_X0 = tiler_mn_1 if self.X0_PACKED else tiler_mn_2
         gX0 = cute.zipped_divide(mX0, tiler_mn_X0)
 
-        if const_expr(mX1 is None):
-            gX1 = None
-        else:
+        if const_expr(mX1 is not None):
             tiler_mn_X1 = tiler_mn_1 if self.X1_PACKED else tiler_mn_2
             gX1 = cute.zipped_divide(mX1, tiler_mn_X1)
 
