@@ -163,5 +163,5 @@ class ElementwiseCUDAKernel:
             copy_atom_Ys=copy_atom_Ys,
             tiled_copy_Xs=tiled_copy_Xs,
             tiled_copy_Ys=tiled_copy_Ys,
-            shape=gXs[0].shape,
+            shape=mXs[0].shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
