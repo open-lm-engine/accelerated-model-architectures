@@ -99,7 +99,7 @@ class ElementwiseCUDAKernel:
         block_coord = ((None, None), BLOCK_ID)
         bC = gC[block_coord]
 
-        thr_copy = tiled_copy.get_slice(THREAD_ID)
+        thr_copy = tiled_copy_Xs[0].get_slice(THREAD_ID)
         tC = thr_copy.partition_S(bC)
 
         rC = cute.make_rmem_tensor(tC.shape, Boolean)
@@ -108,18 +108,24 @@ class ElementwiseCUDAKernel:
 
         is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
-        x0 = _load(
-            gX=gX0,
-            rC=rC,
-            thr_copy=thr_copy,
-            copy_atom=copy_atom,
-            block_coord=block_coord,
-            is_within_boundary=is_within_boundary,
-        )
+        xs = [
+            _load(
+                gX=gX,
+                rC=rC,
+                thr_copy=thr_copy,
+                copy_atom=copy_atom,
+                block_coord=block_coord,
+                is_within_boundary=is_within_boundary,
+            )
+            for gX, copy_atom in zip(gXs, copy_atom_Xs)
+        ]
 
-        if const_expr(gX1 is not None):
-            x1 = _load(
-                gX=gX1,
+        ys = self.compute(xs)
+
+        for y, gY, copy_atom in zip(ys, gYs, copy_atom_Ys):
+            _store(
+                gY=gY,
+                y=y,
                 rC=rC,
                 thr_copy=thr_copy,
                 copy_atom=copy_atom,
@@ -127,27 +133,9 @@ class ElementwiseCUDAKernel:
                 is_within_boundary=is_within_boundary,
             )
 
-        if const_expr(gX1 is None):
-            y = self.compute(x0)
-        else:
-            y = self.compute(x0, x1)
-
-        _store(
-            gY=gY,
-            y=y,
-            rC=rC,
-            thr_copy=thr_copy,
-            copy_atom=copy_atom,
-            block_coord=block_coord,
-            is_within_boundary=is_within_boundary,
-        )
-
-    def _get_vector_sizes(self, mXs: list[cute.Tensor]) -> list[int]:
-        return [128 // i.element_type.width for i in mXs]
-
     @cute.jit
     def __call__(self, mXs: list[cute.Tensor], mYs: list[cute.Tensor], stream: cuda.CUstream) -> None:
-        vector_size = max([128 // i.element_type.width for i in mXs])
+        vector_size = min([128 // i.element_type.width for i in mXs])
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
