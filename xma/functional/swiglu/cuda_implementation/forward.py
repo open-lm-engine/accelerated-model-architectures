@@ -17,7 +17,7 @@ from ....cute_dsl_utils.elementwise import ElementwiseCUDAKernel, get_compiled_e
 
 
 class SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
-    def compute(self, xs: list[cute.TensorSSA]) -> cute.TensorSSA:
+    def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA]:
         g, u = xs
 
         dtype = g.dtype
