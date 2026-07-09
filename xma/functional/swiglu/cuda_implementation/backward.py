@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 
 import cuda.bindings.driver as cuda
+import cutlass.cute as cute
 import torch
 from cutlass import Float32
 
@@ -16,7 +17,9 @@ from ....cute_dsl_utils.elementwise import ElementwiseCUDAKernel, get_compiled_e
 
 
 class SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
-    def compute(self, g, u, dy):
+    def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA]:
+        g, u, dy = xs
+
         dtype = g.dtype
         g = g.to(Float32)
 
@@ -40,5 +43,7 @@ def _swiglu_backward_cuda(
     div = math.gcd(16 // g.dtype.itemsize, N)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
-    fn = get_compiled_elementwise_cuda_fn(_CACHE, (g.dtype, div), SwiGLUBackwardCUDAKernel, (g, u, dy, dg, du), div)
-    fn(g, u, dy, dg, du, stream)
+    fn = get_compiled_elementwise_cuda_fn(
+        _CACHE, (g.dtype, div), SwiGLUBackwardCUDAKernel, ((g, u, dy), (dg, du)), div
+    )
+    fn((g, u, dy), (dg, du), stream)

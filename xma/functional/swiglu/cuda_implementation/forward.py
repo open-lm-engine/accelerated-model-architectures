@@ -24,9 +24,7 @@ class SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
         g = g.to(Float32)
         y = u * g * sigmoid(g)
 
-        y = [y.to(dtype)]
-
-        return y
+        return (y.to(dtype),)
 
 
 _CACHE = {}
