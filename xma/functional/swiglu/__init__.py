@@ -97,7 +97,7 @@ class _Swiglu(CustomOp):
 class _SwigluPacked(CustomOp):
     @staticmethod
     def forward_backward_torch(x: torch.Tensor) -> torch.Tensor:
-        dtype = x, dtype
+        dtype = x.dtype
         x = x.float()
 
         u = x[..., 1::2]
