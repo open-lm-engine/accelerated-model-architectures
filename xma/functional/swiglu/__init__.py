@@ -98,11 +98,12 @@ class _SwigluPacked(CustomOp):
     @staticmethod
     def forward_backward_torch(x: torch.Tensor) -> torch.Tensor:
         dtype = x, dtype
+        x = x.float()
 
         u = x[..., 1::2]
         g = x[..., ::2]
 
-        x = u.float() * F.silu(g.float())
+        x = u * F.silu(g)
 
         return x.to(dtype)
 
