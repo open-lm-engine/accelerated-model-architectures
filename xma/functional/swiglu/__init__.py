@@ -102,50 +102,25 @@ class _SwigluPacked(CustomOp):
 
     @staticmethod
     def forward(ctx, x: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
-        ctx.kernel_backend = kernel_backend
-
-        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
-            x = x.contiguous()
+        if kernel_backend != KernelBackend.cuda:
+            raise NotImplementedError
 
         ctx_save_for_backward(ctx, x)
 
-        u, g = x.chunk(2, dim=-1)
-
-        if kernel_backend == KernelBackend.pallas:
-            return _swiglu_forward_pallas(g=g, u=u)
-
         y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
 
-        forward_function, backward_function = _FUNCTIONS[kernel_backend]
         forward_function(g=g, u=u, y=y)
-        ctx.backward_function = backward_function
 
         return y
 
     @staticmethod
     def backward(ctx, dy: torch.Tensor) -> torch.Tensor:
-        kernel_backend = ctx.kernel_backend
         x = ctx.saved_tensors[0]
-
-        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
-            dy = dy.contiguous()
-
         u, g = x.chunk(2, dim=-1)
 
-        if kernel_backend == KernelBackend.pallas:
-            dg, du = _swiglu_backward_pallas(g=g, u=u, dy=dy)
-            dx = torch.cat([du, dg], dim=-1)
-        elif kernel_backend == KernelBackend.nki:
-            du = empty_like_contiguous(u)
-            dg = empty_like_contiguous(g)
-
-            ctx.backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
-
-            dx = torch.cat([du, dg], dim=-1)
-        else:
-            dx = empty_like_contiguous(x)
-            du, dg = dx.chunk(2, dim=-1)
-            ctx.backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
+        dx = empty_like_contiguous(x)
+        du, dg = dx.chunk(2, dim=-1)
+        backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dx, None
 
