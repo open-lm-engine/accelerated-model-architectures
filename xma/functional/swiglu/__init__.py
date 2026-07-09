@@ -97,8 +97,14 @@ class _Swiglu(CustomOp):
 class _SwigluPacked(CustomOp):
     @staticmethod
     def forward_backward_torch(x: torch.Tensor) -> torch.Tensor:
-        up, gate = x.chunk(2, dim=-1)
-        return swiglu(gate=gate, up=up, kernel_backend=KernelBackend.torch)
+        dtype = x, dtype
+
+        u = x[..., 1::2]
+        g = x[..., ::2]
+
+        x = u.float() * F.silu(g.float())
+
+        return x.to(dtype)
 
     @staticmethod
     def forward(ctx, x: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
