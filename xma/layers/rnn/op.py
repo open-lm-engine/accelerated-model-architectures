@@ -47,9 +47,7 @@ class _RNN(CustomOp):
         if cu_seqlens is None:
             B, S, _, H = x.size()
         else:
-            B = cu_seqlens.size(0) - 1
-            S = max_seqlen
-            H = x.size(-1)
+            raise NotImplementedError
 
         Gx = N // Nx
         Gw = N // Nw
