@@ -49,9 +49,7 @@ class _GRU(CustomOp):
         if cu_seqlens is None:
             B, S, _, H = x.size()
         else:
-            B = cu_seqlens.size(0) - 1
-            S = max_seqlen
-            H = x.size(-1)
+            raise NotImplementedError
 
         Gx = N // Nx
         Gxf = N // Nxf
@@ -74,45 +72,23 @@ class _GRU(CustomOp):
 
         if cu_seqlens is not None:
             h0 = h0.clone()
-            start = cu_seqlens[:-1]
-            end = cu_seqlens[1:]
 
         for s in range(S):
-            if cu_seqlens is None:
-                f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
-                r = h0[..., None, :] @ Wr + xr[:, s, :, None, :]
-            else:
-                offset = start + s
-                unfinished = offset < end
-                offset_unfinished = offset[unfinished]
-
-                f = h0[unfinished, :, None, :] @ Wf + xf[offset_unfinished, :, None, :]
-                r = h0[unfinished, :, None, :] @ Wr + xr[offset_unfinished, :, None, :]
+            f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
+            r = h0[..., None, :] @ Wr + xr[:, s, :, None, :]
 
             f = sigmoid(f)
             r = sigmoid(r)
 
-            if cu_seqlens is None:
-                z = (h0[..., None, :] * r) @ W + x[:, s, :, None, :]
-            else:
-                z = (h0[unfinished, :, None, :] * r) @ W + x[offset_unfinished, :, None, :]
-
+            z = (h0[..., None, :] * r) @ W + x[:, s, :, None, :]
             z = tanh(z)
-
-            if cu_seqlens is None:
-                h = f * h0[..., None, :] + (1 - f) * z
-            else:
-                h = f * h0[unfinished, :, None, :] + (1 - f) * z
+            h = f * h0[..., None, :] + (1 - f) * z
 
             h = h.squeeze(-2)
             h = clip_gradients(h, gradient_clipping)
 
-            if cu_seqlens is None:
-                y[:, s] = h
-                h0 = h
-            else:
-                y[offset_unfinished] = h
-                h0[unfinished] = h
+            y[:, s] = h
+            h0 = h
 
         return y, h0
 
