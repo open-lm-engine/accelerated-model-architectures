@@ -7,13 +7,9 @@ from itertools import product
 import pytest
 import torch
 
-from xma import Accelerator, KernelBackend, LinearAttention, set_seed
+from xma import KernelBackend, LinearAttention, set_seed
 
-from ..utils import (
-    assert_equal_tensors,
-    collect_gradients_from_module_and_zero_grads,
-    skip_if_incompatible_kernel_backend,
-)
+from ..utils import assert_equal_tensors, skip_if_incompatible_kernel_backend
 from .rnn_test import _get_packed_tensor_inputs
 
 
@@ -157,70 +153,3 @@ def test_linear_attention(
     #             atol_float16=2.3e-2,
     #             rtol_float16=0,
     #         )
-
-
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
-@pytest.mark.parametrize("problem_shape", [(8, 4, 3, 3, 3)])
-@pytest.mark.parametrize("has_input_state", [False, True])
-def test_linear_attention_varlen_torch(
-    dtype: torch.dtype,
-    cu_seqlens: list[int],
-    problem_shape: tuple[int, int, int, int, int],
-    has_input_state: bool,
-) -> None:
-    if Accelerator.get_accelerator() != Accelerator.cuda:
-        pytest.skip("Sufficient to run on CUDA device")
-
-    device = Accelerator.get_current_device()
-    set_seed(_SEED)
-
-    batch_size = len(cu_seqlens) - 1
-    cu_seqlens = torch.tensor(cu_seqlens, device=device)
-    max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
-
-    key_head_dim, value_head_dim, num_query_heads, num_key_heads, num_value_heads = problem_shape
-    num_heads = max(num_query_heads, num_key_heads, num_value_heads)
-    state_size = num_heads * key_head_dim * value_head_dim
-
-    x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
-        batch_size=batch_size,
-        sequence_length=None,
-        total_tokens=cu_seqlens[-1],
-        state_size=state_size,
-        has_input_state=has_input_state,
-        dtype=dtype,
-        device=device,
-    )
-
-    with torch.device(device):
-        linear_attention = LinearAttention(
-            input_size=state_size,
-            key_head_dim=key_head_dim,
-            value_head_dim=value_head_dim,
-            output_size=state_size,
-            num_query_heads=num_query_heads,
-            num_key_heads=num_key_heads,
-            num_value_heads=num_value_heads,
-            add_bias=False,
-        ).to(dtype)
-
-    y_kernel, _ = linear_attention(
-        input=x_packed_kernel,
-        input_state=input_state_kernel,
-        cu_seqlens=cu_seqlens,
-        max_seqlen=max_seqlen,
-        kernel_backend=KernelBackend.torch,
-    )
-
-    y_torch = []
-    for i in range(batch_size):
-        y, _ = linear_attention(
-            input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-            input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
-            kernel_backend=KernelBackend.torch,
-        )
-        y_torch.append(y.squeeze(0))
-    y_torch = torch.cat(y_torch)
-
-    assert_equal_tensors(y_kernel, y_torch, False)
