@@ -70,9 +70,6 @@ class _GRU(CustomOp):
         if h0 is None:
             h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype)
 
-        if cu_seqlens is not None:
-            h0 = h0.clone()
-
         for s in range(S):
             f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
             r = h0[..., None, :] @ Wr + xr[:, s, :, None, :]
