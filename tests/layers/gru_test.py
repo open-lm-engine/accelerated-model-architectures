@@ -136,7 +136,7 @@ def test_gru(
             output_state_torch.append(h)
 
         y_torch = torch.cat(y_torch)
-        output_state_torch = torch.cat(h)
+        output_state_torch = torch.cat(output_state_torch)
 
     assert_equal_tensors(y_kernel, y_torch, False)
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
