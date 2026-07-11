@@ -9,7 +9,7 @@ import cutlass.cute as cute
 from cutlass import Boolean, const_expr, range_constexpr
 
 from ..constants import LOG_WARP_SIZE, WARP_SIZE
-from .base import _load, _store
+from ..elementwise import _load, _store
 
 
 @cute.jit
