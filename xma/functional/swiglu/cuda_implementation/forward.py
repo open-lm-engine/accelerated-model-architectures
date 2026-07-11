@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import math
+from functools import partial
 
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
@@ -36,5 +37,7 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> N
     div = math.gcd(16 // g.dtype.itemsize, N)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
-    fn = get_compiled_elementwise_cuda_fn(_CACHE, (g.dtype, div), SwiGLUForwardCUDAKernel, ((g, u), (y,)), div)
+    fn = get_compiled_elementwise_cuda_fn(
+        _CACHE, (g.dtype, div), partial(SwiGLUForwardCUDAKernel, BLOCK_SIZE=256), ((g, u), (y,)), div
+    )
     fn((g, u), (y,), stream)

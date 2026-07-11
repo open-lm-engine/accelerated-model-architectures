@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import math
+from functools import partial
 
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
@@ -44,6 +45,6 @@ def _swiglu_backward_cuda(
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
     fn = get_compiled_elementwise_cuda_fn(
-        _CACHE, (g.dtype, div), SwiGLUBackwardCUDAKernel, ((g, u, dy), (dg, du)), div
+        _CACHE, (g.dtype, div), partial(SwiGLUBackwardCUDAKernel, BLOCK_SIZE=256), ((g, u, dy), (dg, du)), div
     )
     fn((g, u, dy), (dg, du), stream)
