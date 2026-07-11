@@ -150,14 +150,20 @@ def test_m2rnn(
         )
     else:
         y_torch = []
+        output_state_torch = []
+
         for i in range(B):
-            y, _ = m2rnn_torch(
+            y, h = m2rnn_torch(
                 input=x_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
             )
+
             y_torch.append(y.squeeze(0))
+            output_state_torch.append(h)
+
         y_torch = torch.cat(y_torch)
+        output_state_torch = torch.cat(output_state_torch)
 
     assert_equal_tensors(y_kernel, y_torch, False)
 

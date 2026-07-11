@@ -124,14 +124,20 @@ def test_rnn(
         )
     else:
         y_torch = []
+        output_state_torch = []
+
         for i in range(B):
-            y, _ = rnn_torch(
+            y, h = rnn_torch(
                 input=x_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
             )
+
             y_torch.append(y.squeeze(0))
+            output_state_torch.append(h)
+
         y_torch = torch.cat(y_torch)
+        output_state_torch = torch.cat(output_state_torch)
 
     assert_equal_tensors(y_kernel, y_torch, False)
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
