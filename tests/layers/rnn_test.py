@@ -72,7 +72,7 @@ def test_rnn(
     B, S, cu_seqlens = input_shape
     max_seqlen = None
 
-    if B is None:
+    if cu_seqlens is not None:
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
         B = cu_seqlens.size(0) - 1
@@ -114,13 +114,24 @@ def test_rnn(
         kernel_backend=kernel_backend,
     )
 
-    y_torch, output_state_torch = rnn_torch(
-        input=x_torch,
-        input_state=input_state_torch,
-        cu_seqlens=cu_seqlens,
-        max_seqlen=max_seqlen,
-        kernel_backend=KernelBackend.torch,
-    )
+    if cu_seqlens is None:
+        y_torch, output_state_torch = rnn_torch(
+            input=x_torch,
+            input_state=input_state_torch,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
+        )
+    else:
+        y_torch = []
+        for i in range(B):
+            y, _ = rnn(
+                input=x_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
+                kernel_backend=KernelBackend.torch,
+            )
+            y_torch.append(y.squeeze(0))
+        y_torch = torch.cat(y_torch)
 
     assert_equal_tensors(y_kernel, y_torch, False)
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
