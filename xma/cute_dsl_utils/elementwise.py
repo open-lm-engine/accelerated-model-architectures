@@ -7,29 +7,10 @@ from __future__ import annotations
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
 import torch
-from cutlass import Boolean, const_expr, range_constexpr
+from cutlass import Boolean, range_constexpr
 
 from ..constants import LOG_WARP_SIZE, WARP_SIZE
 from .utils import get_fake_cute_tensor
-
-
-def get_compiled_elementwise_cuda_fn(cache: dict, key, kernel_class: type, example_tensors: tuple, div: int):
-    fn = cache.get(key)
-    if fn is None:
-        fake_tensors = [
-            (
-                None
-                if t is None
-                else get_fake_cute_tensor(
-                    dtype=t.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
-                )
-            )
-            for t in example_tensors
-        ]
-        stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
-        fn = cute.compile(kernel_class(), *fake_tensors, stream, options="--enable-tvm-ffi")
-        cache[key] = fn
-    return fn
 
 
 @cute.jit
@@ -71,35 +52,31 @@ def _store(
 
 
 class ElementwiseCUDAKernel:
-    BLOCK_SIZE: int = 128
+    def __init__(self, BLOCK_SIZE: int) -> ElementwiseCUDAKernel:
+        self.BLOCK_SIZE = BLOCK_SIZE
 
-    def compute(self, *inputs):
+    def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA]:
         raise NotImplementedError
 
     @cute.kernel
     def kernel(
         self,
-        gX0: cute.Tensor,
-        gX1: cute.Tensor | None,
-        gX2: cute.Tensor | None,
-        gY0: cute.Tensor,
-        gY1: cute.Tensor | None,
+        gXs: list[cute.Tensor],
+        gYs: list[cute.Tensor],
         gC: cute.Tensor,
-        copy_atom: cute.CopyAtom,
-        tiled_copy: cute.TiledCopy,
+        copy_atom_Xs: list[cute.CopyAtom],
+        copy_atom_Ys: list[cute.CopyAtom],
+        tiled_copy_Xs: list[cute.TiledCopy],
+        tiled_copy_Ys: list[cute.TiledCopy],
         shape: cute.Shape,
     ) -> None:
-        is_x1_none = const_expr(gX1 is None)
-        is_x2_none = const_expr(gX2 is None)
-        is_y1_none = const_expr(gY1 is None)
-
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
         block_coord = ((None, None), BLOCK_ID)
         bC = gC[block_coord]
 
-        thr_copy = tiled_copy.get_slice(THREAD_ID)
+        thr_copy = tiled_copy_Xs[0].get_slice(THREAD_ID)
         tC = thr_copy.partition_S(bC)
 
         rC = cute.make_rmem_tensor(tC.shape, Boolean)
@@ -108,63 +85,24 @@ class ElementwiseCUDAKernel:
 
         is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
-        x0 = _load(
-            gX=gX0,
-            rC=rC,
-            thr_copy=thr_copy,
-            copy_atom=copy_atom,
-            block_coord=block_coord,
-            is_within_boundary=is_within_boundary,
-        )
-
-        if const_expr(not is_x1_none):
-            x1 = _load(
-                gX=gX1,
+        xs = [
+            _load(
+                gX=gX,
                 rC=rC,
                 thr_copy=thr_copy,
                 copy_atom=copy_atom,
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
             )
+            for gX, copy_atom in zip(gXs, copy_atom_Xs)
+        ]
 
-        if const_expr(not is_x2_none):
-            assert not is_x1_none
+        ys = self.compute(xs)
 
-            x2 = _load(
-                gX=gX2,
-                rC=rC,
-                thr_copy=thr_copy,
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
-            )
-
-        if const_expr(is_x1_none):
-            y = self.compute(x0)
-        elif const_expr(is_x2_none):
-            y = self.compute(x0, x1)
-        else:
-            y = self.compute(x0, x1, x2)
-
-        if const_expr(is_y1_none):
-            y0 = y
-        else:
-            y0, y1 = y
-
-        _store(
-            gY=gY0,
-            y=y0,
-            rC=rC,
-            thr_copy=thr_copy,
-            copy_atom=copy_atom,
-            block_coord=block_coord,
-            is_within_boundary=is_within_boundary,
-        )
-
-        if const_expr(not is_y1_none):
+        for y, gY, copy_atom in zip(ys, gYs, copy_atom_Ys):
             _store(
-                gY=gY1,
-                y=y1,
+                gY=gY,
+                y=y,
                 rC=rC,
                 thr_copy=thr_copy,
                 copy_atom=copy_atom,
@@ -173,61 +111,65 @@ class ElementwiseCUDAKernel:
             )
 
     @cute.jit
-    def __call__(
-        self,
-        mX0: cute.Tensor,
-        mX1: cute.Tensor | None,
-        mX2: cute.Tensor | None,
-        mY0: cute.Tensor,
-        mY1: cute.Tensor | None,
-        stream: cuda.CUstream,
-    ) -> None:
-        vector_size = 128 // mX0.element_type.width
+    def __call__(self, mXs: list[cute.Tensor], mYs: list[cute.Tensor], stream: cuda.CUstream) -> None:
+        vector_size = min([128 // i.element_type.width for i in mXs])
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
-        tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
+        tiler_mn, _ = cute.make_layout_tv(thr_layout, val_layout)
 
-        mC = cute.make_identity_tensor(mX0.shape)
-
-        is_x1_none = const_expr(mX1 is None)
-        is_x2_none = const_expr(mX2 is None)
-        is_y1_none = const_expr(mY1 is None)
-
+        mC = cute.make_identity_tensor(mXs[0].shape)
         gC = cute.zipped_divide(mC, tiler_mn)
-        gX0 = cute.zipped_divide(mX0, tiler_mn)
 
-        if const_expr(not is_x1_none):
-            gX1 = cute.zipped_divide(mX1, tiler_mn)
-        else:
-            gX1 = None
+        gXs = [cute.zipped_divide(i, tiler_mn) for i in mXs]
+        gYs = [cute.zipped_divide(i, tiler_mn) for i in mYs]
 
-        if const_expr(not is_x2_none):
-            assert not is_x1_none
-            gX2 = cute.zipped_divide(mX2, tiler_mn)
-        else:
-            gX2 = None
+        copy_atom_Xs = [cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type) for i in gXs]
+        copy_atom_Ys = [cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type) for i in gYs]
 
-        gY0 = cute.zipped_divide(mY0, tiler_mn)
+        tiled_copy_Xs = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Xs]
+        tiled_copy_Ys = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Ys]
 
-        if const_expr(not is_y1_none):
-            gY1 = cute.zipped_divide(mY1, tiler_mn)
-        else:
-            gY1 = None
-
-        copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gX0.element_type)
-        tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
-
-        NUM_BLOCKS = cute.size(gX0, mode=[1])
+        NUM_BLOCKS = cute.size(gXs[0], mode=[1])
 
         self.kernel(
-            gX0=gX0,
-            gX1=gX1,
-            gX2=gX2,
-            gY0=gY0,
-            gY1=gY1,
+            gXs=gXs,
+            gYs=gYs,
             gC=gC,
-            copy_atom=copy_atom,
-            tiled_copy=tiled_copy,
-            shape=mX0.shape,
+            copy_atom_Xs=copy_atom_Xs,
+            copy_atom_Ys=copy_atom_Ys,
+            tiled_copy_Xs=tiled_copy_Xs,
+            tiled_copy_Ys=tiled_copy_Ys,
+            shape=mXs[0].shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
+
+
+def get_compiled_elementwise_cuda_kernel(
+    cache: dict,
+    key,
+    kernel_class: type,
+    example_tensors_list: tuple[tuple[torch.Tensor]],
+    div: int,
+    stream: cuda.CUstream,
+) -> ElementwiseCUDAKernel:
+    kernel = cache.get(key)
+
+    if kernel is None:
+        fake_tensors = [
+            [
+                (
+                    None
+                    if t is None
+                    else get_fake_cute_tensor(
+                        dtype=t.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
+                    )
+                )
+                for t in example_tensors
+            ]
+            for example_tensors in example_tensors_list
+        ]
+
+        kernel = cute.compile(kernel_class(), *fake_tensors, stream, options="--enable-tvm-ffi")
+        cache[key] = kernel
+
+    return kernel

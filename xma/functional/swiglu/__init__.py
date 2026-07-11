@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
+from ...math import divide_if_divisible
 from ...utils import (
     empty_like_contiguous,
     is_cute_dsl_available,
@@ -93,6 +94,44 @@ class _Swiglu(CustomOp):
         return dg, du, None
 
 
+class _SwigluPacked(CustomOp):
+    @staticmethod
+    def forward_backward_torch(x: torch.Tensor) -> torch.Tensor:
+        dtype = x.dtype
+        x = x.float()
+
+        u = x[..., 1::2]
+        g = x[..., ::2]
+
+        x = u * F.silu(g)
+
+        return x.to(dtype)
+
+    @staticmethod
+    def forward(ctx, x: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
+        if kernel_backend != KernelBackend.cuda:
+            raise NotImplementedError
+
+        ctx_save_for_backward(ctx, x)
+
+        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+
+        forward_function(g=g, u=u, y=y)
+
+        return y
+
+    @staticmethod
+    def backward(ctx, dy: torch.Tensor) -> torch.Tensor:
+        x = ctx.saved_tensors[0]
+        u, g = x.chunk(2, dim=-1)
+
+        dx = empty_like_contiguous(x)
+        du, dg = dx.chunk(2, dim=-1)
+        backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
+
+        return dx, None
+
+
 def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
     """
     computes swiglu activation as `up * gate * sigmoid(gate)`
@@ -116,5 +155,28 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBacken
 
     y = _Swiglu.run(g=gate, u=up, kernel_backend=kernel_backend)
     y = y.view(original_shape)
+
+    return y
+
+
+def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
+    """
+    computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
+
+    :param x: input activation
+    :type x: torch.Tensor
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor
+    :rtype: Tensor
+    """
+
+    original_shape = x.size()
+    x = x.flatten(0, -2)
+
+    H = divide_if_divisible(original_shape[-1], 2)
+
+    y = _SwigluPacked.run(x=x, kernel_backend=kernel_backend)
+    y = y.view(*original_shape[:-1], H)
 
     return y
