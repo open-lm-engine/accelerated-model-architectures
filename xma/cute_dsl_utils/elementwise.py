@@ -76,7 +76,7 @@ def _store(
 
 
 class ElementwiseCUDAKernel:
-    BLOCK_SIZE: int = 128
+    BLOCK_SIZE: int = 256
 
     def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA]:
         raise NotImplementedError
