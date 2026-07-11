@@ -14,7 +14,7 @@ from cutlass import Float32
 
 from ....custom_op import xma_op
 from ....cute_dsl_utils import sigmoid
-from ....cute_dsl_utils.elementwise import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_fn
+from ....cute_dsl_utils.elementwise import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_kernel
 
 
 class SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
@@ -44,7 +44,14 @@ def _swiglu_backward_cuda(
     div = math.gcd(16 // g.dtype.itemsize, N)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
-    fn = get_compiled_elementwise_cuda_fn(
-        _CACHE, (g.dtype, div), partial(SwiGLUBackwardCUDAKernel, BLOCK_SIZE=256), ((g, u, dy), (dg, du)), div
+
+    fn = get_compiled_elementwise_cuda_kernel(
+        cache=_CACHE,
+        key=(g.dtype, div),
+        kernel_class=partial(SwiGLUBackwardCUDAKernel, BLOCK_SIZE=256),
+        example_tensors_list=((g, u, dy), (dg, du)),
+        div=div,
+        stream=stream,
     )
+
     fn((g, u, dy), (dg, du), stream)
