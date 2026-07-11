@@ -47,9 +47,7 @@ class _RNN(CustomOp):
         if cu_seqlens is None:
             B, S, _, H = x.size()
         else:
-            B = cu_seqlens.size(0) - 1
-            S = max_seqlen
-            H = x.size(-1)
+            raise NotImplementedError
 
         Gx = N // Nx
         Gw = N // Nw
@@ -60,31 +58,15 @@ class _RNN(CustomOp):
         if h0 is None:
             h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype)
 
-        if cu_seqlens is not None:
-            h0 = h0.clone()
-            start = cu_seqlens[:-1]
-            end = cu_seqlens[1:]
-
         for s in range(S):
-            if cu_seqlens is None:
-                h = h0[..., None, :] @ W + x[:, s, :, None, :]
-            else:
-                offset = start + s
-                unfinished = offset < end
-                offset_unfinished = offset[unfinished]
-
-                h = h0[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
+            h = h0[..., None, :] @ W + x[:, s, :, None, :]
 
             h = tanh(h)
             h = h.squeeze(-2)
             h = clip_gradients(h, gradient_clipping)
 
-            if cu_seqlens is None:
-                y[:, s] = h
-                h0 = h
-            else:
-                y[offset_unfinished] = h
-                h0[unfinished] = h
+            y[:, s] = h
+            h0 = h
 
         return y, h0
 

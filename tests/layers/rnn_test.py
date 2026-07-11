@@ -6,7 +6,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from xma import RNN, Accelerator, KernelBackend, set_seed
+from xma import RNN, KernelBackend, set_seed
 
 from ..utils import (
     assert_equal_tensors,
@@ -72,7 +72,7 @@ def test_rnn(
     B, S, cu_seqlens = input_shape
     max_seqlen = None
 
-    if B is None:
+    if cu_seqlens is not None:
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
         B = cu_seqlens.size(0) - 1
@@ -114,13 +114,30 @@ def test_rnn(
         kernel_backend=kernel_backend,
     )
 
-    y_torch, output_state_torch = rnn_torch(
-        input=x_torch,
-        input_state=input_state_torch,
-        cu_seqlens=cu_seqlens,
-        max_seqlen=max_seqlen,
-        kernel_backend=KernelBackend.torch,
-    )
+    if cu_seqlens is None:
+        y_torch, output_state_torch = rnn_torch(
+            input=x_torch,
+            input_state=input_state_torch,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
+        )
+    else:
+        y_torch = []
+        output_state_torch = []
+
+        for i in range(B):
+            y, h = rnn_torch(
+                input=x_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
+                kernel_backend=KernelBackend.torch,
+            )
+
+            y_torch.append(y.squeeze(0))
+            output_state_torch.append(h)
+
+        y_torch = torch.cat(y_torch)
+        output_state_torch = torch.cat(output_state_torch)
 
     assert_equal_tensors(y_kernel, y_torch, False)
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
@@ -162,68 +179,3 @@ def test_rnn(
             atol_float16=1.3e-2,
             rtol_float16=0,
         )
-
-
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("cu_seqlens", [[0, 7, 19, 27, 93]])
-@pytest.mark.parametrize("problem_shape", [(8, 4, 8), (8, 8, 4), (9, 7, 7)])
-@pytest.mark.parametrize("has_input_state", [False, True])
-def test_rnn_varlen_torch(
-    dtype: torch.dtype, cu_seqlens: list[int], problem_shape: tuple[int, int, int], has_input_state: bool
-) -> None:
-    if Accelerator.get_accelerator() != Accelerator.cuda:
-        pytest.skip("Sufficient to run on CUDA device")
-
-    device = Accelerator.get_current_device()
-    set_seed(_SEED)
-
-    batch_size = len(cu_seqlens) - 1
-    cu_seqlens = torch.tensor(cu_seqlens, device=device)
-    max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
-
-    state_head_dim, num_input_heads, num_weight_heads = problem_shape
-    num_heads = max(num_input_heads, num_weight_heads)
-    state_size = state_head_dim * num_heads
-
-    x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = _get_packed_tensor_inputs(
-        batch_size=batch_size,
-        sequence_length=None,
-        total_tokens=cu_seqlens[-1],
-        state_size=state_size,
-        has_input_state=has_input_state,
-        dtype=dtype,
-        device=device,
-    )
-
-    with torch.device(device):
-        rnn = RNN(
-            input_size=state_size,
-            state_head_dim=state_head_dim,
-            output_size=state_size,
-            num_input_heads=num_input_heads,
-            num_weight_heads=num_weight_heads,
-            add_bias=False,
-            gradient_clipping=None,
-        ).to(dtype)
-
-        nn.init.normal_(rnn.state_weight, std=0.1)
-
-    y_kernel, _ = rnn(
-        input=x_packed_kernel,
-        input_state=input_state_kernel,
-        cu_seqlens=cu_seqlens,
-        max_seqlen=max_seqlen,
-        kernel_backend=KernelBackend.torch,
-    )
-
-    y_torch = []
-    for i in range(batch_size):
-        y, _ = rnn(
-            input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-            input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
-            kernel_backend=KernelBackend.torch,
-        )
-        y_torch.append(y.squeeze(0))
-    y_torch = torch.cat(y_torch)
-
-    assert_equal_tensors(y_kernel, y_torch, False)

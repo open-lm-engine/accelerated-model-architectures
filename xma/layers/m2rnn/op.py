@@ -38,11 +38,7 @@ class _M2RNN(CustomOp):
             B, S, _, K = q.size()
             y = torch.empty(B, S, N, K, V, device=q.device, dtype=q.dtype)
         else:
-            B = cu_seqlens.size(0) - 1
-            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
-            T, _, K = q.size()
-
-            y = torch.empty(T, N, K, V, device=q.device, dtype=q.dtype)
+            raise NotImplementedError
 
         if h0 is None:
             h0 = torch.zeros(B, N, K, V, device=k.device, dtype=k.dtype)
@@ -64,40 +60,16 @@ class _M2RNN(CustomOp):
         x = k[..., None] * v[..., None, :]
         W = W[None, ...]
 
-        if cu_seqlens is not None:
-            h0 = h0.clone()
-            start = cu_seqlens[:-1]
-            end = cu_seqlens[1:]
-
         for s in range(S):
-            if cu_seqlens is None:
-                f = xf[:, s, :, None, None]
-                # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
-                h = h0 @ W + x[:, s]
-            else:
-                offset = start + s
-                unfinished = offset < end
-                offset_unfinished = offset[unfinished]
-
-                f = xf[offset_unfinished, :, None, None]
-                # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
-                h = h0[unfinished] @ W + x[offset_unfinished]
-
+            f = xf[:, s, :, None, None]
+            # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
+            h = h0 @ W + x[:, s]
             h = tanh(h)
-
-            if cu_seqlens is None:
-                h = f * h0 + (1 - f) * h
-            else:
-                h = f * h0[unfinished] + (1 - f) * h
-
+            h = f * h0 + (1 - f) * h
             h = clip_gradients(h, gradient_clipping)
 
-            if cu_seqlens is None:
-                y[:, s] = h
-                h0 = h
-            else:
-                y[offset_unfinished] = h
-                h0[unfinished] = h
+            y[:, s] = h
+            h0 = h
 
         y = q[..., None, :] @ y
         y = y.squeeze(-2)

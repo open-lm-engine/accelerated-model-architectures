@@ -40,9 +40,7 @@ class _LinearAttention(CustomOp):
         if cu_seqlens is None:
             B, S, _, K = q.size()
         else:
-            B = cu_seqlens.size(0) - 1
-            S = max_seqlen
-            K = q.size(-1)
+            raise NotImplementedError
 
         V = v.size(-1)
 
@@ -56,22 +54,9 @@ class _LinearAttention(CustomOp):
 
         h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device) if h0 is None else h0.float()
 
-        if cu_seqlens is not None:
-            h0 = h0.clone()
-            start = cu_seqlens[:-1]
-            end = cu_seqlens[1:]
-
         for s in range(S):
-            if cu_seqlens is None:
-                y[:, s] = (q[:, s, :, None, :] @ h0.type_as(q)).squeeze(-2)
-                h0 = h0 + k[:, s, ..., None] * v[:, s, :, None, :]
-            else:
-                offset = start + s
-                unfinished = offset < end
-                offset_unfinished = offset[unfinished]
-
-                y[offset_unfinished] = (q[offset_unfinished, :, None, :] @ h0[unfinished].type_as(q)).squeeze(-2)
-                h0[unfinished] = h0[unfinished] + k[offset_unfinished, ..., None] * v[offset_unfinished, :, None, :]
+            y[:, s] = (q[:, s, :, None, :] @ h0.type_as(q)).squeeze(-2)
+            h0 = h0 + k[:, s, ..., None] * v[:, s, :, None, :]
 
         y = y * attention_multiplier
 
