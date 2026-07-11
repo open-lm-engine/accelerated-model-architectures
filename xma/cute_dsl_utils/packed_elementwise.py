@@ -29,7 +29,7 @@ def _lane_boundary(gC: cute.Tensor, tiled_copy: cute.TiledCopy, block_coord, THR
 
 
 class ElementwisePackedCUDAKernel:
-    BLOCK_SIZE: int = 128
+    BLOCK_SIZE: int = 256
 
     def compute(self, *inputs):
         raise NotImplementedError

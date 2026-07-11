@@ -13,8 +13,7 @@ import torch
 from cutlass import Float32
 
 from ....custom_op import xma_op
-from ....cute_dsl_utils import sigmoid
-from ....cute_dsl_utils.elementwise import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_kernel
+from ....cute_dsl_utils import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_kernel, sigmoid
 
 
 class SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
