@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import math
+from functools import partial
 
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
@@ -12,13 +13,13 @@ import torch
 from cutlass import Float32
 
 from ....custom_op import xma_op
-from ....cute_dsl_utils import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_fn, sigmoid
+from ....cute_dsl_utils import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_kernel, sigmoid
 
 
 class SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
-    def compute(
-        self, g: cute.TensorSSA, u: cute.TensorSSA, dy: cute.TensorSSA
-    ) -> tuple[cute.TensorSSA, cute.TensorSSA]:
+    def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA]:
+        g, u, dy = xs
+
         dtype = g.dtype
         g = g.to(Float32)
 
@@ -42,5 +43,14 @@ def _swiglu_backward_cuda(
     div = math.gcd(16 // g.dtype.itemsize, N)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
-    fn = get_compiled_elementwise_cuda_fn(_CACHE, (g.dtype, div), SwiGLUBackwardCUDAKernel, (g, u, dy, dg, du), div)
-    fn(g, u, dy, dg, du, stream)
+
+    fn = get_compiled_elementwise_cuda_kernel(
+        cache=_CACHE,
+        key=(g.dtype, div),
+        kernel_class=partial(SwiGLUBackwardCUDAKernel, BLOCK_SIZE=256),
+        example_tensors_list=((g, u, dy), (dg, du)),
+        div=div,
+        stream=stream,
+    )
+
+    fn((g, u, dy), (dg, du), stream)
