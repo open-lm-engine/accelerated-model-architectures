@@ -150,9 +150,9 @@ def test_m2rnn(
         )
     else:
         y_torch = []
-        for i in range(batch_size):
+        for i in range(B):
             y, _ = m2rnn(
-                input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                input=x_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
             )
