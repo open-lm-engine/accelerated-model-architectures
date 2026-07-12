@@ -10,7 +10,7 @@ from functools import partial
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
 import torch
-from cutlass import Float32
+from cutlass import Float32, range_constexpr
 
 from ....custom_op import xma_op
 from ....cute_dsl_utils import (
@@ -33,21 +33,24 @@ class _SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
 
 
 class _SwigluPackedForwardCUDAKernel(ElementwisePackedCUDAKernel):
-    def compute(self, xs: list[cute.Tensor]) -> list[cute.Tensor]:
-        x = xs[0]
+    def compute(self, xs_1: list[cute.Tensor], xs_2: list[cute.Tensor]) -> tuple[list[cute.Tensor], list[cute.Tensor]]:
+        x = xs_2[0]
         dtype = x.dtype
 
         y = cute.make_rmem_tensor((*x.shape[:-1], x.shape[-1] >> 1), Float32)
 
-        for i in cute.size(x, mode=[0]):
-            for j in cute.size(x, mode=[1]):
+        B = cute.size(x, mode=[0])
+        H = cute.size(x, mode=[0]) >> 1
+
+        for i in range_constexpr(B):
+            for j in range_constexpr(H):
                 g = x[i, j]
                 u = x[i, j + 1]
 
                 g = g.to(Float32)
                 y[i, j] = u * g * sigmoid(g)
 
-        return (y.to(dtype),)
+        return None, y.to(dtype)
 
 
 @xma_op(mutates_args={"y"})
