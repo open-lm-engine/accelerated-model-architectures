@@ -118,14 +118,11 @@ class XTunedFunction:
 
         for i in range(len(args)):
             variable_name = self.signature.args[i]
-
-            if variable_name not in result:
-                result[variable_name] = args[i]
+            result[variable_name] = args[i]
 
         # accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function
         for variable_name in kwargs:
-            if variable_name not in result:
-                result[variable_name] = kwargs.get(variable_name)
+            result[variable_name] = kwargs.get(variable_name)
 
         return result
 
