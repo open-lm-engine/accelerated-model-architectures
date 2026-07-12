@@ -22,7 +22,12 @@ _FUNCTIONS = {KernelBackend.mps: (_swiglu_forward_mps, _swiglu_backward_mps)}
 
 
 if is_cute_dsl_available():
-    from .cuda_implementation import _swiglu_backward_cuda, _swiglu_forward_cuda, _swiglu_packed_forward_cuda
+    from .cuda_implementation import (
+        _swiglu_backward_cuda,
+        _swiglu_forward_cuda,
+        _swiglu_packed_backward_cuda,
+        _swiglu_packed_forward_cuda,
+    )
 
     _FUNCTIONS[KernelBackend.cuda] = (_swiglu_forward_cuda, _swiglu_backward_cuda)
 
@@ -122,11 +127,9 @@ class _SwigluPacked(CustomOp):
     @staticmethod
     def backward(ctx, dy: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
-        u, g = x.chunk(2, dim=-1)
-
         dx = empty_like_contiguous(x)
-        du, dg = dx.chunk(2, dim=-1)
-        backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
+
+        _swiglu_packed_backward_cuda(x=x, dy=dy, dx=dx)
 
         return dx, None
 
