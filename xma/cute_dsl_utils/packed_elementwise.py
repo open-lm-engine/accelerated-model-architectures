@@ -8,24 +8,9 @@ import cuda.bindings.driver as cuda
 import cutlass.cute as cute
 from cutlass import Boolean, const_expr, range_constexpr
 
+from .boundary import lane_boundary
 from .constants import LOG_WARP_SIZE, WARP_SIZE
 from .elementwise import _load, _store
-
-
-@cute.jit
-def _lane_boundary(gC: cute.Tensor, tiled_copy: cute.TiledCopy, block_coord, THREAD_ID: int, shape: cute.Shape):
-    thr_copy = tiled_copy.get_slice(THREAD_ID)
-
-    bC = gC[block_coord]
-    tC = thr_copy.partition_S(bC)
-
-    rC = cute.make_rmem_tensor(tC.shape, Boolean)
-    for i in range_constexpr(cute.size(rC)):
-        rC[i] = cute.elem_less(tC[i], shape)
-
-    is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
-
-    return thr_copy, rC, is_within_boundary
 
 
 class ElementwisePackedCUDAKernel:
@@ -63,8 +48,7 @@ class ElementwisePackedCUDAKernel:
 
         block_coord = ((None, None), BLOCK_ID)
 
-        thr_copy_1, rC_1, is_within_boundary_1 = _lane_boundary(gC_1, tiled_copy_1, block_coord, THREAD_ID, shape)
-        thr_copy_2, rC_2, is_within_boundary_2 = _lane_boundary(gC_2, tiled_copy_2, block_coord, THREAD_ID, shape)
+        thr_copy, rC, is_within_boundary = lane_boundary(gC, tiled_copy_1, block_coord, THREAD_ID, shape)
 
         x0 = _load(
             gX=gX0,

@@ -10,6 +10,7 @@ import torch
 from cutlass import Boolean, range_constexpr
 
 from ..constants import LOG_WARP_SIZE, WARP_SIZE
+from .boundary import lane_boundary
 from .utils import get_fake_cute_tensor
 
 
@@ -67,23 +68,16 @@ class ElementwiseCUDAKernel:
         copy_atom_Xs: list[cute.CopyAtom],
         copy_atom_Ys: list[cute.CopyAtom],
         tiled_copy_Xs: list[cute.TiledCopy],
-        tiled_copy_Ys: list[cute.TiledCopy],
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
         block_coord = ((None, None), BLOCK_ID)
-        bC = gC[block_coord]
 
-        thr_copy = tiled_copy_Xs[0].get_slice(THREAD_ID)
-        tC = thr_copy.partition_S(bC)
-
-        rC = cute.make_rmem_tensor(tC.shape, Boolean)
-        for i in range_constexpr(cute.size(rC)):
-            rC[i] = cute.elem_less(tC[i], shape)
-
-        is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
+        thr_copy, rC, is_within_boundary = lane_boundary(
+            gC=gC, tiled_copy=tiled_copy_Xs[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape
+        )
 
         xs = [
             _load(
@@ -128,7 +122,6 @@ class ElementwiseCUDAKernel:
         copy_atom_Ys = [cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type) for i in gYs]
 
         tiled_copy_Xs = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Xs]
-        tiled_copy_Ys = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Ys]
 
         NUM_BLOCKS = cute.size(gXs[0], mode=[1])
 
@@ -139,7 +132,6 @@ class ElementwiseCUDAKernel:
             copy_atom_Xs=copy_atom_Xs,
             copy_atom_Ys=copy_atom_Ys,
             tiled_copy_Xs=tiled_copy_Xs,
-            tiled_copy_Ys=tiled_copy_Ys,
             shape=mXs[0].shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
