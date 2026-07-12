@@ -23,14 +23,14 @@ class ElementwisePackedCUDAKernel:
     @cute.kernel
     def kernel(
         self,
-        gXs_1: cute.Tensor,
-        gXs_2: cute.Tensor,
-        gYs_1: cute.Tensor,
-        gYs_2: cute.Tensor,
+        gXs_1: list[cute.Tensor],
+        gXs_2: list[cute.Tensor],
+        gYs_1: list[cute.Tensor],
+        gYs_2: list[cute.Tensor],
         gC: cute.Tensor,
-        copy_atom_Xs_1: cute.CopyAtom,
-        copy_atom_Ys_1: cute.CopyAtom,
-        tiled_copy_Xs_1: cute.TiledCopy,
+        copy_atom_Xs_1: list[cute.CopyAtom],
+        copy_atom_Ys_1: list[cute.CopyAtom],
+        tiled_copy_Xs_1: list[cute.TiledCopy],
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
