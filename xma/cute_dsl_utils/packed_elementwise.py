@@ -42,39 +42,33 @@ class ElementwisePackedCUDAKernel:
             gC=gC, tiled_copy=tiled_copys_1[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape
         )
 
-        xs_1 = [
-            _load(
-                gX=gX,
-                rC=rC,
-                thr_copy=tiled_copy.get_slice(THREAD_ID),
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
-            )
-            for gX, copy_atom, tiled_copy in zip(gXs_1, copy_atoms, tiled_copys_1)
-        ]
-
-        xs_2 = [
-            _load(
-                gX=gX,
-                rC=rC,
-                thr_copy=tiled_copy.get_slice(THREAD_ID),
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
-            )
-            for gX, copy_atom, tiled_copy in zip(gXs_2, copy_atoms, tiled_copys_2)
-        ]
+        xs_1 = []
+        xs_2 = []
+        for xs, gXs, tiled_copys in [(xs_1, gXs_1, tiled_copys_1), (xs_2, gXs_2, tiled_copys_2)]:
+            for gX, copy_atom, tiled_copy in zip(gXs, copy_atoms, tiled_copys):
+                xs.append(
+                    _load(
+                        gX=gX,
+                        rC=rC,
+                        thr_copy=tiled_copy.get_slice(THREAD_ID),
+                        copy_atom=copy_atom,
+                        block_coord=block_coord,
+                        is_within_boundary=is_within_boundary,
+                    )
+                )
 
         ys_1, ys_2 = self.compute(xs_1, xs_2)
 
-        for y, gY in [(ys_1, gYs_1), (ys_2, gYs_2)]:
+        for y, gY, tiled_copy, copy_atom in [
+            (ys_1, gYs_1, tiled_copys_1, copy_atoms),
+            (ys_2, gYs_2, tiled_copys_2, copy_atoms),
+        ]:
             _store(
                 gY=gY,
                 y=y,
                 rC=rC,
-                thr_copy=thr_copy,
-                copy_atom=copy_atoms[0],
+                thr_copy=tiled_copy.get_slice(THREAD_ID),
+                copy_atom=copy_atom,
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
             )
