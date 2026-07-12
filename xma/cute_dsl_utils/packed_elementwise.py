@@ -28,8 +28,9 @@ class ElementwisePackedCUDAKernel:
         gYs_1: list[cute.Tensor],
         gYs_2: list[cute.Tensor],
         gC: cute.Tensor,
-        copy_atoms_1: list[cute.CopyAtom],
+        copy_atoms: list[cute.CopyAtom],
         tiled_copys_1: list[cute.TiledCopy],
+        tiled_copys_2: list[cute.TiledCopy],
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
@@ -37,7 +38,7 @@ class ElementwisePackedCUDAKernel:
 
         block_coord = ((None, None), BLOCK_ID)
 
-        thr_copy, rC, is_within_boundary = lane_boundary(
+        _, rC, is_within_boundary = lane_boundary(
             gC=gC, tiled_copy=tiled_copys_1[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape
         )
 
@@ -45,24 +46,24 @@ class ElementwisePackedCUDAKernel:
             _load(
                 gX=gX,
                 rC=rC,
-                thr_copy=thr_copy,
+                thr_copy=tiled_copy.get_slice(THREAD_ID),
                 copy_atom=copy_atom,
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
             )
-            for gX, copy_atom in zip(gXs_1, copy_atoms_1)
+            for gX, copy_atom, tiled_copy in zip(gXs_1, copy_atoms, tiled_copys_1)
         ]
 
         xs_2 = [
             _load(
                 gX=gX,
                 rC=rC,
-                thr_copy=thr_copy,
+                thr_copy=tiled_copy.get_slice(THREAD_ID),
                 copy_atom=copy_atom,
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
             )
-            for gX, copy_atom in zip(gXs_2, copy_atoms_1)
+            for gX, copy_atom, tiled_copy in zip(gXs_2, copy_atoms, tiled_copys_2)
         ]
 
         ys_1, ys_2 = self.compute(xs_1, xs_2)
@@ -73,7 +74,7 @@ class ElementwisePackedCUDAKernel:
                 y=y,
                 rC=rC,
                 thr_copy=thr_copy,
-                copy_atom=copy_atoms_1[0],
+                copy_atom=copy_atoms[0],
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
             )
@@ -105,12 +106,13 @@ class ElementwisePackedCUDAKernel:
         gYs_1 = [cute.zipped_divide(i, tiler_mn_1) for i in mYs_1]
         gYs_2 = [cute.zipped_divide(i, tiler_mn_2) for i in mYs_2]
 
-        copy_atoms_1 = [
+        copy_atoms = [
             cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type)
             for i in (gYs_1 if const_expr(len(gXs_1) == 0) else gXs_1)
         ]
 
-        tiled_copys_1 = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_1) for copy_atom in copy_atoms_1]
+        tiled_copys_1 = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_1) for copy_atom in copy_atoms]
+        tiled_copys_2 = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_2) for copy_atom in copy_atoms]
 
         NUM_BLOCKS = cute.size(gYs_1[0] if const_expr(len(gXs_1) == 0) else gXs_1[0], mode=[1])
 
@@ -120,7 +122,8 @@ class ElementwisePackedCUDAKernel:
             gYs_1=gYs_1,
             gYs_2=gYs_2,
             gC=gC,
-            copy_atoms_1=copy_atoms_1,
+            copy_atoms=copy_atoms,
             tiled_copys_1=tiled_copys_1,
+            tiled_copys_2=tiled_copys_2,
             shape=(gYs_1 if const_expr(len(gXs_1) == 0) else gXs_1)[0].shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
