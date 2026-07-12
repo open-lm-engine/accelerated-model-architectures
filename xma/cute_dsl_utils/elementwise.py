@@ -151,19 +151,25 @@ def get_compiled_elementwise_cuda_kernel(
     kernel = caller_op.cache.get(key)
 
     if kernel is None:
-        fake_tensors = [
-            [
-                (
-                    None
-                    if t is None
-                    else get_fake_cute_tensor(
-                        dtype=t.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
-                    )
+        fake_tensors = []
+        for example_tensors in example_tensors_list:
+            if example_tensors is None:
+                fake_tensors.append(None)
+                continue
+
+            _fake_tensors = []
+            for tensor in example_tensors:
+                if tensor is None:
+                    _fake_tensors.append(None)
+                    continue
+
+                tensor = get_fake_cute_tensor(
+                    dtype=tensor.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
                 )
-                for t in example_tensors
-            ]
-            for example_tensors in example_tensors_list
-        ]
+
+                _fake_tensors.append(tensor)
+
+            fake_tensors.append(_fake_tensors)
 
         kernel = cute.compile(kernel_class(), *fake_tensors, stream, options="--enable-tvm-ffi")
         caller_op.cache[key] = kernel
