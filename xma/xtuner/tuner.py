@@ -14,7 +14,6 @@ from ..accelerator import Accelerator
 from ..utils import get_boolean_env_variable
 from .cache import get_xtune_cache
 from .config import XTuneConfig
-from .parameter import XTuneParameter
 
 
 _XTUNE_PRINT_AUTOTUNING = get_boolean_env_variable("XTUNE_PRINT_AUTOTUNING", False)

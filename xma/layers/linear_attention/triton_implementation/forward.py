@@ -6,7 +6,7 @@ import torch
 
 from ....custom_op import xma_op
 from ....math import ceil_divide
-from ....xtuner import XTuneConfig, XTuneParameter, xtune
+from ....xtuner import XTuneConfig, xtune
 from ..utils import _get_num_heads
 from .output_forward import _output_forward_triton_kernel
 from .recurrent_state_forward import _recurrent_state_forward_triton_kernel
@@ -97,11 +97,7 @@ def _linear_attention_forward_triton(
     attention_multiplier: float,
     cu_seqlens: torch.Tensor | None,
     CHUNK_SIZE: int,
-    use_fused_kernel_in_forward: bool | None,
 ) -> None:
-    if use_fused_kernel_in_forward is None:
-        use_fused_kernel_in_forward = XTuneParameter()
-
     _autotuned_linear_attention_forward_triton(
         q=q,
         k=k,
@@ -113,5 +109,4 @@ def _linear_attention_forward_triton(
         attention_multiplier=attention_multiplier,
         cu_seqlens=cu_seqlens,
         CHUNK_SIZE=CHUNK_SIZE,
-        use_fused_kernel_in_forward=use_fused_kernel_in_forward,
     )
