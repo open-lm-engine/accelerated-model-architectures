@@ -10,7 +10,7 @@ from functools import partial
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
 import torch
-from cutlass import Float32
+from cutlass import Float32, const_expr, range_constexpr
 
 from ....custom_op import xma_op
 from ....cute_dsl_utils import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_kernel, sigmoid
@@ -35,25 +35,31 @@ class _SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
 class _SwiGLUBackwardPackedCUDAKernel(ElementwiseCUDAKernel):
     @cute.jit
     def compute(self, xs_1: list[cute.Tensor], xs_2: list[cute.Tensor]) -> tuple[list[cute.Tensor], list[cute.Tensor]]:
-        assert const_expr(len(xs_1) == 0)
+        assert const_expr(len(xs_1) == 1)
         assert const_expr(len(xs_2) == 1)
 
+        dy = xs_1[0]
         x = xs_2[0]
         dtype = x.dtype
 
         N = cute.size(x.shape)
         H = N >> 1
 
-        y = cute.make_rmem_tensor(H, Float32)
+        dx = cute.make_rmem_tensor(H, Float32)
 
         for j in range_constexpr(H):
             h = j << 1
+
             g = x[h].to(Float32)
             u = x[h + 1]
 
-            y[j] = u * g * sigmoid(g)
+            g_sigmoid = sigmoid(g)
+            g_silu = g * g_sigmoid
 
-        return [], [dy.load().to(dtype)]
+            dx[h] = dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
+            dx[h + 1] = dy * g_silu
+
+        return [], [dx.load().to(dtype)]
 
 
 @xma_op(mutates_args={"dg", "du"})
