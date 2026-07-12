@@ -45,7 +45,7 @@ def _swiglu_backward_cuda(
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
     fn = get_compiled_elementwise_cuda_kernel(
-        cache=_CACHE,
+        caller_op=_swiglu_backward_cuda,
         key=(g.dtype, div),
         kernel_class=partial(SwiGLUBackwardCUDAKernel, BLOCK_SIZE=256),
         example_tensors_list=((g, u, dy), (dg, du)),
