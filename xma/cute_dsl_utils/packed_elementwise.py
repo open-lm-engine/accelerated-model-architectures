@@ -114,40 +114,56 @@ class ElementwisePackedCUDAKernel:
         mYs_2: list[cute.Tensor],
         stream: cuda.CUstream,
     ) -> None:
-        vector_size = min([128 // i.element_type.width for i in mXs_1])
+        vector_size = min([128 // i.element_type.width for i in mXs_1 + mXs_2 + mYs_1 + mYs_2])
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
 
         val_layout_1 = cute.make_ordered_layout((4, vector_size >> 1), order=(1, 0))
         val_layout_2 = cute.make_ordered_layout((4, vector_size), order=(1, 0))
 
-        tiler_mn_1, tv_layout_1 = cute.make_layout_tv(thr_layout, val_layout_1)
-        tiler_mn_2, tv_layout_2 = cute.make_layout_tv(thr_layout, val_layout_2)
+        tiler_mn_1, _ = cute.make_layout_tv(thr_layout, val_layout_1)
+        tiler_mn_2, _ = cute.make_layout_tv(thr_layout, val_layout_2)
 
-        mC = cute.make_identity_tensor(mXs[0].shape)
-        cute.zipped_divide(mC, tiler_mn)
+        mC = cute.make_identity_tensor((mYs_1 if const_expr(mXs_1 is None) else mXs_1)[0].shape)
+        gC = cute.zipped_divide(mC, tiler_mn_1)
 
-        gXs = [cute.zipped_divide(i, tiler_mn) for i in mXs]
-        gYs = [cute.zipped_divide(i, tiler_mn) for i in mYs]
+        gXs_1 = [cute.zipped_divide(i, tiler_mn_1) for i in mXs_1]
+        gXs_2 = [cute.zipped_divide(i, tiler_mn_2) for i in mXs_2]
+        gYs_1 = [cute.zipped_divide(i, tiler_mn_1) for i in mYs_1]
+        gYs_2 = [cute.zipped_divide(i, tiler_mn_2) for i in mYs_2]
 
-        copy_atom_Xs = [cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type) for i in gXs]
-        copy_atom_Ys = [cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type) for i in gYs]
+        copy_atom_Xs_1 = [cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type) for i in gXs_1]
+        copy_atom_Ys_1 = [cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type) for i in gYs_1]
 
-        tiled_copy_Xs = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Xs]
-        tiled_copy_Ys = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Ys]
+        tiled_copy_Xs_1 = [
+            cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_1) for copy_atom in copy_atom_Xs_1
+        ]
 
-        NUM_BLOCKS = cute.size(gXs[0], mode=[1])
+        tiled_copy_Xs_2 = [
+            cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_2) for copy_atom in copy_atom_Xs_1
+        ]
+
+        tiled_copy_Ys_1 = [
+            cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_1) for copy_atom in copy_atom_Ys_1
+        ]
+
+        tiled_copy_Ys_2 = [
+            cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_2) for copy_atom in copy_atom_Ys_1
+        ]
+
+        NUM_BLOCKS = cute.size(gXs_1[0], mode=[1])
 
         self.kernel(
             gXs_1=gXs_1,
             gXs_2=gXs_2,
             gYs_1=gYs_1,
             gYs_2=gYs_2,
-            gC_1=gC_1,
-            gC_2=gC_2,
-            copy_atom_Xs=copy_atom_Xs,
-            copy_atom_Ys=copy_atom_Ys,
-            tiled_copy_Xs=tiled_copy_Xs,
-            tiled_copy_Ys=tiled_copy_Ys,
-            shape=mXs[0].shape,
+            gC=gC,
+            copy_atom_Xs_1=copy_atom_Xs_1,
+            copy_atom_Ys_1=copy_atom_Ys_1,
+            tiled_copy_Xs_1=tiled_copy_Xs_1,
+            tiled_copy_Xs_2=tiled_copy_Xs_2,
+            tiled_copy_Ys_1=tiled_copy_Ys_1,
+            tiled_copy_Ys_2=tiled_copy_Ys_2,
+            shape=mXs_1[0].shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)

@@ -112,7 +112,7 @@ class ElementwiseCUDAKernel:
 
     @cute.jit
     def __call__(self, mXs: list[cute.Tensor], mYs: list[cute.Tensor], stream: cuda.CUstream) -> None:
-        vector_size = min([128 // i.element_type.width for i in mXs])
+        vector_size = min([128 // i.element_type.width for i in mXs + mYs])
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
