@@ -98,7 +98,7 @@ class ElementwisePackedCUDAKernel:
         tiler_mn_1, _ = cute.make_layout_tv(thr_layout, val_layout_1)
         tiler_mn_2, _ = cute.make_layout_tv(thr_layout, val_layout_2)
 
-        mC = cute.make_identity_tensor((mYs_1 if const_expr(mXs_1 is None) else mXs_1)[0].shape)
+        mC = cute.make_identity_tensor((mYs_1 if const_expr(len(mXs_1) == 0) else mXs_1)[0].shape)
         gC = cute.zipped_divide(mC, tiler_mn_1)
 
         gXs_1 = [cute.zipped_divide(i, tiler_mn_1) for i in mXs_1]
