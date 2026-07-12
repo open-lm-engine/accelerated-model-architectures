@@ -104,31 +104,27 @@ class XTunedFunction:
             self.function_cache[lookup_key] = best_config
             get_xtune_cache().add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
 
-            if _XTUNE_PRINT_AUTOTUNING and (
-                not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0
-            ):
+            if _XTUNE_PRINT_AUTOTUNING:
                 print(
                     f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
                     f"function {self.function.__name__}"
                 )
 
-        return self.function(
-            **self._get_function_arguments(config=best_config, args=args, kwargs=kwargs, override_allowed=False)
-        )
+        return self.function(**self._get_function_arguments(config=best_config, args=args, kwargs=kwargs))
 
-    def _get_function_arguments(self, config: XTuneConfig, args: list, kwargs: dict, override_allowed: bool) -> dict:
+    def _get_function_arguments(self, config: XTuneConfig, args: list, kwargs: dict) -> dict:
         # copy the best_config first so we can override with args or kwargs
         result = {variable_name: value for variable_name, value in config.get_key_values().items()}
 
         for i in range(len(args)):
             variable_name = self.signature.args[i]
 
-            if override_allowed or variable_name not in result:
+            if variable_name not in result:
                 result[variable_name] = args[i]
 
         # accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function
         for variable_name in kwargs:
-            if override_allowed or variable_name not in result:
+            if variable_name not in result:
                 result[variable_name] = kwargs.get(variable_name)
 
         return result
