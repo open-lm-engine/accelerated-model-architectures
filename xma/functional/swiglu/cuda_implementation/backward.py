@@ -33,19 +33,27 @@ class _SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
 
 
 class _SwiGLUBackwardPackedCUDAKernel(ElementwiseCUDAKernel):
-    def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA]:
-        g, u, dy = xs
+    @cute.jit
+    def compute(self, xs_1: list[cute.Tensor], xs_2: list[cute.Tensor]) -> tuple[list[cute.Tensor], list[cute.Tensor]]:
+        assert const_expr(len(xs_1) == 0)
+        assert const_expr(len(xs_2) == 1)
 
-        dtype = g.dtype
-        g = g.to(Float32)
+        x = xs_2[0]
+        dtype = x.dtype
 
-        g_sigmoid = sigmoid(g)
-        g_silu = g * g_sigmoid
+        N = cute.size(x.shape)
+        H = N >> 1
 
-        dg = dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
-        du = dy * g_silu
+        y = cute.make_rmem_tensor(H, Float32)
 
-        return dg.to(dtype), du.to(dtype)
+        for j in range_constexpr(H):
+            h = j << 1
+            g = x[h].to(Float32)
+            u = x[h + 1]
+
+            y[j] = u * g * sigmoid(g)
+
+        return [], [dy.load().to(dtype)]
 
 
 @xma_op(mutates_args={"dg", "du"})
