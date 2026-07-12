@@ -22,7 +22,7 @@ _FUNCTIONS = {KernelBackend.mps: (_swiglu_forward_mps, _swiglu_backward_mps)}
 
 
 if is_cute_dsl_available():
-    from .cuda_implementation import _swiglu_backward_cuda, _swiglu_forward_cuda
+    from .cuda_implementation import _swiglu_backward_cuda, _swiglu_forward_cuda, _swiglu_packed_forward_cuda
 
     _FUNCTIONS[KernelBackend.cuda] = (_swiglu_forward_cuda, _swiglu_backward_cuda)
 
@@ -113,10 +113,9 @@ class _SwigluPacked(CustomOp):
             raise NotImplementedError
 
         ctx_save_for_backward(ctx, x)
-
         y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
 
-        forward_function(g=g, u=u, y=y)
+        _swiglu_packed_forward_cuda(x=x, y=y)
 
         return y
 
