@@ -22,6 +22,37 @@ _DEFAULT_WARMUP_ITERATIONS = 5
 _BENCHMARK_ITERATIONS = 10
 
 
+def _parse_trigger(trigger: str) -> tuple[str, str, Callable]:
+    split_trigger = trigger.split(_SEPARATOR)
+    variable_name = split_trigger[0]
+
+    if len(split_trigger) == 1:
+        func_name = "info"
+        func = None
+    elif len(split_trigger) == 2:
+        func_name = split_trigger[1]
+
+        if func_name == "dtype":
+            func = lambda tensor: tensor.dtype
+        elif func_name in ["size()", "shape"]:
+            func = lambda tensor: tensor.size()
+        elif func_name == "stride()":
+            func = lambda tensor: tensor.stride()
+        elif func_name.startswith("size"):
+            dim = int(func_name[5:][:-1])
+            func = lambda tensor: tensor.size(dim)
+        elif func_name.startswith("shape"):
+            dim = int(func_name[6:][:-1])
+            func = lambda tensor: tensor.size(dim)
+        elif func_name.startswith("stride"):
+            dim = int(func_name[7:][:-1])
+            func = lambda tensor: tensor.stride(dim)
+        else:
+            raise ValueError(f"unexpected triggeer found ({trigger})")
+
+    return variable_name, func_name, func
+
+
 class XTunedFunction:
     def __init__(
         self,
@@ -263,11 +294,10 @@ class XTunedFunction:
 
     def _setup_trigger_map(self, triggers: set[str]) -> None:
         assert isinstance(triggers, set), "triggers should be a set"
-
         self.variable_name_trigger_map = defaultdict(list)
 
         for trigger in triggers:
-            variable_name, func_name, func = self._parse_trigger(trigger)
+            variable_name, func_name, func = _parse_trigger(trigger)
             self.variable_name_trigger_map[variable_name].append((func_name, func))
 
         # filter to remove all triggers if None, this is useful for Tensor based triggers
@@ -280,39 +310,7 @@ class XTunedFunction:
             ), f"unexpected variable_name ({variable_name}) found in triggers"
 
         for variable_name in self.xtuneable_parameters:
-            assert (
-                variable_name not in self.variable_name_trigger_map
-            ), "trigger can't be an instance of XTuneParameter"
-
-    def _parse_trigger(self, trigger: str) -> tuple[str, str, Callable]:
-        split_trigger = trigger.split(_SEPARATOR)
-        variable_name = split_trigger[0]
-
-        if len(split_trigger) == 1:
-            func_name = "info"
-            func = None
-        elif len(split_trigger) == 2:
-            func_name = split_trigger[1]
-
-            if func_name == "dtype":
-                func = lambda tensor: tensor.dtype
-            elif func_name in ["size()", "shape"]:
-                func = lambda tensor: tensor.size()
-            elif func_name == "stride()":
-                func = lambda tensor: tensor.stride()
-            elif func_name.startswith("size"):
-                dim = int(func_name[5:][:-1])
-                func = lambda tensor: tensor.size(dim)
-            elif func_name.startswith("shape"):
-                dim = int(func_name[6:][:-1])
-                func = lambda tensor: tensor.size(dim)
-            elif func_name.startswith("stride"):
-                dim = int(func_name[7:][:-1])
-                func = lambda tensor: tensor.stride(dim)
-            else:
-                raise ValueError(f"unexpected triggeer found ({trigger})")
-
-        return variable_name, func_name, func
+            assert variable_name not in self.variable_name_trigger_map, "trigger can't be a tuneable parameter"
 
     def __repr__(self):
         return f"""XTunedFunction(
