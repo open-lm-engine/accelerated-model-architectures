@@ -32,9 +32,6 @@ class SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
         return dg.to(dtype), du.to(dtype)
 
 
-_CACHE = {}
-
-
 @xma_op(mutates_args={"dg", "du"})
 def _swiglu_backward_cuda(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
