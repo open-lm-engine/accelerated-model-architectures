@@ -45,7 +45,7 @@ def _swiglu_backward_cuda(
         caller_op=_swiglu_backward_cuda,
         key=(g.dtype, div),
         kernel_class=partial(SwiGLUBackwardCUDAKernel, BLOCK_SIZE=256),
-        example_tensors_list=((g, u, dy), (dg, du)),
+        example_tensors_list=([g, u, dy], [dg, du]),
         div=div,
         stream=stream,
     )
