@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from xma import KernelBackend, device_synchronize, swiglu_packed
+from xma import Accelerator, KernelBackend, swiglu_packed
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -15,12 +15,11 @@ torch.backends.cuda.matmul.allow_tf32 = True
 
 n = 100
 
-headers = ["dtype", "torch BW", "torch compile BW", "CUDA BW", "triton BW"]
+headers = ["dtype", "torch BW", "torch compile BW", "CUDA BW"]
 kernels = [
     partial(swiglu_packed, kernel_backend=KernelBackend.torch),
     partial(torch.compile(swiglu_packed, dynamic=True), kernel_backend=KernelBackend.torch),
     partial(swiglu_packed, kernel_backend=KernelBackend.cuda),
-    partial(swiglu_packed, kernel_backend=KernelBackend.triton),
 ]
 
 table = []
@@ -57,7 +56,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
                 torch.autograd.grad(z, x, grad_outputs=dy, retain_graph=True)
         e.record()
 
-        device_synchronize()
+        Accelerator.synchronize()
 
         t = s.elapsed_time(e) / n / 1e3
         row.append((3 if run_forward else 5) * B * H * dtype.itemsize / t / 1e12)

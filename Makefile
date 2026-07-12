@@ -9,16 +9,14 @@ num_accelerators ?= $(shell uv run python -c "import torch; n=torch.cuda.device_
 test:
 	uv run --extra dev --extra $(accelerator) pytest -n $(num_accelerators) tests
 
-update-precommit:
-	uv run --extra dev --no-default-groups pre-commit autoupdate
-
-style:
-	uv run python tools/populate_readme.py
-	uv run python tools/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) $$(date +%Y), __authors__" --extra-name "Mayank Mishra" --no-contributors
-	uv run --extra dev --no-default-groups pre-commit run --all-files
-
 website:
 	uv run --extra dev python tools/build_docs.py
 
 host-website:
 	uv run --extra dev sphinx-autobuild docs docs/_build/html --port $(port)
+
+update-precommit:
+	uv run --extra dev --no-default-groups pre-commit autoupdate
+
+style:
+	uv run --extra dev --no-default-groups pre-commit run --all-files

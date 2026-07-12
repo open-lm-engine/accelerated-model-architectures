@@ -13,7 +13,9 @@ from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if
 from .swiglu_test import _generate_args
 
 
-@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(swiglu_packed, add_mps=False))
+@pytest.mark.parametrize(
+    "size,dtype,kernel_backend,function", _generate_args(swiglu_packed, add_triton=False, add_mps=False)
+)
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_swiglu_packed(
     size: tuple[int],

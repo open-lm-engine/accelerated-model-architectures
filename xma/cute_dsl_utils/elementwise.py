@@ -4,12 +4,14 @@
 
 from __future__ import annotations
 
+from typing import Any, Callable
+
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
 import torch
-from cutlass import Boolean, range_constexpr
 
 from ..constants import LOG_WARP_SIZE, WARP_SIZE
+from .boundary import lane_boundary
 from .utils import get_fake_cute_tensor
 
 
@@ -67,23 +69,16 @@ class ElementwiseCUDAKernel:
         copy_atom_Xs: list[cute.CopyAtom],
         copy_atom_Ys: list[cute.CopyAtom],
         tiled_copy_Xs: list[cute.TiledCopy],
-        tiled_copy_Ys: list[cute.TiledCopy],
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
         block_coord = ((None, None), BLOCK_ID)
-        bC = gC[block_coord]
 
-        thr_copy = tiled_copy_Xs[0].get_slice(THREAD_ID)
-        tC = thr_copy.partition_S(bC)
-
-        rC = cute.make_rmem_tensor(tC.shape, Boolean)
-        for i in range_constexpr(cute.size(rC)):
-            rC[i] = cute.elem_less(tC[i], shape)
-
-        is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
+        thr_copy, rC, is_within_boundary = lane_boundary(
+            gC=gC, tiled_copy=tiled_copy_Xs[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape
+        )
 
         xs = [
             _load(
@@ -112,7 +107,7 @@ class ElementwiseCUDAKernel:
 
     @cute.jit
     def __call__(self, mXs: list[cute.Tensor], mYs: list[cute.Tensor], stream: cuda.CUstream) -> None:
-        vector_size = min([128 // i.element_type.width for i in mXs])
+        vector_size = min([128 // i.element_type.width for i in mXs + mYs])
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
         val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
@@ -128,7 +123,6 @@ class ElementwiseCUDAKernel:
         copy_atom_Ys = [cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), i.element_type) for i in gYs]
 
         tiled_copy_Xs = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Xs]
-        tiled_copy_Ys = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Ys]
 
         NUM_BLOCKS = cute.size(gXs[0], mode=[1])
 
@@ -139,37 +133,45 @@ class ElementwiseCUDAKernel:
             copy_atom_Xs=copy_atom_Xs,
             copy_atom_Ys=copy_atom_Ys,
             tiled_copy_Xs=tiled_copy_Xs,
-            tiled_copy_Ys=tiled_copy_Ys,
             shape=mXs[0].shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
 
 def get_compiled_elementwise_cuda_kernel(
-    cache: dict,
-    key,
+    caller_op: Callable,
+    key: Any,
     kernel_class: type,
     example_tensors_list: tuple[tuple[torch.Tensor]],
     div: int,
     stream: cuda.CUstream,
 ) -> ElementwiseCUDAKernel:
-    kernel = cache.get(key)
+    if not hasattr(caller_op, "cache"):
+        caller_op.cache = {}
+
+    kernel = caller_op.cache.get(key)
 
     if kernel is None:
-        fake_tensors = [
-            [
-                (
-                    None
-                    if t is None
-                    else get_fake_cute_tensor(
-                        dtype=t.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
-                    )
+        fake_tensors = []
+        for example_tensors in example_tensors_list:
+            if example_tensors is None:
+                fake_tensors.append(None)
+                continue
+
+            _fake_tensors = []
+            for tensor in example_tensors:
+                if tensor is None:
+                    _fake_tensors.append(None)
+                    continue
+
+                tensor = get_fake_cute_tensor(
+                    dtype=tensor.dtype, shape=(cute.sym_int(), cute.sym_int(divisibility=div)), divisibility=div
                 )
-                for t in example_tensors
-            ]
-            for example_tensors in example_tensors_list
-        ]
+
+                _fake_tensors.append(tensor)
+
+            fake_tensors.append(_fake_tensors)
 
         kernel = cute.compile(kernel_class(), *fake_tensors, stream, options="--enable-tvm-ffi")
-        cache[key] = kernel
+        caller_op.cache[key] = kernel
 
     return kernel

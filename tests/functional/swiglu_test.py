@@ -18,12 +18,12 @@ from ..utils import (
 )
 
 
-def _generate_args(function: Callable, add_mps: bool) -> list:
+def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
     args = list(
         product(
             get_2d_tensor_sizes(),
             [torch.float32, torch.float16, torch.bfloat16],
-            [KernelBackend.cuda, KernelBackend.triton],
+            [KernelBackend.cuda] + ([KernelBackend.triton] if add_triton else []),
             [function, torch.compile(function, fullgraph=True)],
         )
     )
@@ -59,7 +59,7 @@ def _generate_args(function: Callable, add_mps: bool) -> list:
     return args
 
 
-@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(swiglu, add_mps=True))
+@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(swiglu, add_triton=True, add_mps=True))
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend, function: Callable) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
