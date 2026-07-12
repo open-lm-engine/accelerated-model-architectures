@@ -90,7 +90,6 @@ class XTunedFunction:
         self.function_cache = {}
 
     def __call__(self, *args, **kwargs) -> Any:
-        override_xtune_parameters = self._can_override_variables(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
         best_config = self.function_cache.get(lookup_key, None)
 
@@ -114,50 +113,8 @@ class XTunedFunction:
                 )
 
         return self.function(
-            **self._get_function_arguments(
-                config=best_config, args=args, kwargs=kwargs, override_allowed=override_xtune_parameters
-            )
+            **self._get_function_arguments(config=best_config, args=args, kwargs=kwargs, override_allowed=False)
         )
-
-    def _can_override_variables(self, *args, **kwargs) -> bool:
-        num_xtune_parameters_found = 0
-        num_specified_parameters_found = 0
-
-        for i in range(len(args)):
-            variable_name = self.signature.args[i]
-            is_tuneable_variable = variable_name in self.xtuneable_parameters
-
-            if isinstance(args[i], XTuneParameter):
-                assert is_tuneable_variable, "argument with XTuneParameter() value should be a tuned parameter"
-                num_xtune_parameters_found += 1
-            elif is_tuneable_variable:
-                num_specified_parameters_found += 1
-
-        # accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function
-        for variable_name in kwargs:
-            is_tuneable_variable = variable_name in self.xtuneable_parameters
-
-            if isinstance(kwargs.get(variable_name), XTuneParameter):
-                assert is_tuneable_variable, "argument with XTuneParameter() value should be a tuned parameter"
-                num_xtune_parameters_found += 1
-            elif is_tuneable_variable:
-                num_specified_parameters_found += 1
-
-        n = len(self.xtuneable_parameters)
-
-        if num_xtune_parameters_found == 0:
-            assert num_specified_parameters_found in [0, n]
-            return num_specified_parameters_found == n
-
-        assert (
-            num_specified_parameters_found == 0
-        ), "if one tuneable parameter is specified, all others must be specified"
-
-        assert (
-            num_xtune_parameters_found == n
-        ), "all tuneable parameters should be set to XTuneParameter() if even one is set to XTuneParameter()"
-
-        return False
 
     def _get_function_arguments(self, config: XTuneConfig, args: list, kwargs: dict, override_allowed: bool) -> dict:
         # copy the best_config first so we can override with args or kwargs
