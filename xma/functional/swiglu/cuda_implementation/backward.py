@@ -50,7 +50,7 @@ class _SwiGLUBackwardPackedCUDAKernel(ElementwisePackedCUDAKernel):
         N = cute.size(x.shape)
         H = N >> 1
 
-        dx = cute.make_rmem_tensor(H, Float32)
+        dx = cute.make_rmem_tensor(N, Float32)
 
         for j in range_constexpr(H):
             h = j << 1
