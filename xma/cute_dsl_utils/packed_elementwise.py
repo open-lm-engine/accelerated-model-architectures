@@ -27,24 +27,33 @@ class ElementwisePackedCUDAKernel:
         gXs_2: list[cute.Tensor],
         gYs_1: list[cute.Tensor],
         gYs_2: list[cute.Tensor],
-        gC: cute.Tensor,
+        gC_1: cute.Tensor,
+        gC_2: cute.Tensor,
         copy_atoms: list[cute.CopyAtom],
         tiled_copys_1: list[cute.TiledCopy],
         tiled_copys_2: list[cute.TiledCopy],
-        shape: cute.Shape,
+        shape_1: cute.Shape,
+        shape_2: cute.Shape,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
         block_coord = ((None, None), BLOCK_ID)
 
-        _, rC, is_within_boundary = lane_boundary(
-            gC=gC, tiled_copy=tiled_copys_1[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape
+        _, rC_1, is_within_boundary_1 = lane_boundary(
+            gC=gC_1, tiled_copy=tiled_copys_1[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape_1
+        )
+
+        _, rC_2, is_within_boundary_2 = lane_boundary(
+            gC=gC_2, tiled_copy=tiled_copys_2[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape_2
         )
 
         xs_1 = []
         xs_2 = []
-        for xs, gXs, tiled_copys in [(xs_1, gXs_1, tiled_copys_1), (xs_2, gXs_2, tiled_copys_2)]:
+        for xs, gXs, tiled_copys, rC, is_within_boundary in [
+            (xs_1, gXs_1, tiled_copys_1, rC_1, is_within_boundary_1),
+            (xs_2, gXs_2, tiled_copys_2, rC_2, is_within_boundary_2),
+        ]:
             for gX, copy_atom, tiled_copy in zip(gXs, copy_atoms, tiled_copys):
                 xs.append(
                     _load(
@@ -59,7 +68,10 @@ class ElementwisePackedCUDAKernel:
 
         ys_1, ys_2 = self.compute(xs_1, xs_2)
 
-        for ys, gYs, tiled_copys in [(ys_1, gYs_1, tiled_copys_1), (ys_2, gYs_2, tiled_copys_2)]:
+        for ys, gYs, tiled_copys, rC, is_within_boundary in [
+            (ys_1, gYs_1, tiled_copys_1, rC_1, is_within_boundary_1),
+            (ys_2, gYs_2, tiled_copys_2, rC_2, is_within_boundary_2),
+        ]:
             for y, gY, copy_atom, tiled_copy in zip(ys, gYs, copy_atoms, tiled_copys):
                 _store(
                     gY=gY,
@@ -90,8 +102,14 @@ class ElementwisePackedCUDAKernel:
         tiler_mn_1, _ = cute.make_layout_tv(thr_layout, val_layout_1)
         tiler_mn_2, _ = cute.make_layout_tv(thr_layout, val_layout_2)
 
-        mC = cute.make_identity_tensor((mYs_1 if const_expr(len(mXs_1) == 0) else mXs_1)[0].shape)
-        gC = cute.zipped_divide(mC, tiler_mn_1)
+        shape_1 = (mYs_1 if const_expr(len(mXs_1) == 0) else mXs_1)[0].shape
+        shape_2 = (mYs_2 if const_expr(len(mXs_2) == 0) else mXs_2)[0].shape
+
+        mC_1 = cute.make_identity_tensor(shape_1)
+        mC_2 = cute.make_identity_tensor(shape_2)
+
+        gC_1 = cute.zipped_divide(mC_1, tiler_mn_1)
+        gC_2 = cute.zipped_divide(mC_2, tiler_mn_2)
 
         gXs_1 = [cute.zipped_divide(i, tiler_mn_1) for i in mXs_1]
         gXs_2 = [cute.zipped_divide(i, tiler_mn_2) for i in mXs_2]
@@ -113,9 +131,11 @@ class ElementwisePackedCUDAKernel:
             gXs_2=gXs_2,
             gYs_1=gYs_1,
             gYs_2=gYs_2,
-            gC=gC,
+            gC_1=gC_1,
+            gC_2=gC_2,
             copy_atoms=copy_atoms,
             tiled_copys_1=tiled_copys_1,
             tiled_copys_2=tiled_copys_2,
-            shape=(mYs_1 if const_expr(len(mXs_1) == 0) else mXs_1)[0].shape,
+            shape_1=shape_1,
+            shape_2=shape_2,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
