@@ -33,6 +33,7 @@ class _SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
 
 
 class _SwigluPackedForwardCUDAKernel(ElementwisePackedCUDAKernel):
+    @cute.jit
     def compute(self, xs_1: list[cute.Tensor], xs_2: list[cute.Tensor]) -> tuple[list[cute.Tensor], list[cute.Tensor]]:
         assert const_expr(len(xs_1) == 0)
         assert const_expr(len(xs_2) == 1)
@@ -52,7 +53,7 @@ class _SwigluPackedForwardCUDAKernel(ElementwisePackedCUDAKernel):
 
             y[j] = u * g * sigmoid(g)
 
-        return y.load().to(dtype), None
+        return [y.load().to(dtype)], []
 
 
 @xma_op(mutates_args={"y"})
