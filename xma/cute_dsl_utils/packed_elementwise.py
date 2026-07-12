@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
-from cutlass import Boolean, const_expr, range_constexpr
+from cutlass import const_expr
 
 from .boundary import lane_boundary
 from .constants import LOG_WARP_SIZE, WARP_SIZE
-from .elementwise import _load, _store
+from .elementwise import _load
 
 
 class ElementwisePackedCUDAKernel:
@@ -19,13 +19,6 @@ class ElementwisePackedCUDAKernel:
 
     def compute(self, *inputs):
         raise NotImplementedError
-
-    def _packed_compute(self, x0: cute.TensorSSA, x1: cute.TensorSSA | None, y0: cute.TensorSSA) -> cute.TensorSSA:
-        vector_size = cute.size(x0, mode=[1])
-        y0_vals = cute.make_rmem_tensor((vector_size >> 1,), gY0.element_type)
-        for i in range_constexpr(0, vector_size, 2):
-            y0_vals[i // 2] = self.compute(x0[i], x0[i + 1])
-        y0_vals.load()
 
     @cute.kernel
     def kernel(
@@ -48,49 +41,35 @@ class ElementwisePackedCUDAKernel:
 
         block_coord = ((None, None), BLOCK_ID)
 
-        thr_copy, rC, is_within_boundary = lane_boundary(gC, tiled_copy_1, block_coord, THREAD_ID, shape)
-
-        x0 = _load(
-            gX=gX0,
-            rC=rC_1,
-            thr_copy=thr_copy_1,
-            copy_atom=copy_atom,
-            block_coord=block_coord,
-            is_within_boundary=is_within_boundary_1,
+        thr_copy, rC, is_within_boundary = lane_boundary(
+            gC=gC, tiled_copy=tiled_copy_Xs_1[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape
         )
 
-        if const_expr(gX1 is not None):
-            x1 = _load(
-                gX=gX1,
-                rC=rC_1 if const_expr(self.X1_PACKED) else rC_2,
-                thr_copy=thr_copy_1 if const_expr(self.X1_PACKED) else thr_copy_2,
+        xs_1 = [
+            _load(
+                gX=gX,
+                rC=rC,
+                thr_copy=thr_copy,
                 copy_atom=copy_atom,
                 block_coord=block_coord,
-                is_within_boundary=is_within_boundary_1 if const_expr(self.X1_PACKED) else is_within_boundary_2,
+                is_within_boundary=is_within_boundary,
             )
+            for gX, copy_atom in zip(gXs_1, copy_atom_Xs_1)
+        ]
 
-        if const_expr(gX1 is None):
-            if self.X0_PACKED:
-                # x0 holds interleaved pairs; each pair collapses to one output element
-                vector_size = cute.size(x0, mode=[1])
-                y0_vals = cute.make_rmem_tensor((vector_size >> 1,), gY0.element_type)
-                for i in range_constexpr(0, vector_size, 2):
-                    y0_vals[i // 2] = self.compute(x0[i], x0[i + 1])
-                y = y0_vals.load()
-            else:
-                y = self.compute(x0)
-        else:
-            y = self.compute(x0, x1)
+        xs_2 = [
+            _load(
+                gX=gX,
+                rC=rC,
+                thr_copy=thr_copy,
+                copy_atom=copy_atom,
+                block_coord=block_coord,
+                is_within_boundary=is_within_boundary,
+            )
+            for gX, copy_atom in zip(gXs_2, copy_atom_Xs_1)
+        ]
 
-        _store(
-            gY=gY0,
-            y=y,
-            rC=rC_2,
-            thr_copy=thr_copy_2,
-            copy_atom=copy_atom,
-            block_coord=block_coord,
-            is_within_boundary=is_within_boundary_2,
-        )
+        ys_1, ys_2 = self.compute(xs_1, xs_2)
 
     @cute.jit
     def __call__(
