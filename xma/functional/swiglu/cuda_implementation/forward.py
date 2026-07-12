@@ -73,7 +73,7 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> N
         stream=stream,
     )
 
-    kernel((g, u), (y,), stream)
+    kernel([g, u], [y], stream)
 
 
 @xma_op(mutates_args={"y"})
@@ -92,4 +92,4 @@ def _swiglu_packed_forward_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
         stream=stream,
     )
 
-    kernel((x,), (y,), stream)
+    kernel([], [x], [y], [], stream)

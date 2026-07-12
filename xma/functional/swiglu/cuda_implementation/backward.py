@@ -50,4 +50,4 @@ def _swiglu_backward_cuda(
         stream=stream,
     )
 
-    kernel((g, u, dy), (dg, du), stream)
+    kernel([g, u, dy], [dg, du], stream)
