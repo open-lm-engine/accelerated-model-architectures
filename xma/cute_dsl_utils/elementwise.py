@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from typing import Any, Callable
+
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
 import torch
@@ -136,14 +138,17 @@ class ElementwiseCUDAKernel:
 
 
 def get_compiled_elementwise_cuda_kernel(
-    cache: dict,
-    key,
+    caller_op: Callable,
+    key: Any,
     kernel_class: type,
     example_tensors_list: tuple[tuple[torch.Tensor]],
     div: int,
     stream: cuda.CUstream,
 ) -> ElementwiseCUDAKernel:
-    kernel = cache.get(key)
+    if not hasattr(caller_op, "cache"):
+        caller_op.cache = {}
+
+    kernel = caller_op.cache.get(key)
 
     if kernel is None:
         fake_tensors = [
