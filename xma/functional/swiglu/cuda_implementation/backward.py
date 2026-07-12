@@ -57,13 +57,13 @@ class _SwiGLUBackwardPackedCUDAKernel(ElementwisePackedCUDAKernel):
 
             g = x[h].to(Float32)
             u = x[h + 1]
-            dy_j = dy[j]
+            _dy = dy[j]
 
             g_sigmoid = sigmoid(g)
             g_silu = g * g_sigmoid
 
-            dx[h] = dy_j * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
-            dx[h + 1] = dy_j * g_silu
+            dx[h] = _dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
+            dx[h + 1] = _dy * g_silu
 
         return [], [dx.load().to(dtype)]
 
