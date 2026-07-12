@@ -13,7 +13,12 @@ import torch
 from cutlass import Float32, const_expr, range_constexpr
 
 from ....custom_op import xma_op
-from ....cute_dsl_utils import ElementwiseCUDAKernel, get_compiled_elementwise_cuda_kernel, sigmoid
+from ....cute_dsl_utils import (
+    ElementwiseCUDAKernel,
+    ElementwisePackedCUDAKernel,
+    get_compiled_elementwise_cuda_kernel,
+    sigmoid,
+)
 
 
 class _SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
@@ -32,7 +37,7 @@ class _SwiGLUBackwardCUDAKernel(ElementwiseCUDAKernel):
         return dg.to(dtype), du.to(dtype)
 
 
-class _SwiGLUBackwardPackedCUDAKernel(ElementwiseCUDAKernel):
+class _SwiGLUBackwardPackedCUDAKernel(ElementwisePackedCUDAKernel):
     @cute.jit
     def compute(self, xs_1: list[cute.Tensor], xs_2: list[cute.Tensor]) -> tuple[list[cute.Tensor], list[cute.Tensor]]:
         assert const_expr(len(xs_1) == 1)
@@ -52,12 +57,13 @@ class _SwiGLUBackwardPackedCUDAKernel(ElementwiseCUDAKernel):
 
             g = x[h].to(Float32)
             u = x[h + 1]
+            dy_j = dy[j]
 
             g_sigmoid = sigmoid(g)
             g_silu = g * g_sigmoid
 
-            dx[h] = dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
-            dx[h + 1] = dy * g_silu
+            dx[h] = dy_j * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
+            dx[h + 1] = dy_j * g_silu
 
         return [], [dx.load().to(dtype)]
 
