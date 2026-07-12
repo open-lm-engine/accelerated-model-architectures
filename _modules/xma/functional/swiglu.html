@@ -285,7 +285,12 @@
 
 
 <span class="k">if</span> <span class="n">is_cute_dsl_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.cuda_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_swiglu_backward_cuda</span><span class="p">,</span> <span class="n">_swiglu_forward_cuda</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.cuda_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+        <span class="n">_swiglu_backward_cuda</span><span class="p">,</span>
+        <span class="n">_swiglu_forward_cuda</span><span class="p">,</span>
+        <span class="n">_swiglu_packed_backward_cuda</span><span class="p">,</span>
+        <span class="n">_swiglu_packed_forward_cuda</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="n">_FUNCTIONS</span><span class="p">[</span><span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">_swiglu_forward_cuda</span><span class="p">,</span> <span class="n">_swiglu_backward_cuda</span><span class="p">)</span>
 
@@ -376,21 +381,18 @@
             <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
         <span class="n">ctx_save_for_backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
-
         <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="o">*</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">()[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">divide_if_divisible</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">2</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
-        <span class="n">forward_function</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">_swiglu_packed_forward_cuda</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">y</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">u</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-
         <span class="n">dx</span> <span class="o">=</span> <span class="n">empty_like_contiguous</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">du</span><span class="p">,</span> <span class="n">dg</span> <span class="o">=</span> <span class="n">dx</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">backward_function</span><span class="p">(</span><span class="n">g</span><span class="o">=</span><span class="n">g</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">dg</span><span class="o">=</span><span class="n">dg</span><span class="p">,</span> <span class="n">du</span><span class="o">=</span><span class="n">du</span><span class="p">)</span>
+
+        <span class="n">_swiglu_packed_backward_cuda</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">dx</span><span class="o">=</span><span class="n">dx</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">dx</span><span class="p">,</span> <span class="kc">None</span>
 
