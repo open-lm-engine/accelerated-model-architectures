@@ -15,12 +15,11 @@ torch.backends.cuda.matmul.allow_tf32 = True
 
 n = 100
 
-headers = ["dtype", "torch BW", "torch compile BW", "CUDA BW", "triton BW"]
+headers = ["dtype", "torch BW", "torch compile BW", "CUDA BW"]
 kernels = [
     partial(swiglu_packed, kernel_backend=KernelBackend.torch),
     partial(torch.compile(swiglu_packed, dynamic=True), kernel_backend=KernelBackend.torch),
     partial(swiglu_packed, kernel_backend=KernelBackend.cuda),
-    partial(swiglu_packed, kernel_backend=KernelBackend.triton),
 ]
 
 table = []
