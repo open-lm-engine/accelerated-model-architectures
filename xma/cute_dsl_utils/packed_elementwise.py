@@ -113,7 +113,7 @@ class ElementwisePackedCUDAKernel:
             cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_1) for copy_atom in copy_atom_Xs_1
         ]
 
-        NUM_BLOCKS = cute.size(gXs_1[0], mode=[1])
+        NUM_BLOCKS = cute.size(gYs_1[0] if const_expr(len(gXs_1) == 0) else gXs_1[0], mode=[1])
 
         self.kernel(
             gXs_1=gXs_1,
