@@ -59,19 +59,17 @@ class ElementwisePackedCUDAKernel:
 
         ys_1, ys_2 = self.compute(xs_1, xs_2)
 
-        for y, gY, tiled_copy, copy_atom in [
-            (ys_1, gYs_1, tiled_copys_1, copy_atoms),
-            (ys_2, gYs_2, tiled_copys_2, copy_atoms),
-        ]:
-            _store(
-                gY=gY,
-                y=y,
-                rC=rC,
-                thr_copy=tiled_copy.get_slice(THREAD_ID),
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
-            )
+        for ys, gYs, tiled_copys in [(ys_1, gYs_1, tiled_copys_1), (ys_2, gYs_2, tiled_copys_2)]:
+            for y, gY, copy_atom, tiled_copy in zip(ys, gYs, copy_atoms, tiled_copys):
+                _store(
+                    gY=gY,
+                    y=y,
+                    rC=rC,
+                    thr_copy=tiled_copy.get_slice(THREAD_ID),
+                    copy_atom=copy_atom,
+                    block_coord=block_coord,
+                    is_within_boundary=is_within_boundary,
+                )
 
     @cute.jit
     def __call__(
