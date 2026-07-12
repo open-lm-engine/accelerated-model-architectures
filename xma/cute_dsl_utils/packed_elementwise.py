@@ -68,23 +68,13 @@ class ElementwisePackedCUDAKernel:
 
         ys_1, ys_2 = self.compute(xs_1, xs_2)
 
-        for y_1, y_2, gY_1, gY_2, copy_atom in zip(ys_1, ys_2, gYs_1, gYs_2, copy_atom_Ys_1):
+        for y, gY in [(ys_1, gYs_1), (ys_2, gYs_2)]:
             _store(
-                gY=gY_1,
-                y=y_1,
+                gY=gY,
+                y=y,
                 rC=rC,
                 thr_copy=thr_copy,
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
-            )
-
-            _store(
-                gY=gY_2,
-                y=y_1,
-                rC=rC,
-                thr_copy=thr_copy,
-                copy_atom=copy_atom,
+                copy_atom=copy_atom_Ys_1[0],
                 block_coord=block_coord,
                 is_within_boundary=is_within_boundary,
             )
