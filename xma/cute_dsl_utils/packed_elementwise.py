@@ -10,7 +10,7 @@ from cutlass import const_expr
 
 from .boundary import lane_boundary
 from .constants import LOG_WARP_SIZE, WARP_SIZE
-from .elementwise import _load
+from .elementwise import _load, _store
 
 
 class ElementwisePackedCUDAKernel:
@@ -31,9 +31,6 @@ class ElementwisePackedCUDAKernel:
         copy_atom_Xs_1: cute.CopyAtom,
         copy_atom_Ys_1: cute.CopyAtom,
         tiled_copy_Xs_1: cute.TiledCopy,
-        tiled_copy_Xs_2: cute.TiledCopy,
-        tiled_copy_Ys_1: cute.TiledCopy,
-        tiled_copy_Ys_2: cute.TiledCopy,
         shape: cute.Shape,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
@@ -71,6 +68,27 @@ class ElementwisePackedCUDAKernel:
 
         ys_1, ys_2 = self.compute(xs_1, xs_2)
 
+        for y_1, y_2, gY_1, gY_2, copy_atom in zip(ys_1, ys_2, gYs_1, gYs_2, copy_atom_Ys_1):
+            _store(
+                gY=gY_1,
+                y=y_1,
+                rC=rC,
+                thr_copy=thr_copy,
+                copy_atom=copy_atom,
+                block_coord=block_coord,
+                is_within_boundary=is_within_boundary,
+            )
+
+            _store(
+                gY=gY_2,
+                y=y_1,
+                rC=rC,
+                thr_copy=thr_copy,
+                copy_atom=copy_atom,
+                block_coord=block_coord,
+                is_within_boundary=is_within_boundary,
+            )
+
     @cute.jit
     def __call__(
         self,
@@ -105,18 +123,6 @@ class ElementwisePackedCUDAKernel:
             cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_1) for copy_atom in copy_atom_Xs_1
         ]
 
-        tiled_copy_Xs_2 = [
-            cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_2) for copy_atom in copy_atom_Xs_1
-        ]
-
-        tiled_copy_Ys_1 = [
-            cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_1) for copy_atom in copy_atom_Ys_1
-        ]
-
-        tiled_copy_Ys_2 = [
-            cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout_2) for copy_atom in copy_atom_Ys_1
-        ]
-
         NUM_BLOCKS = cute.size(gXs_1[0], mode=[1])
 
         self.kernel(
@@ -128,8 +134,5 @@ class ElementwisePackedCUDAKernel:
             copy_atom_Xs_1=copy_atom_Xs_1,
             copy_atom_Ys_1=copy_atom_Ys_1,
             tiled_copy_Xs_1=tiled_copy_Xs_1,
-            tiled_copy_Xs_2=tiled_copy_Xs_2,
-            tiled_copy_Ys_1=tiled_copy_Ys_1,
-            tiled_copy_Ys_2=tiled_copy_Ys_2,
             shape=mXs_1[0].shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
