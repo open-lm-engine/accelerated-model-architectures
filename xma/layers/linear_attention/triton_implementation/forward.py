@@ -12,13 +12,14 @@ from .output_forward import _output_forward_triton_kernel
 from .recurrent_state_forward import _recurrent_state_forward_triton_kernel
 
 
+@xma_op(mutates_args={"y", "h", "ht"})
 @xtune(
     configs=[XTuneConfig({"use_fused_kernel_in_forward": i}) for i in [True, False]],
     functional_triggers={
         "_": lambda **kwargs: (kwargs["q"].size(1) if kwargs["cu_seqlens"] is None else kwargs["max_seqlen"]) <= 64
     },
 )
-def _autotuned_linear_attention_forward_triton(
+def _linear_attention_forward_triton(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -83,30 +84,3 @@ def _autotuned_linear_attention_forward_triton(
         _output_forward_triton_kernel[GRID](
             q_ptr=q, q_stride=q.stride(), y_ptr=y, y_stride=y.stride(), BLOCK_SIZE_S=CHUNK_SIZE, **kwargs
         )
-
-
-@xma_op(mutates_args={"y", "h", "ht"})
-def _linear_attention_forward_triton(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    h0: torch.Tensor | None,
-    h: torch.Tensor,
-    ht: torch.Tensor,
-    y: torch.Tensor,
-    attention_multiplier: float,
-    cu_seqlens: torch.Tensor | None,
-    CHUNK_SIZE: int,
-) -> None:
-    _autotuned_linear_attention_forward_triton(
-        q=q,
-        k=k,
-        v=v,
-        h0=h0,
-        h=h,
-        ht=ht,
-        y=y,
-        attention_multiplier=attention_multiplier,
-        cu_seqlens=cu_seqlens,
-        CHUNK_SIZE=CHUNK_SIZE,
-    )
