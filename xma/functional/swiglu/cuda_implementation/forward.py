@@ -44,8 +44,9 @@ class _SwigluPackedForwardCUDAKernel(ElementwisePackedCUDAKernel):
 
         for i in range_constexpr(B):
             for j in range_constexpr(H):
-                g = x[i, j << 1]
-                u = x[i, (j << 1) + 1]
+                h = j << 1
+                g = x[i, h]
+                u = x[i, h + 1]
 
                 g = g.to(Float32)
                 y[i, j] = u * g * sigmoid(g)
