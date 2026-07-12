@@ -166,6 +166,6 @@ def get_compiled_elementwise_cuda_kernel(
         ]
 
         kernel = cute.compile(kernel_class(), *fake_tensors, stream, options="--enable-tvm-ffi")
-        cache[key] = kernel
+        caller_op.cache[key] = kernel
 
     return kernel
