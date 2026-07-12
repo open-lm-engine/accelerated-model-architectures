@@ -117,5 +117,5 @@ class ElementwisePackedCUDAKernel:
             copy_atoms=copy_atoms,
             tiled_copys_1=tiled_copys_1,
             tiled_copys_2=tiled_copys_2,
-            shape=(gYs_1 if const_expr(len(gXs_1) == 0) else gXs_1)[0].shape,
+            shape=(mYs_1 if const_expr(len(mXs_1) == 0) else mXs_1)[0].shape,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
