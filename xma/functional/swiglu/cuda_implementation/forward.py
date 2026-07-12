@@ -40,21 +40,19 @@ class _SwigluPackedForwardCUDAKernel(ElementwisePackedCUDAKernel):
         x = xs_2[0]
         dtype = x.dtype
 
-        y = cute.make_rmem_tensor((*x.shape[:-1], x.shape[-1] >> 1), Float32)
+        N = cute.size(x.shape)
+        H = N >> 1
 
-        B = cute.size(x, mode=[0])
-        H = cute.size(x, mode=[1]) >> 1
+        y = cute.make_rmem_tensor(H, Float32)
 
-        for i in range_constexpr(B):
-            for j in range_constexpr(H):
-                h = j << 1
-                g = x[i, h]
-                u = x[i, h + 1]
+        for j in range_constexpr(H):
+            h = j << 1
+            g = x[h].to(Float32)
+            u = x[h + 1]
 
-                g = g.to(Float32)
-                y[i, j] = u * g * sigmoid(g)
+            y[j] = u * g * sigmoid(g)
 
-        return y.to(dtype), None
+        return y.load().to(dtype), None
 
 
 @xma_op(mutates_args={"y"})
