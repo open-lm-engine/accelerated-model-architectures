@@ -12,7 +12,6 @@ import torch
 
 from ..accelerator import Accelerator
 from ..utils import get_boolean_env_variable
-from .cache import get_xtune_cache
 from .config import XTuneConfig
 
 
@@ -102,7 +101,6 @@ class XTunedFunction:
                 best_config, best_time, _ = self._xtune(*args, **kwargs)
 
             self.function_cache[lookup_key] = best_config
-            get_xtune_cache().add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
 
             if _XTUNE_PRINT_AUTOTUNING:
                 print(
