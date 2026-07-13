@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import functools
 import inspect
 from typing import Any, Callable, Iterable, Sequence
 
@@ -12,6 +13,7 @@ import torch
 from .accelerator import Accelerator, KernelBackend
 from .constants import LIBRARY_NAME
 from .counters import increment_counter
+from .xtuner import XTunedFunction
 
 
 def ctx_needs_gradients(ctx) -> bool:
@@ -68,6 +70,14 @@ def xma_op(
     fake_func: Callable | None = None,
 ) -> Callable:
     def _inner(func: Callable):
+        # support for XTuned function with custom op
+        if isinstance(func, XTunedFunction):
+            xtuned_function = func
+
+            @functools.wraps(xtuned_function.function)
+            def func(*args, **kwargs):
+                return xtuned_function(*args, **kwargs)
+
         custom_op = torch.library.custom_op(
             f"{LIBRARY_NAME}::{func.__name__}",
             func,
