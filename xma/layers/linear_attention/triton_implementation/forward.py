@@ -66,18 +66,29 @@ def _linear_attention_forward_triton(
 
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
-    _recurrent_state_forward_triton_kernel[GRID](
-        q_ptr=q if use_fused_kernel_in_forward else None,
-        q_stride=q.stride() if use_fused_kernel_in_forward else None,
-        ht_ptr=ht,
-        ht_stride=ht.stride(),
-        y_ptr=y if use_fused_kernel_in_forward else None,
-        y_stride=y.stride() if use_fused_kernel_in_forward else None,
-        CHUNK_SIZE=CHUNK_SIZE,
-        **kwargs,
-    )
+    if use_fused_kernel_in_forward:
+        _recurrent_state_forward_triton_kernel[GRID](
+            q_ptr=q,
+            q_stride=q.stride(),
+            ht_ptr=ht,
+            ht_stride=ht.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
+            CHUNK_SIZE=CHUNK_SIZE,
+            **kwargs,
+        )
+    else:
+        _recurrent_state_forward_triton_kernel[GRID](
+            q_ptr=None,
+            q_stride=None,
+            ht_ptr=ht,
+            ht_stride=ht.stride(),
+            y_ptr=None,
+            y_stride=None,
+            CHUNK_SIZE=CHUNK_SIZE,
+            **kwargs,
+        )
 
-    if not use_fused_kernel_in_forward:
         NUM_CHUNKS = h.size(1)
         GRID = lambda kwargs: (B * N, NUM_CHUNKS + 1, ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
