@@ -6,19 +6,20 @@ import torch
 
 from ....custom_op import xma_op
 from ....math import ceil_divide
-from ....xtuner import XTuneConfig, XTuneParameter, xtune
+from ....xtuner import XTuneConfig, xtune
 from ..utils import _get_num_heads
 from .output_forward import _output_forward_triton_kernel
 from .recurrent_state_forward import _recurrent_state_forward_triton_kernel
 
 
+@xma_op(mutates_args={"y", "h", "ht"})
 @xtune(
     configs=[XTuneConfig({"use_fused_kernel_in_forward": i}) for i in [True, False]],
     functional_triggers={
         "_": lambda **kwargs: (kwargs["q"].size(1) if kwargs["cu_seqlens"] is None else kwargs["max_seqlen"]) <= 64
     },
 )
-def _autotuned_linear_attention_forward_triton(
+def _linear_attention_forward_triton(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -65,53 +66,32 @@ def _autotuned_linear_attention_forward_triton(
 
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
-    _recurrent_state_forward_triton_kernel[GRID](
-        q_ptr=q if use_fused_kernel_in_forward else None,
-        q_stride=q.stride() if use_fused_kernel_in_forward else None,
-        ht_ptr=ht,
-        ht_stride=ht.stride(),
-        y_ptr=y if use_fused_kernel_in_forward else None,
-        y_stride=y.stride() if use_fused_kernel_in_forward else None,
-        CHUNK_SIZE=CHUNK_SIZE,
-        **kwargs,
-    )
+    if use_fused_kernel_in_forward:
+        _recurrent_state_forward_triton_kernel[GRID](
+            q_ptr=q,
+            q_stride=q.stride(),
+            ht_ptr=ht,
+            ht_stride=ht.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
+            CHUNK_SIZE=CHUNK_SIZE,
+            **kwargs,
+        )
+    else:
+        _recurrent_state_forward_triton_kernel[GRID](
+            q_ptr=None,
+            q_stride=None,
+            ht_ptr=ht,
+            ht_stride=ht.stride(),
+            y_ptr=None,
+            y_stride=None,
+            CHUNK_SIZE=CHUNK_SIZE,
+            **kwargs,
+        )
 
-    if not use_fused_kernel_in_forward:
         NUM_CHUNKS = h.size(1)
         GRID = lambda kwargs: (B * N, NUM_CHUNKS + 1, ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
         _output_forward_triton_kernel[GRID](
             q_ptr=q, q_stride=q.stride(), y_ptr=y, y_stride=y.stride(), BLOCK_SIZE_S=CHUNK_SIZE, **kwargs
         )
-
-
-@xma_op(mutates_args={"y", "h", "ht"})
-def _linear_attention_forward_triton(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    h0: torch.Tensor | None,
-    h: torch.Tensor,
-    ht: torch.Tensor,
-    y: torch.Tensor,
-    attention_multiplier: float,
-    cu_seqlens: torch.Tensor | None,
-    CHUNK_SIZE: int,
-    use_fused_kernel_in_forward: bool | None,
-) -> None:
-    if use_fused_kernel_in_forward is None:
-        use_fused_kernel_in_forward = XTuneParameter()
-
-    _autotuned_linear_attention_forward_triton(
-        q=q,
-        k=k,
-        v=v,
-        h0=h0,
-        h=h,
-        ht=ht,
-        y=y,
-        attention_multiplier=attention_multiplier,
-        cu_seqlens=cu_seqlens,
-        CHUNK_SIZE=CHUNK_SIZE,
-        use_fused_kernel_in_forward=use_fused_kernel_in_forward,
-    )

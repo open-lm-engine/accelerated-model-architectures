@@ -14,7 +14,6 @@ xma.functional
    xma.functional.sequence_packing
    xma.functional.softmax
    xma.functional.swiglu
-   xma.functional.swiglu_packed
 
 .. automodule:: xma.functional
    :members:

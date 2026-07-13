@@ -12,15 +12,44 @@ import torch
 
 from ..accelerator import Accelerator
 from ..utils import get_boolean_env_variable
-from .cache import get_xtune_cache
 from .config import XTuneConfig
-from .parameter import XTuneParameter
 
 
 _XTUNE_PRINT_AUTOTUNING = get_boolean_env_variable("XTUNE_PRINT_AUTOTUNING", False)
 _SEPARATOR = "."
 _DEFAULT_WARMUP_ITERATIONS = 5
 _BENCHMARK_ITERATIONS = 10
+
+
+def _parse_trigger(trigger: str) -> tuple[str, str, Callable]:
+    split_trigger = trigger.split(_SEPARATOR)
+    variable_name = split_trigger[0]
+
+    if len(split_trigger) == 1:
+        func_name = "info"
+        func = None
+    elif len(split_trigger) == 2:
+        func_name = split_trigger[1]
+
+        if func_name == "dtype":
+            func = lambda tensor: tensor.dtype
+        elif func_name in ["size()", "shape"]:
+            func = lambda tensor: tensor.size()
+        elif func_name == "stride()":
+            func = lambda tensor: tensor.stride()
+        elif func_name.startswith("size"):
+            dim = int(func_name[5:][:-1])
+            func = lambda tensor: tensor.size(dim)
+        elif func_name.startswith("shape"):
+            dim = int(func_name[6:][:-1])
+            func = lambda tensor: tensor.size(dim)
+        elif func_name.startswith("stride"):
+            dim = int(func_name[7:][:-1])
+            func = lambda tensor: tensor.stride(dim)
+        else:
+            raise ValueError(f"unexpected triggeer found ({trigger})")
+
+    return variable_name, func_name, func
 
 
 class XTunedFunction:
@@ -59,8 +88,22 @@ class XTunedFunction:
 
         self.function_cache = {}
 
+    @property
+    def exposed_signature(self) -> inspect.Signature:
+        # the tuneable parameters are chosen internally by the tuner, so callers should never need to pass them
+        # and they shouldn't be part of the signature exposed to the outside world (e.g. for custom op schema
+        # inference)
+        full_signature = inspect.signature(self.function)
+
+        return full_signature.replace(
+            parameters=[
+                parameter
+                for name, parameter in full_signature.parameters.items()
+                if name not in self.xtuneable_parameters
+            ]
+        )
+
     def __call__(self, *args, **kwargs) -> Any:
-        override_xtune_parameters = self._can_override_variables(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
         best_config = self.function_cache.get(lookup_key, None)
 
@@ -73,76 +116,26 @@ class XTunedFunction:
                 best_config, best_time, _ = self._xtune(*args, **kwargs)
 
             self.function_cache[lookup_key] = best_config
-            get_xtune_cache().add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
 
-            if _XTUNE_PRINT_AUTOTUNING and (
-                not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0
-            ):
+            if _XTUNE_PRINT_AUTOTUNING:
                 print(
                     f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
                     f"function {self.function.__name__}"
                 )
 
-        return self.function(
-            **self._get_function_arguments(
-                config=best_config, args=args, kwargs=kwargs, override_allowed=override_xtune_parameters
-            )
-        )
+        return self.function(**self._get_function_arguments(config=best_config, args=args, kwargs=kwargs))
 
-    def _can_override_variables(self, *args, **kwargs) -> bool:
-        num_xtune_parameters_found = 0
-        num_specified_parameters_found = 0
-
-        for i in range(len(args)):
-            variable_name = self.signature.args[i]
-            is_tuneable_variable = variable_name in self.xtuneable_parameters
-
-            if isinstance(args[i], XTuneParameter):
-                assert is_tuneable_variable, "argument with XTuneParameter() value should be a tuned parameter"
-                num_xtune_parameters_found += 1
-            elif is_tuneable_variable:
-                num_specified_parameters_found += 1
-
-        # accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function
-        for variable_name in kwargs:
-            is_tuneable_variable = variable_name in self.xtuneable_parameters
-
-            if isinstance(kwargs.get(variable_name), XTuneParameter):
-                assert is_tuneable_variable, "argument with XTuneParameter() value should be a tuned parameter"
-                num_xtune_parameters_found += 1
-            elif is_tuneable_variable:
-                num_specified_parameters_found += 1
-
-        n = len(self.xtuneable_parameters)
-
-        if num_xtune_parameters_found == 0:
-            assert num_specified_parameters_found in [0, n]
-            return num_specified_parameters_found == n
-
-        assert (
-            num_specified_parameters_found == 0
-        ), "if one tuneable parameter is specified, all others must be specified"
-
-        assert (
-            num_xtune_parameters_found == n
-        ), "all tuneable parameters should be set to XTuneParameter() if even one is set to XTuneParameter()"
-
-        return False
-
-    def _get_function_arguments(self, config: XTuneConfig, args: list, kwargs: dict, override_allowed: bool) -> dict:
+    def _get_function_arguments(self, config: XTuneConfig, args: list, kwargs: dict) -> dict:
         # copy the best_config first so we can override with args or kwargs
         result = {variable_name: value for variable_name, value in config.get_key_values().items()}
 
         for i in range(len(args)):
             variable_name = self.signature.args[i]
-
-            if override_allowed or variable_name not in result:
-                result[variable_name] = args[i]
+            result[variable_name] = args[i]
 
         # accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function
         for variable_name in kwargs:
-            if override_allowed or variable_name not in result:
-                result[variable_name] = kwargs.get(variable_name)
+            result[variable_name] = kwargs.get(variable_name)
 
         return result
 
@@ -155,9 +148,7 @@ class XTunedFunction:
 
         for config in self.configs:
             if not config.is_condition_valid(
-                **self._get_function_arguments(
-                    config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
-                )
+                **self._get_function_arguments(config=XTuneConfig({}), args=args, kwargs=kwargs)
             ):
                 if _XTUNE_PRINT_AUTOTUNING:
                     print(f"Skipping config {config} for function {self.function.__name__}")
@@ -168,7 +159,7 @@ class XTunedFunction:
                 print(f"Autotuning function {self.function.__name__} with config {config}")
 
             elapsed_time = self._run_benchmark(
-                **self._get_function_arguments(config=config, args=args, kwargs=kwargs, override_allowed=False),
+                **self._get_function_arguments(config=config, args=args, kwargs=kwargs),
             )
 
             timed_configs.append((config, elapsed_time))
@@ -215,9 +206,7 @@ class XTunedFunction:
 
         # now run the functional triggers
         if len(self.functional_triggers) > 0:
-            kwargs = self._get_function_arguments(
-                config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
-            )
+            kwargs = self._get_function_arguments(config=XTuneConfig({}), args=args, kwargs=kwargs)
 
             for variable_name, func in self.functional_triggers.items():
                 lookup_key.append(f"{variable_name} = {func(**kwargs)}")
@@ -264,11 +253,10 @@ class XTunedFunction:
 
     def _setup_trigger_map(self, triggers: set[str]) -> None:
         assert isinstance(triggers, set), "triggers should be a set"
-
         self.variable_name_trigger_map = defaultdict(list)
 
         for trigger in triggers:
-            variable_name, func_name, func = self._parse_trigger(trigger)
+            variable_name, func_name, func = _parse_trigger(trigger)
             self.variable_name_trigger_map[variable_name].append((func_name, func))
 
         # filter to remove all triggers if None, this is useful for Tensor based triggers
@@ -281,39 +269,7 @@ class XTunedFunction:
             ), f"unexpected variable_name ({variable_name}) found in triggers"
 
         for variable_name in self.xtuneable_parameters:
-            assert (
-                variable_name not in self.variable_name_trigger_map
-            ), "trigger can't be an instance of XTuneParameter"
-
-    def _parse_trigger(self, trigger: str) -> tuple[str, str, Callable]:
-        split_trigger = trigger.split(_SEPARATOR)
-        variable_name = split_trigger[0]
-
-        if len(split_trigger) == 1:
-            func_name = "info"
-            func = None
-        elif len(split_trigger) == 2:
-            func_name = split_trigger[1]
-
-            if func_name == "dtype":
-                func = lambda tensor: tensor.dtype
-            elif func_name in ["size()", "shape"]:
-                func = lambda tensor: tensor.size()
-            elif func_name == "stride()":
-                func = lambda tensor: tensor.stride()
-            elif func_name.startswith("size"):
-                dim = int(func_name[5:][:-1])
-                func = lambda tensor: tensor.size(dim)
-            elif func_name.startswith("shape"):
-                dim = int(func_name[6:][:-1])
-                func = lambda tensor: tensor.size(dim)
-            elif func_name.startswith("stride"):
-                dim = int(func_name[7:][:-1])
-                func = lambda tensor: tensor.stride(dim)
-            else:
-                raise ValueError(f"unexpected triggeer found ({trigger})")
-
-        return variable_name, func_name, func
+            assert variable_name not in self.variable_name_trigger_map, "trigger can't be a tuneable parameter"
 
     def __repr__(self):
         return f"""XTunedFunction(

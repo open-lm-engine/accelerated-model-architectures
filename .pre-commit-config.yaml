@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+fail_fast: true
+
 repos:
   - repo: local
     hooks:
@@ -37,3 +39,11 @@ repos:
       - id: clang-format
         types_or: [c++, c, cuda]
         args: [-style=file:.clang-format]
+  - repo: local
+    hooks:
+      - id: build-website
+        name: build website
+        language: system
+        entry: make website
+        pass_filenames: false
+        always_run: true
