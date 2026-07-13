@@ -73,7 +73,6 @@ class _LinearAttention(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
         CHUNK_SIZE: int,
-        use_fused_kernel_in_forward: bool | None,
         kernel_backend: KernelBackend | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
@@ -105,7 +104,6 @@ class _LinearAttention(CustomOp):
             attention_multiplier=attention_multiplier,
             cu_seqlens=cu_seqlens,
             CHUNK_SIZE=CHUNK_SIZE,
-            use_fused_kernel_in_forward=use_fused_kernel_in_forward,
         )
 
         return y, ht
@@ -120,7 +118,6 @@ def linear_attention(
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: int | None = None,
     CHUNK_SIZE: int = 64,
-    use_fused_kernel_in_forward: bool | None = None,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -161,7 +158,6 @@ def linear_attention(
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
         CHUNK_SIZE=CHUNK_SIZE,
-        use_fused_kernel_in_forward=use_fused_kernel_in_forward,
         kernel_backend=kernel_backend,
     )
 
