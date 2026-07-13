@@ -135,9 +135,7 @@ class XTunedFunction:
 
         for config in self.configs:
             if not config.is_condition_valid(
-                **self._get_function_arguments(
-                    config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
-                )
+                **self._get_function_arguments(config=XTuneConfig({}), args=args, kwargs=kwargs)
             ):
                 if _XTUNE_PRINT_AUTOTUNING:
                     print(f"Skipping config {config} for function {self.function.__name__}")
@@ -148,7 +146,7 @@ class XTunedFunction:
                 print(f"Autotuning function {self.function.__name__} with config {config}")
 
             elapsed_time = self._run_benchmark(
-                **self._get_function_arguments(config=config, args=args, kwargs=kwargs, override_allowed=False),
+                **self._get_function_arguments(config=config, args=args, kwargs=kwargs),
             )
 
             timed_configs.append((config, elapsed_time))
@@ -195,9 +193,7 @@ class XTunedFunction:
 
         # now run the functional triggers
         if len(self.functional_triggers) > 0:
-            kwargs = self._get_function_arguments(
-                config=XTuneConfig({}), args=args, kwargs=kwargs, override_allowed=False
-            )
+            kwargs = self._get_function_arguments(config=XTuneConfig({}), args=args, kwargs=kwargs)
 
             for variable_name, func in self.functional_triggers.items():
                 lookup_key.append(f"{variable_name} = {func(**kwargs)}")
