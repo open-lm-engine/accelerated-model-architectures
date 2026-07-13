@@ -88,6 +88,21 @@ class XTunedFunction:
 
         self.function_cache = {}
 
+    @property
+    def exposed_signature(self) -> inspect.Signature:
+        # the tuneable parameters are chosen internally by the tuner, so callers should never need to pass them
+        # and they shouldn't be part of the signature exposed to the outside world (e.g. for custom op schema
+        # inference)
+        full_signature = inspect.signature(self.function)
+
+        return full_signature.replace(
+            parameters=[
+                parameter
+                for name, parameter in full_signature.parameters.items()
+                if name not in self.xtuneable_parameters
+            ]
+        )
+
     def __call__(self, *args, **kwargs) -> Any:
         lookup_key = self._get_lookup_key(*args, **kwargs)
         best_config = self.function_cache.get(lookup_key, None)

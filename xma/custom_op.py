@@ -78,6 +78,8 @@ def xma_op(
             def func(*args, **kwargs):
                 return xtuned_function(*args, **kwargs)
 
+            func.__signature__ = xtuned_function.exposed_signature
+
         custom_op = torch.library.custom_op(
             f"{LIBRARY_NAME}::{func.__name__}",
             func,
