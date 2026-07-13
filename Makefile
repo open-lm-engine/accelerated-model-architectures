@@ -20,3 +20,4 @@ update-precommit:
 
 style:
 	uv run --extra dev --no-default-groups pre-commit run --all-files
+	make website
