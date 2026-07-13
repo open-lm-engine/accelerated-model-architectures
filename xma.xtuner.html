@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.xtuner.cache" href="xma.xtuner.cache.html"><link rel="prev" title="xma.counters" href="xma.counters.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.xtuner.config" href="xma.xtuner.config.html"><link rel="prev" title="xma.counters" href="xma.counters.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>xma.xtuner - XMA documentation</title>
@@ -223,9 +223,7 @@
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
 <li class="toctree-l1 current has-children current-page"><a class="current reference internal" href="#">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
 </ul>
 </li>
@@ -271,10 +269,6 @@
 <h1>xma.xtuner<a class="headerlink" href="#xma-xtuner" title="Link to this heading">¶</a></h1>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html#xma.xtuner.cache.get_xtune_cache"><code class="docutils literal notranslate"><span class="pre">get_xtune_cache()</span></code></a></li>
-</ul>
-</li>
 <li class="toctree-l1"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig"><code class="docutils literal notranslate"><span class="pre">XTuneConfig</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.get_key_values"><code class="docutils literal notranslate"><span class="pre">XTuneConfig.get_key_values()</span></code></a></li>
@@ -284,12 +278,11 @@
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.get_cartesian_product_xtune_configs"><code class="docutils literal notranslate"><span class="pre">get_cartesian_product_xtune_configs()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html#xma.xtuner.parameter.XTuneParameter"><code class="docutils literal notranslate"><span class="pre">XTuneParameter</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html#xma.xtuner.tuner.XTunedFunction"><code class="docutils literal notranslate"><span class="pre">XTunedFunction</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.xtuner.tuner.html#xma.xtuner.tuner.XTunedFunction.exposed_signature"><code class="docutils literal notranslate"><span class="pre">XTunedFunction.exposed_signature</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html#xma.xtuner.tuner.XTunedFunction"><code class="docutils literal notranslate"><span class="pre">XTunedFunction</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html#xma.xtuner.tuner.xtune"><code class="docutils literal notranslate"><span class="pre">xtune()</span></code></a></li>
 </ul>
 </li>
@@ -302,12 +295,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="xma.xtuner.cache.html">
+          <a class="next-page" href="xma.xtuner.config.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">xma.xtuner.cache</div>
+                <div class="title">xma.xtuner.config</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>

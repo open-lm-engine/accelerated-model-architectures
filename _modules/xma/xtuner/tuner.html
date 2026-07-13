@@ -222,9 +222,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../xma.counters.html">xma.counters</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.cache.html">xma.xtuner.cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.config.html">xma.xtuner.config</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
 </ul>
 </li>
@@ -275,15 +273,44 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">..accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">Accelerator</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_boolean_env_variable</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_xtune_cache</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">XTuneConfig</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.parameter</span><span class="w"> </span><span class="kn">import</span> <span class="n">XTuneParameter</span>
 
 
 <span class="n">_XTUNE_PRINT_AUTOTUNING</span> <span class="o">=</span> <span class="n">get_boolean_env_variable</span><span class="p">(</span><span class="s2">&quot;XTUNE_PRINT_AUTOTUNING&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 <span class="n">_SEPARATOR</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span>
 <span class="n">_DEFAULT_WARMUP_ITERATIONS</span> <span class="o">=</span> <span class="mi">5</span>
 <span class="n">_BENCHMARK_ITERATIONS</span> <span class="o">=</span> <span class="mi">10</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_parse_trigger</span><span class="p">(</span><span class="n">trigger</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
+    <span class="n">split_trigger</span> <span class="o">=</span> <span class="n">trigger</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">_SEPARATOR</span><span class="p">)</span>
+    <span class="n">variable_name</span> <span class="o">=</span> <span class="n">split_trigger</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_trigger</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">func_name</span> <span class="o">=</span> <span class="s2">&quot;info&quot;</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_trigger</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">func_name</span> <span class="o">=</span> <span class="n">split_trigger</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">func_name</span> <span class="o">==</span> <span class="s2">&quot;dtype&quot;</span><span class="p">:</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="k">elif</span> <span class="n">func_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;size()&quot;</span><span class="p">,</span> <span class="s2">&quot;shape&quot;</span><span class="p">]:</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">func_name</span> <span class="o">==</span> <span class="s2">&quot;stride()&quot;</span><span class="p">:</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">func_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;size&quot;</span><span class="p">):</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">func_name</span><span class="p">[</span><span class="mi">5</span><span class="p">:][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">func_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;shape&quot;</span><span class="p">):</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">func_name</span><span class="p">[</span><span class="mi">6</span><span class="p">:][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">func_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;stride&quot;</span><span class="p">):</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">func_name</span><span class="p">[</span><span class="mi">7</span><span class="p">:][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected triggeer found (</span><span class="si">{</span><span class="n">trigger</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">variable_name</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">func</span>
 
 
 <div class="viewcode-block" id="XTunedFunction">
@@ -324,8 +351,22 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">function_cache</span> <span class="o">=</span> <span class="p">{}</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">exposed_signature</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Signature</span><span class="p">:</span>
+        <span class="c1"># the tuneable parameters are chosen internally by the tuner, so callers should never need to pass them</span>
+        <span class="c1"># and they shouldn&#39;t be part of the signature exposed to the outside world (e.g. for custom op schema</span>
+        <span class="c1"># inference)</span>
+        <span class="n">full_signature</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">full_signature</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">parameter</span>
+                <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="n">full_signature</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">xtuneable_parameters</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-        <span class="n">override_xtune_parameters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_can_override_variables</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">lookup_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_lookup_key</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">best_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">function_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">lookup_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
@@ -338,76 +379,26 @@
                 <span class="n">best_config</span><span class="p">,</span> <span class="n">best_time</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_xtune</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">function_cache</span><span class="p">[</span><span class="n">lookup_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">best_config</span>
-            <span class="n">get_xtune_cache</span><span class="p">()</span><span class="o">.</span><span class="n">add_config</span><span class="p">(</span><span class="n">function_hash</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">function_hash</span><span class="p">,</span> <span class="n">lookup_key</span><span class="o">=</span><span class="n">lookup_key</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">best_config</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="n">_XTUNE_PRINT_AUTOTUNING</span> <span class="ow">and</span> <span class="p">(</span>
-                <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">is_initialized</span><span class="p">()</span> <span class="ow">or</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">get_rank</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span>
-            <span class="p">):</span>
+            <span class="k">if</span> <span class="n">_XTUNE_PRINT_AUTOTUNING</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;config </span><span class="si">{</span><span class="n">best_config</span><span class="si">}</span><span class="s2"> achieved the best time (</span><span class="si">{</span><span class="n">best_time</span><span class="si">}</span><span class="s2"> sec) for </span><span class="si">{</span><span class="n">lookup_key</span><span class="si">}</span><span class="s2"> for &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;function </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">(</span>
-            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span>
-                <span class="n">config</span><span class="o">=</span><span class="n">best_config</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">override_allowed</span><span class="o">=</span><span class="n">override_xtune_parameters</span>
-            <span class="p">)</span>
-        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">best_config</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">))</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_can_override_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-        <span class="n">num_xtune_parameters_found</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">num_specified_parameters_found</span> <span class="o">=</span> <span class="mi">0</span>
-
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)):</span>
-            <span class="n">variable_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">is_tuneable_variable</span> <span class="o">=</span> <span class="n">variable_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">xtuneable_parameters</span>
-
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">XTuneParameter</span><span class="p">):</span>
-                <span class="k">assert</span> <span class="n">is_tuneable_variable</span><span class="p">,</span> <span class="s2">&quot;argument with XTuneParameter() value should be a tuned parameter&quot;</span>
-                <span class="n">num_xtune_parameters_found</span> <span class="o">+=</span> <span class="mi">1</span>
-            <span class="k">elif</span> <span class="n">is_tuneable_variable</span><span class="p">:</span>
-                <span class="n">num_specified_parameters_found</span> <span class="o">+=</span> <span class="mi">1</span>
-
-        <span class="c1"># accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function</span>
-        <span class="k">for</span> <span class="n">variable_name</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="n">is_tuneable_variable</span> <span class="o">=</span> <span class="n">variable_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">xtuneable_parameters</span>
-
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">variable_name</span><span class="p">),</span> <span class="n">XTuneParameter</span><span class="p">):</span>
-                <span class="k">assert</span> <span class="n">is_tuneable_variable</span><span class="p">,</span> <span class="s2">&quot;argument with XTuneParameter() value should be a tuned parameter&quot;</span>
-                <span class="n">num_xtune_parameters_found</span> <span class="o">+=</span> <span class="mi">1</span>
-            <span class="k">elif</span> <span class="n">is_tuneable_variable</span><span class="p">:</span>
-                <span class="n">num_specified_parameters_found</span> <span class="o">+=</span> <span class="mi">1</span>
-
-        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xtuneable_parameters</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">num_xtune_parameters_found</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">num_specified_parameters_found</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">num_specified_parameters_found</span> <span class="o">==</span> <span class="n">n</span>
-
-        <span class="k">assert</span> <span class="p">(</span>
-            <span class="n">num_specified_parameters_found</span> <span class="o">==</span> <span class="mi">0</span>
-        <span class="p">),</span> <span class="s2">&quot;if one tuneable parameter is specified, all others must be specified&quot;</span>
-
-        <span class="k">assert</span> <span class="p">(</span>
-            <span class="n">num_xtune_parameters_found</span> <span class="o">==</span> <span class="n">n</span>
-        <span class="p">),</span> <span class="s2">&quot;all tuneable parameters should be set to XTuneParameter() if even one is set to XTuneParameter()&quot;</span>
-
-        <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_function_arguments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">XTuneConfig</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">override_allowed</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_function_arguments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">XTuneConfig</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
         <span class="c1"># copy the best_config first so we can override with args or kwargs</span>
         <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="n">variable_name</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">variable_name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">get_key_values</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)):</span>
             <span class="n">variable_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-
-            <span class="k">if</span> <span class="n">override_allowed</span> <span class="ow">or</span> <span class="n">variable_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
-                <span class="n">result</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
 
         <span class="c1"># accessing kwargs.items() breaks torch.compile in backwards of a custom autograd function</span>
         <span class="k">for</span> <span class="n">variable_name</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">override_allowed</span> <span class="ow">or</span> <span class="n">variable_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
-                <span class="n">result</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">variable_name</span><span class="p">)</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">variable_name</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">result</span>
 
@@ -420,9 +411,7 @@
 
         <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">is_condition_valid</span><span class="p">(</span>
-                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span>
-                    <span class="n">config</span><span class="o">=</span><span class="n">XTuneConfig</span><span class="p">({}),</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">override_allowed</span><span class="o">=</span><span class="kc">False</span>
-                <span class="p">)</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">XTuneConfig</span><span class="p">({}),</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="p">):</span>
                 <span class="k">if</span> <span class="n">_XTUNE_PRINT_AUTOTUNING</span><span class="p">:</span>
                     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping config </span><span class="si">{</span><span class="n">config</span><span class="si">}</span><span class="s2"> for function </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -433,7 +422,7 @@
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Autotuning function </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> with config </span><span class="si">{</span><span class="n">config</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
             <span class="n">elapsed_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_benchmark</span><span class="p">(</span>
-                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">override_allowed</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">),</span>
             <span class="p">)</span>
 
             <span class="n">timed_configs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">config</span><span class="p">,</span> <span class="n">elapsed_time</span><span class="p">))</span>
@@ -480,9 +469,7 @@
 
         <span class="c1"># now run the functional triggers</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">functional_triggers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span>
-                <span class="n">config</span><span class="o">=</span><span class="n">XTuneConfig</span><span class="p">({}),</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">override_allowed</span><span class="o">=</span><span class="kc">False</span>
-            <span class="p">)</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_function_arguments</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">XTuneConfig</span><span class="p">({}),</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">)</span>
 
             <span class="k">for</span> <span class="n">variable_name</span><span class="p">,</span> <span class="n">func</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">functional_triggers</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="n">lookup_key</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">func</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -529,11 +516,10 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_setup_trigger_map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">triggers</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">triggers</span><span class="p">,</span> <span class="nb">set</span><span class="p">),</span> <span class="s2">&quot;triggers should be a set&quot;</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">variable_name_trigger_map</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">trigger</span> <span class="ow">in</span> <span class="n">triggers</span><span class="p">:</span>
-            <span class="n">variable_name</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_trigger</span><span class="p">(</span><span class="n">trigger</span><span class="p">)</span>
+            <span class="n">variable_name</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="n">_parse_trigger</span><span class="p">(</span><span class="n">trigger</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">variable_name_trigger_map</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">func_name</span><span class="p">,</span> <span class="n">func</span><span class="p">))</span>
 
         <span class="c1"># filter to remove all triggers if None, this is useful for Tensor based triggers</span>
@@ -546,39 +532,7 @@
             <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;unexpected variable_name (</span><span class="si">{</span><span class="n">variable_name</span><span class="si">}</span><span class="s2">) found in triggers&quot;</span>
 
         <span class="k">for</span> <span class="n">variable_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">xtuneable_parameters</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="p">(</span>
-                <span class="n">variable_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_name_trigger_map</span>
-            <span class="p">),</span> <span class="s2">&quot;trigger can&#39;t be an instance of XTuneParameter&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_trigger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trigger</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
-        <span class="n">split_trigger</span> <span class="o">=</span> <span class="n">trigger</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">_SEPARATOR</span><span class="p">)</span>
-        <span class="n">variable_name</span> <span class="o">=</span> <span class="n">split_trigger</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_trigger</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">func_name</span> <span class="o">=</span> <span class="s2">&quot;info&quot;</span>
-            <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_trigger</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="n">func_name</span> <span class="o">=</span> <span class="n">split_trigger</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-
-            <span class="k">if</span> <span class="n">func_name</span> <span class="o">==</span> <span class="s2">&quot;dtype&quot;</span><span class="p">:</span>
-                <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">dtype</span>
-            <span class="k">elif</span> <span class="n">func_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;size()&quot;</span><span class="p">,</span> <span class="s2">&quot;shape&quot;</span><span class="p">]:</span>
-                <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
-            <span class="k">elif</span> <span class="n">func_name</span> <span class="o">==</span> <span class="s2">&quot;stride()&quot;</span><span class="p">:</span>
-                <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span>
-            <span class="k">elif</span> <span class="n">func_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;size&quot;</span><span class="p">):</span>
-                <span class="n">dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">func_name</span><span class="p">[</span><span class="mi">5</span><span class="p">:][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-                <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">func_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;shape&quot;</span><span class="p">):</span>
-                <span class="n">dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">func_name</span><span class="p">[</span><span class="mi">6</span><span class="p">:][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-                <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">func_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;stride&quot;</span><span class="p">):</span>
-                <span class="n">dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">func_name</span><span class="p">[</span><span class="mi">7</span><span class="p">:][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-                <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">tensor</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected triggeer found (</span><span class="si">{</span><span class="n">trigger</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">variable_name</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">func</span>
+            <span class="k">assert</span> <span class="n">variable_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_name_trigger_map</span><span class="p">,</span> <span class="s2">&quot;trigger can&#39;t be a tuneable parameter&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;XTunedFunction(</span>

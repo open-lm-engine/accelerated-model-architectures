@@ -222,9 +222,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../xma.counters.html">xma.counters</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.cache.html">xma.xtuner.cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.config.html">xma.xtuner.config</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
 </ul>
 </li>
@@ -431,7 +429,8 @@
 <a class="viewcode-back" href="../../../xma.functional.swiglu.html#xma.functional.swiglu.swiglu_packed">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">swiglu_packed</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations</span>
+<span class="sd">    computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations. The tensor has</span>
+<span class="sd">    interleaved values of gate, up, gate, up, ...</span>
 
 <span class="sd">    :param x: input activation</span>
 <span class="sd">    :type x: torch.Tensor</span>

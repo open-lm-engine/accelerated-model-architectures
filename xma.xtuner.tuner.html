@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="xma.xtuner.parameter" href="xma.xtuner.parameter.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="xma.xtuner.config" href="xma.xtuner.config.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>xma.xtuner.tuner - XMA documentation</title>
@@ -223,9 +223,7 @@
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">xma.xtuner.tuner</a></li>
 </ul>
 </li>
@@ -273,6 +271,11 @@
 <dt class="sig sig-object py" id="xma.xtuner.tuner.XTunedFunction">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">XTunedFunction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">function</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig" title="xma.xtuner.config.XTuneConfig"><span class="pre">XTuneConfig</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">triggers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">benchmark_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">functional_triggers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reset_to_zero</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/xtuner/tuner.html#XTunedFunction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.xtuner.tuner.XTunedFunction" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="xma.xtuner.tuner.XTunedFunction.exposed_signature">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">exposed_signature</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Signature</span></span><a class="headerlink" href="#xma.xtuner.tuner.XTunedFunction.exposed_signature" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py function">
@@ -309,14 +312,14 @@ True.</p></li>
         
         <div class="related-pages">
           
-          <a class="prev-page" href="xma.xtuner.parameter.html">
+          <a class="prev-page" href="xma.xtuner.config.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">xma.xtuner.parameter</div>
+                <div class="title">xma.xtuner.config</div>
                 
               </div>
             </a>
@@ -351,7 +354,10 @@ True.</p></li>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">xma.xtuner.tuner</a><ul>
-<li><a class="reference internal" href="#xma.xtuner.tuner.XTunedFunction"><code class="docutils literal notranslate"><span class="pre">XTunedFunction</span></code></a></li>
+<li><a class="reference internal" href="#xma.xtuner.tuner.XTunedFunction"><code class="docutils literal notranslate"><span class="pre">XTunedFunction</span></code></a><ul>
+<li><a class="reference internal" href="#xma.xtuner.tuner.XTunedFunction.exposed_signature"><code class="docutils literal notranslate"><span class="pre">XTunedFunction.exposed_signature</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#xma.xtuner.tuner.xtune"><code class="docutils literal notranslate"><span class="pre">xtune()</span></code></a></li>
 </ul>
 </li>

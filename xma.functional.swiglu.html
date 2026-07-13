@@ -223,9 +223,7 @@
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.cache.html">xma.xtuner.cache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.parameter.html">xma.xtuner.parameter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
 </ul>
 </li>
@@ -293,7 +291,8 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="xma.functional.swiglu.swiglu_packed">
 <span class="sig-name descname"><span class="pre">swiglu_packed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_backend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend" title="xma.accelerator.KernelBackend"><span class="pre">KernelBackend</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="_modules/xma/functional/swiglu.html#swiglu_packed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.functional.swiglu.swiglu_packed" title="Link to this definition">¶</a></dt>
-<dd><p>computes swiglu activation by splitting the tensor <cite>x</cite> into 2 parts: gate and up activations</p>
+<dd><p>computes swiglu activation by splitting the tensor <cite>x</cite> into 2 parts: gate and up activations. The tensor has
+interleaved values of gate, up, gate, up, …</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
