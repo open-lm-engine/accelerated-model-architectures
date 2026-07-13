@@ -163,7 +163,8 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBacken
 
 def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
     """
-    computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
+    computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations. The tensor has
+    interleaved values of gate, up, gate, up, ...
 
     :param x: input activation
     :type x: torch.Tensor
