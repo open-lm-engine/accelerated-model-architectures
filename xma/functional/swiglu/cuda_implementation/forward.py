@@ -63,7 +63,7 @@ class _SwigluPackedForwardCUDAKernel(ElementwisePackedCUDAKernel):
     configs=[AutotuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
     triggers={"g.size(1)", "g.dtype"},
 )
-def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor, BLOCK_SIZE: int) -> None:
     N = g.size(1)
     div = math.gcd(16 // g.dtype.itemsize, N)
 
@@ -71,8 +71,8 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> N
 
     kernel = get_compiled_elementwise_cuda_kernel(
         caller_op=_swiglu_forward_cuda,
-        key=(g.dtype, div),
-        kernel_class=partial(_SwiGLUForwardCUDAKernel, BLOCK_SIZE=256),
+        key=(g.dtype, div, BLOCK_SIZE),
+        kernel_class=partial(_SwiGLUForwardCUDAKernel, BLOCK_SIZE=BLOCK_SIZE),
         example_tensors_list=([g, u], [y]),
         div=div,
         stream=stream,
