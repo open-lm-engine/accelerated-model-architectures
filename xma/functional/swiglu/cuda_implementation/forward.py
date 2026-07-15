@@ -59,6 +59,10 @@ class _SwigluPackedForwardCUDAKernel(ElementwisePackedCUDAKernel):
 
 
 @xma_op(mutates_args={"y"})
+@xtune(
+    configs=[XTuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
+    triggers={"g.size(1)", "g.dtype"},
+)
 def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     N = g.size(1)
     div = math.gcd(16 // g.dtype.itemsize, N)
