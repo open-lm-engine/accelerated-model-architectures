@@ -142,7 +142,7 @@ def get_compiled_elementwise_cuda_kernel(
     key: Any,
     kernel_class: type,
     example_tensors_list: tuple[tuple[torch.Tensor]],
-    div: int,
+    divisibility_list_list: tuple[tuple[int]],
     stream: cuda.CUstream,
 ) -> ElementwiseCUDAKernel:
     if not hasattr(caller_op, "cache"):
@@ -152,13 +152,13 @@ def get_compiled_elementwise_cuda_kernel(
 
     if kernel is None:
         fake_tensors = []
-        for example_tensors in example_tensors_list:
+        for example_tensors, divisibility_list in zip(example_tensors_list, divisibility_list_list):
             if example_tensors is None:
                 fake_tensors.append(None)
                 continue
 
             _fake_tensors = []
-            for tensor in example_tensors:
+            for tensor, div in zip(example_tensors, divisibility_list):
                 if tensor is None:
                     _fake_tensors.append(None)
                     continue

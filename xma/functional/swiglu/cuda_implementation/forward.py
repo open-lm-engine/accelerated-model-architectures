@@ -74,7 +74,7 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor, BLOC
         key=(g.dtype, div, BLOCK_SIZE),
         kernel_class=partial(_SwiGLUForwardCUDAKernel, BLOCK_SIZE=BLOCK_SIZE),
         example_tensors_list=([g, u], [y]),
-        div=div,
+        divisibility_list_list=([div, div], [div]),
         stream=stream,
     )
 
@@ -97,7 +97,7 @@ def _swiglu_packed_forward_cuda(x: torch.Tensor, y: torch.Tensor, BLOCK_SIZE: in
         key=(x.dtype, div, BLOCK_SIZE),
         kernel_class=partial(_SwigluPackedForwardCUDAKernel, BLOCK_SIZE=BLOCK_SIZE),
         example_tensors_list=([], [x], [y], []),
-        div=div,
+        divisibility_list_list=([], [div], [div], []),
         stream=stream,
     )
 

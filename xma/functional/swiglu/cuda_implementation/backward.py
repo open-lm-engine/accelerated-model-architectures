@@ -88,7 +88,7 @@ def _swiglu_backward_cuda(
         key=(g.dtype, div, BLOCK_SIZE),
         kernel_class=partial(_SwiGLUBackwardCUDAKernel, BLOCK_SIZE=BLOCK_SIZE),
         example_tensors_list=([g, u, dy], [dg, du]),
-        div=div,
+        divisibility_list_list=([div, div, div], [div, div]),
         stream=stream,
     )
 
@@ -111,7 +111,7 @@ def _swiglu_packed_backward_cuda(x: torch.Tensor, dy: torch.Tensor, dx: torch.Te
         key=(x.dtype, div, BLOCK_SIZE),
         kernel_class=partial(_SwiGLUBackwardPackedCUDAKernel, BLOCK_SIZE=BLOCK_SIZE),
         example_tensors_list=([dy], [x], [], [dx]),
-        div=div,
+        divisibility_list_list=([div], [div], [], [div]),
         stream=stream,
     )
 
