@@ -46,6 +46,7 @@ def tanh(x: Numeric | TensorSSA, output_dtype: Numeric | None = None) -> Numeric
     return y
 
 
+@cute.jit
 def sigmoid(x: Numeric | TensorSSA, output_dtype: Numeric | None = None) -> Numeric | TensorSSA:
     if const_expr(output_dtype is None):
         output_dtype = x.dtype

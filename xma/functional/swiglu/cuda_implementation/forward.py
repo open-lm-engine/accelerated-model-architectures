@@ -24,6 +24,7 @@ from ....math import get_powers_of_2
 
 
 class _SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
+    @cute.jit
     def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA]:
         g, u = xs
 

@@ -18,6 +18,7 @@ class ElementwisePackedCUDAKernel:
         self.BLOCK_SIZE = BLOCK_SIZE
         self.M = M
 
+    @cute.jit
     def compute(self, *inputs):
         raise NotImplementedError
 
