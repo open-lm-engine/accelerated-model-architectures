@@ -23,7 +23,10 @@ def _keep_tokens() -> set[str]:
     return {token.strip().lower() for token in keep.split(",") if token.strip()}
 
 
-def enable_cute_ptx_dump(output_directory: str) -> None:
+CUTE_DSL_DUMP_DIR = "./tmp"
+
+
+def enable_cute_ptx_dump() -> None:
     # cute-dsl only writes PTX to disk when CUTE_DSL_KEEP=ptx is set, and (with --enable-tvm-ffi,
     # which every op in this repo compiles with) that's the only way to get the PTX at all --
     # there's no __ptx__ attribute on the compiled kernel for the tvm-ffi path.
@@ -32,8 +35,8 @@ def enable_cute_ptx_dump(output_directory: str) -> None:
     # instantiated, so just setting the env var here is not enough once cutlass has already been
     # imported (which it has, by the time an op's compile cache exists) -- the already-created
     # envar also has to be patched in place.
-    os.makedirs(output_directory, exist_ok=True)
-    os.environ["CUTE_DSL_DUMP_DIR"] = str(Path(output_directory).resolve())
+    os.makedirs(CUTE_DSL_DUMP_DIR, exist_ok=True)
+    os.environ["CUTE_DSL_DUMP_DIR"] = str(Path(CUTE_DSL_DUMP_DIR).resolve())
 
     tokens = _keep_tokens()
     tokens.add("ptx")
@@ -75,7 +78,7 @@ def get_ptx_from_cute_op(op: Callable, output_directory: str) -> None:
     cache = getattr(op, "cache", None)
     assert cache is not None, f"{op} has no compile cache, has it been called (and compiled) at least once?"
 
-    dump_dir = Path(os.environ.get("CUTE_DSL_DUMP_DIR", output_directory))
+    dump_dir = Path(os.environ.get("CUTE_DSL_DUMP_DIR", CUTE_DSL_DUMP_DIR))
     ptx_paths = sorted(dump_dir.rglob("*.ptx"), key=lambda p: p.stat().st_mtime_ns, reverse=True)
     assert ptx_paths, f"no .ptx files found under {dump_dir}, did you call enable_cute_ptx_dump and re-run {op}?"
 

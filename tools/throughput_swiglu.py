@@ -81,7 +81,7 @@ print(tabulate(table, headers=headers))
 
 
 ptx_output_directory = "dump_swiglu_ptx"
-enable_cute_ptx_dump(ptx_output_directory)
+enable_cute_ptx_dump()
 _swiglu_forward_cuda.cache = {}
 
 device = KernelBackend.cuda.get_compatible_accelerator().get_current_device()
