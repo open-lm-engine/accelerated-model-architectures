@@ -14,8 +14,9 @@ from .elementwise import _load, _store
 
 
 class ElementwisePackedCUDAKernel:
-    def __init__(self, BLOCK_SIZE: int) -> ElementwisePackedCUDAKernel:
+    def __init__(self, BLOCK_SIZE: int, M: int) -> ElementwisePackedCUDAKernel:
         self.BLOCK_SIZE = BLOCK_SIZE
+        self.M = M
 
     def compute(self, *inputs):
         raise NotImplementedError
@@ -96,8 +97,8 @@ class ElementwisePackedCUDAKernel:
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
 
-        val_layout_1 = cute.make_ordered_layout((4, vector_size >> 1), order=(1, 0))
-        val_layout_2 = cute.make_ordered_layout((4, vector_size), order=(1, 0))
+        val_layout_1 = cute.make_ordered_layout((self.M, vector_size >> 1), order=(1, 0))
+        val_layout_2 = cute.make_ordered_layout((self.M, vector_size), order=(1, 0))
 
         tiler_mn_1, _ = cute.make_layout_tv(thr_layout, val_layout_1)
         tiler_mn_2, _ = cute.make_layout_tv(thr_layout, val_layout_2)
