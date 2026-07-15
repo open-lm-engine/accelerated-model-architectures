@@ -54,8 +54,9 @@ def _store(
 
 
 class ElementwiseCUDAKernel:
-    def __init__(self, BLOCK_SIZE: int) -> ElementwiseCUDAKernel:
+    def __init__(self, BLOCK_SIZE: int, M: int) -> ElementwiseCUDAKernel:
         self.BLOCK_SIZE = BLOCK_SIZE
+        self.M = M
 
     def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA]:
         raise NotImplementedError
@@ -110,7 +111,7 @@ class ElementwiseCUDAKernel:
         vector_size = min([128 // i.element_type.width for i in mXs + mYs])
 
         thr_layout = cute.make_ordered_layout((self.BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-        val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
+        val_layout = cute.make_ordered_layout((self.M, vector_size), order=(1, 0))
         tiler_mn, _ = cute.make_layout_tv(thr_layout, val_layout)
 
         mC = cute.make_identity_tensor(mXs[0].shape)
