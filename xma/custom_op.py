@@ -11,9 +11,9 @@ from typing import Any, Callable, Iterable, Sequence
 import torch
 
 from .accelerator import Accelerator, KernelBackend
+from .autotuner import AutotunedFunction
 from .constants import LIBRARY_NAME
 from .counters import increment_counter
-from .xtuner import XTunedFunction
 
 
 def ctx_needs_gradients(ctx) -> bool:
@@ -70,15 +70,15 @@ def xma_op(
     fake_func: Callable | None = None,
 ) -> Callable:
     def _inner(func: Callable):
-        # support for XTuned function with custom op
-        if isinstance(func, XTunedFunction):
-            xtuned_function = func
+        # support for autotuned function with custom op
+        if isinstance(func, AutotunedFunction):
+            autotuned_function = func
 
-            @functools.wraps(xtuned_function.function)
+            @functools.wraps(autotuned_function.function)
             def func(*args, **kwargs):
-                return xtuned_function(*args, **kwargs)
+                return autotuned_function(*args, **kwargs)
 
-            func.__signature__ = xtuned_function.exposed_signature
+            func.__signature__ = autotuned_function.exposed_signature
 
         custom_op = torch.library.custom_op(
             f"{LIBRARY_NAME}::{func.__name__}",

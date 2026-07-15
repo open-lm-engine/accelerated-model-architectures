@@ -211,5 +211,5 @@ Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested
    :caption: Utilities
 
    xma.accelerator
+   xma.autotuner
    xma.counters
-   xma.xtuner

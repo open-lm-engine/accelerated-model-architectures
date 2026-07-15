@@ -84,7 +84,7 @@ Tracked in `tools/kernels.yml` and auto-rendered into `README.md` by `tools/popu
 
 ### Triton utilities
 
-`xma/triton_utils/` contains shared helpers (e.g., block-pointer helpers, tiling utilities) used across Triton kernels. `xma/xtuner/` is the auto-tuning framework for selecting optimal Triton configs at runtime.
+`xma/triton_utils/` contains shared helpers (e.g., block-pointer helpers, tiling utilities) used across Triton kernels. `xma/autotuner/` is the auto-tuning framework for selecting optimal Triton configs at runtime.
 
 ### CUTLASS / cute_dsl kernels
 

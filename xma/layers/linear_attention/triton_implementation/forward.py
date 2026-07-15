@@ -4,17 +4,17 @@
 
 import torch
 
+from ....autotuner import AutotuneConfig, autotune
 from ....custom_op import xma_op
 from ....math import ceil_divide
-from ....xtuner import XTuneConfig, xtune
 from ..utils import _get_num_heads
 from .output_forward import _output_forward_triton_kernel
 from .recurrent_state_forward import _recurrent_state_forward_triton_kernel
 
 
 @xma_op(mutates_args={"y", "h", "ht"})
-@xtune(
-    configs=[XTuneConfig({"use_fused_kernel_in_forward": i}) for i in [True, False]],
+@autotune(
+    configs=[AutotuneConfig({"use_fused_kernel_in_forward": i}) for i in [True, False]],
     functional_triggers={
         "_": lambda **kwargs: (kwargs["q"].size(1) if kwargs["cu_seqlens"] is None else kwargs["max_seqlen"]) <= 64
     },

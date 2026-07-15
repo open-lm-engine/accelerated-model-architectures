@@ -6,9 +6,9 @@ import torch
 import triton
 import triton.language as tl
 
+from ....autotuner import AutotuneConfig, autotune
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
-from ....xtuner import XTuneConfig, xtune
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -142,10 +142,10 @@ def _online_softmax_forward_triton_kernel(
         BLOCK_H += BLOCK_SIZE_H
 
 
-@xtune(
+@autotune(
     configs=[
-        XTuneConfig({"use_online_softmax": False}, condition=lambda **kwargs: kwargs["x"].size(1) <= 1024),
-        XTuneConfig({"use_online_softmax": True}),
+        AutotuneConfig({"use_online_softmax": False}, condition=lambda **kwargs: kwargs["x"].size(1) <= 1024),
+        AutotuneConfig({"use_online_softmax": True}),
     ],
     functional_triggers={"H": lambda **kwargs: get_next_power_of_2(kwargs["x"].size(1))},
 )

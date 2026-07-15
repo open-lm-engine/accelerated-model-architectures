@@ -12,6 +12,7 @@ import cutlass.cute as cute
 import torch
 from cutlass import Float32, const_expr, range_constexpr
 
+from ....autotuner import AutotuneConfig, autotune
 from ....custom_op import xma_op
 from ....cute_dsl_utils import (
     ElementwiseCUDAKernel,
@@ -20,7 +21,6 @@ from ....cute_dsl_utils import (
     sigmoid,
 )
 from ....math import get_powers_of_2
-from ....xtuner import XTuneConfig, xtune
 
 
 class _SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
@@ -59,8 +59,8 @@ class _SwigluPackedForwardCUDAKernel(ElementwisePackedCUDAKernel):
 
 
 @xma_op(mutates_args={"y"})
-@xtune(
-    configs=[XTuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
+@autotune(
+    configs=[AutotuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
     triggers={"g.size(1)", "g.dtype"},
 )
 def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
@@ -82,8 +82,8 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> N
 
 
 @xma_op(mutates_args={"y"})
-@xtune(
-    configs=[XTuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
+@autotune(
+    configs=[AutotuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
     triggers={"x.size(1)", "x.dtype"},
 )
 def _swiglu_packed_forward_cuda(x: torch.Tensor, y: torch.Tensor, BLOCK_SIZE: int) -> None:
