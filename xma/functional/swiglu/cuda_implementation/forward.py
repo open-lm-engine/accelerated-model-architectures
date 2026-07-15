@@ -19,6 +19,8 @@ from ....cute_dsl_utils import (
     get_compiled_elementwise_cuda_kernel,
     sigmoid,
 )
+from ....math import get_powers_of_2
+from ....xtuner import XTuneConfig, xtune
 
 
 class _SwiGLUForwardCUDAKernel(ElementwiseCUDAKernel):
@@ -76,7 +78,11 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> N
 
 
 @xma_op(mutates_args={"y"})
-def _swiglu_packed_forward_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
+@xtune(
+    configs=[XTuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
+    triggers={"x.size(1)"},
+)
+def _swiglu_packed_forward_cuda(x: torch.Tensor, y: torch.Tensor, BLOCK_SIZE: int) -> None:
     N = x.size(1) >> 1
     div = math.gcd(8 // x.dtype.itemsize, N)
 
@@ -84,8 +90,8 @@ def _swiglu_packed_forward_cuda(x: torch.Tensor, y: torch.Tensor) -> None:
 
     kernel = get_compiled_elementwise_cuda_kernel(
         caller_op=_swiglu_packed_forward_cuda,
-        key=(x.dtype, div),
-        kernel_class=partial(_SwigluPackedForwardCUDAKernel, BLOCK_SIZE=256),
+        key=(x.dtype, div, BLOCK_SIZE),
+        kernel_class=partial(_SwigluPackedForwardCUDAKernel, BLOCK_SIZE=BLOCK_SIZE),
         example_tensors_list=([], [x], [y], []),
         div=div,
         stream=stream,
