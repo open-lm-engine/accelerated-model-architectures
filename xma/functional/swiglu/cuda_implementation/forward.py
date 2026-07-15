@@ -80,7 +80,7 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> N
 @xma_op(mutates_args={"y"})
 @xtune(
     configs=[XTuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
-    triggers={"x.size(1)"},
+    triggers={"x.size(1)", "x.dtype"},
 )
 def _swiglu_packed_forward_cuda(x: torch.Tensor, y: torch.Tensor, BLOCK_SIZE: int) -> None:
     N = x.size(1) >> 1
