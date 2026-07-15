@@ -98,7 +98,7 @@ def _swiglu_backward_cuda(
 @xma_op(mutates_args={"dx"})
 @autotune(
     configs=[AutotuneConfig({"BLOCK_SIZE": BLOCK_SIZE}) for BLOCK_SIZE in get_powers_of_2(128, 1024)],
-    triggers={"g.size(1)", "g.dtype"},
+    triggers={"x.size(1)", "x.dtype"},
 )
 def _swiglu_packed_backward_cuda(x: torch.Tensor, dy: torch.Tensor, dx: torch.Tensor, BLOCK_SIZE: int) -> None:
     N = x.size(1) >> 1
