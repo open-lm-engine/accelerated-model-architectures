@@ -131,7 +131,7 @@ class ElementwiseCUDAKernel:
 
         tiled_copy_Xs = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Xs]
 
-        NUM_BLOCKS = cuda.runtime.getDeviceProperties(0).multiProcessorCount
+        NUM_BLOCKS = torch.cuda.get_device_properties(0).multi_processor_count
         TOTAL_TILES = cute.size(gC, mode=[1])
 
         self.kernel(
