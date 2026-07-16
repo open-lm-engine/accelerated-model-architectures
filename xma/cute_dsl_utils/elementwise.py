@@ -71,40 +71,45 @@ class ElementwiseCUDAKernel:
         copy_atom_Ys: list[cute.CopyAtom],
         tiled_copy_Xs: list[cute.TiledCopy],
         shape: cute.Shape,
+        TOTAL_TILES: cute.Int32,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
+        NUM_BLOCKS, _, _ = cute.arch.grid_dim()
         THREAD_ID, _, _ = cute.arch.thread_idx()
 
-        block_coord = ((None, None), BLOCK_ID)
+        while BLOCK_ID < TOTAL_TILES:
+            block_coord = ((None, None), BLOCK_ID)
 
-        thr_copy, rC, is_within_boundary = lane_boundary(
-            gC=gC, tiled_copy=tiled_copy_Xs[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape
-        )
-
-        xs = [
-            _load(
-                gX=gX,
-                rC=rC,
-                thr_copy=thr_copy,
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
+            thr_copy, rC, is_within_boundary = lane_boundary(
+                gC=gC, tiled_copy=tiled_copy_Xs[0], block_coord=block_coord, THREAD_ID=THREAD_ID, shape=shape
             )
-            for gX, copy_atom in zip(gXs, copy_atom_Xs)
-        ]
 
-        ys = self.compute(xs)
+            xs = [
+                _load(
+                    gX=gX,
+                    rC=rC,
+                    thr_copy=thr_copy,
+                    copy_atom=copy_atom,
+                    block_coord=block_coord,
+                    is_within_boundary=is_within_boundary,
+                )
+                for gX, copy_atom in zip(gXs, copy_atom_Xs)
+            ]
 
-        for y, gY, copy_atom in zip(ys, gYs, copy_atom_Ys):
-            _store(
-                gY=gY,
-                y=y,
-                rC=rC,
-                thr_copy=thr_copy,
-                copy_atom=copy_atom,
-                block_coord=block_coord,
-                is_within_boundary=is_within_boundary,
-            )
+            ys = self.compute(xs)
+
+            for y, gY, copy_atom in zip(ys, gYs, copy_atom_Ys):
+                _store(
+                    gY=gY,
+                    y=y,
+                    rC=rC,
+                    thr_copy=thr_copy,
+                    copy_atom=copy_atom,
+                    block_coord=block_coord,
+                    is_within_boundary=is_within_boundary,
+                )
+
+            BLOCK_ID += NUM_BLOCKS
 
     @cute.jit
     def __call__(self, mXs: list[cute.Tensor], mYs: list[cute.Tensor], stream: cuda.CUstream) -> None:
@@ -125,7 +130,8 @@ class ElementwiseCUDAKernel:
 
         tiled_copy_Xs = [cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout) for copy_atom in copy_atom_Xs]
 
-        NUM_BLOCKS = cute.size(gXs[0], mode=[1])
+        NUM_BLOCKS = cuda.runtime.getDeviceProperties(0).multiProcessorCount
+        TOTAL_TILES = cute.size(gC, mode=[1])
 
         self.kernel(
             gXs=gXs,
@@ -135,6 +141,7 @@ class ElementwiseCUDAKernel:
             copy_atom_Ys=copy_atom_Ys,
             tiled_copy_Xs=tiled_copy_Xs,
             shape=mXs[0].shape,
+            TOTAL_TILES=TOTAL_TILES,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
 
