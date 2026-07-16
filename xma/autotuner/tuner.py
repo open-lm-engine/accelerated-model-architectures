@@ -119,7 +119,7 @@ class AutotunedFunction:
 
             if _XMA_PRINT_AUTOTUNING:
                 print(
-                    f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
+                    f"config {best_config} achieved the best time ({best_time:.3f} sec) for {lookup_key} for "
                     f"function {self.function.__name__}"
                 )
 
@@ -155,12 +155,12 @@ class AutotunedFunction:
 
                 continue
 
-            if _XMA_PRINT_AUTOTUNING:
-                print(f"Autotuning function {self.function.__name__} with config {config}")
-
             elapsed_time = self._run_benchmark(
                 **self._get_function_arguments(config=config, args=args, kwargs=kwargs),
             )
+
+            if _XMA_PRINT_AUTOTUNING:
+                print(f"config {config} took {elapsed_time:.3f} sec for function {self.function.__name__}")
 
             timed_configs.append((config, elapsed_time))
 
