@@ -192,18 +192,15 @@ def multi_tensor_apply(
         for tensor in tensors:
             assert tensor.shape == shape, f"all tensors must have the same shape, got {shape} and {tensor.shape}"
 
-    mXss = [[t.view(1, -1) for t in tensors] for tensors in x_tensor_lists]
-    mYss = [[t.view(1, -1) for t in tensors] for tensors in y_tensor_lists]
-
     compiled_kernel = get_compiled_multi_tensor_apply_cuda_kernel(
         caller_op=caller_op,
         key=key,
         kernel_class=lambda: kernel_class(depth_x=depth_x, depth_y=depth_y, num_tensors=num_tensors),
-        example_x_tensors_list=tuple(tuple(mXs) for mXs in mXss),
-        example_y_tensors_list=tuple(tuple(mYs) for mYs in mYss),
+        example_x_tensors_list=tuple(tuple(mXs) for mXs in x_tensor_lists),
+        example_y_tensors_list=tuple(tuple(mYs) for mYs in y_tensor_lists),
         divisibility_x_list_list=tuple(tuple(divisibility_list) for _ in range(depth_x)),
         divisibility_y_list_list=tuple(tuple(divisibility_list) for _ in range(depth_y)),
         stream=stream,
     )
 
-    compiled_kernel(mXss, mYss, stream)
+    compiled_kernel(x_tensor_lists, y_tensor_lists, stream)
