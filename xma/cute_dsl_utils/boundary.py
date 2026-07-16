@@ -16,9 +16,7 @@ def lane_boundary(gC: cute.Tensor, tiled_copy: cute.TiledCopy, block_coord, THRE
     rC = cute.make_rmem_tensor(tC.shape, Boolean)
     is_within_boundary = cute.elem_less(tC[cute.size(tC) - 1], shape)
 
-    if is_within_boundary:
-        pass
-    else:
+    if not is_within_boundary:
         for i in range_constexpr(cute.size(rC)):
             rC[i] = cute.elem_less(tC[i], shape)
 
