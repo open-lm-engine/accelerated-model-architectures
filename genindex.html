@@ -219,12 +219,12 @@
 <p class="caption" role="heading"><span class="caption-text">Utilities</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
-<li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.autotuner.html">xma.autotuner</a><input aria-label="Toggle navigation of xma.autotuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.autotuner.config.html">xma.autotuner.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.autotuner.tuner.html">xma.autotuner.tuner</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
 </ul>
 
 </div>
@@ -267,6 +267,14 @@
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator">Accelerator (class in xma.accelerator)</a>
+</li>
+        <li><a href="xma.autotuner.tuner.html#xma.autotuner.tuner.autotune">autotune() (in module xma.autotuner.tuner)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="xma.autotuner.config.html#xma.autotuner.config.AutotuneConfig">AutotuneConfig (class in xma.autotuner.config)</a>
+</li>
+        <li><a href="xma.autotuner.tuner.html#xma.autotuner.tuner.AutotunedFunction">AutotunedFunction (class in xma.autotuner.tuner)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -346,7 +354,7 @@
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="xma.xtuner.tuner.html#xma.xtuner.tuner.XTunedFunction.exposed_signature">exposed_signature (XTunedFunction property)</a>
+        <li><a href="xma.autotuner.tuner.html#xma.autotuner.tuner.AutotunedFunction.exposed_signature">exposed_signature (AutotunedFunction property)</a>
 </li>
         <li><a href="xma.layers.moe.html#xma.layers.moe.Experts.extra_repr">extra_repr() (Experts method)</a>
 
@@ -400,7 +408,7 @@
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_accelerator">get_accelerator() (Accelerator static method)</a>
 </li>
-        <li><a href="xma.xtuner.config.html#xma.xtuner.config.get_cartesian_product_xtune_configs">get_cartesian_product_xtune_configs() (in module xma.xtuner.config)</a>
+        <li><a href="xma.autotuner.config.html#xma.autotuner.config.get_cartesian_product_autotune_configs">get_cartesian_product_autotune_configs() (in module xma.autotuner.config)</a>
 </li>
         <li><a href="xma.accelerator.html#xma.accelerator.KernelBackend.get_compatible_accelerator">get_compatible_accelerator() (KernelBackend method)</a>
 </li>
@@ -416,7 +424,7 @@
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="xma.accelerator.html#xma.accelerator.Accelerator.get_kernel_backend">get_kernel_backend() (Accelerator static method)</a>
 </li>
-        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.get_key_values">get_key_values() (XTuneConfig method)</a>
+        <li><a href="xma.autotuner.config.html#xma.autotuner.config.AutotuneConfig.get_key_values">get_key_values() (AutotuneConfig method)</a>
 </li>
         <li><a href="xma.math.html#xma.math.get_next_power_of_2">get_next_power_of_2() (in module xma.math)</a>
 </li>
@@ -440,7 +448,7 @@
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig.is_condition_valid">is_condition_valid() (XTuneConfig method)</a>
+        <li><a href="xma.autotuner.config.html#xma.autotuner.config.AutotuneConfig.is_condition_valid">is_condition_valid() (AutotuneConfig method)</a>
 </li>
         <li><a href="xma.counters.html#xma.counters.is_counter_enabled">is_counter_enabled() (in module xma.counters)</a>
 </li>
@@ -487,6 +495,12 @@
           <li><a href="xma.html#module-xma">xma</a>
 </li>
           <li><a href="xma.accelerator.html#module-xma.accelerator">xma.accelerator</a>
+</li>
+          <li><a href="xma.autotuner.html#module-xma.autotuner">xma.autotuner</a>
+</li>
+          <li><a href="xma.autotuner.config.html#module-xma.autotuner.config">xma.autotuner.config</a>
+</li>
+          <li><a href="xma.autotuner.tuner.html#module-xma.autotuner.tuner">xma.autotuner.tuner</a>
 </li>
           <li><a href="xma.counters.html#module-xma.counters">xma.counters</a>
 </li>
@@ -555,12 +569,6 @@
           <li><a href="xma.optimizers.sgd.html#module-xma.optimizers.sgd.module">xma.optimizers.sgd.module</a>
 </li>
           <li><a href="xma.optimizers.sgd.html#module-xma.optimizers.sgd.op">xma.optimizers.sgd.op</a>
-</li>
-          <li><a href="xma.xtuner.html#module-xma.xtuner">xma.xtuner</a>
-</li>
-          <li><a href="xma.xtuner.config.html#module-xma.xtuner.config">xma.xtuner.config</a>
-</li>
-          <li><a href="xma.xtuner.tuner.html#module-xma.xtuner.tuner">xma.xtuner.tuner</a>
 </li>
         </ul></li>
     </ul></td>
@@ -728,6 +736,27 @@
 </li>
         </ul></li>
         <li>
+    xma.autotuner
+
+        <ul>
+          <li><a href="xma.autotuner.html#module-xma.autotuner">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.autotuner.config
+
+        <ul>
+          <li><a href="xma.autotuner.config.html#module-xma.autotuner.config">module</a>
+</li>
+        </ul></li>
+        <li>
+    xma.autotuner.tuner
+
+        <ul>
+          <li><a href="xma.autotuner.tuner.html#module-xma.autotuner.tuner">module</a>
+</li>
+        </ul></li>
+        <li>
     xma.counters
 
         <ul>
@@ -832,6 +861,8 @@
           <li><a href="xma.jit.html#module-xma.jit">module</a>
 </li>
         </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li>
     xma.layers
 
@@ -860,8 +891,6 @@
           <li><a href="xma.layers.gru.html#module-xma.layers.gru.op">module</a>
 </li>
         </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li>
     xma.layers.linear_attention
 
@@ -967,34 +996,7 @@
           <li><a href="xma.optimizers.sgd.html#module-xma.optimizers.sgd.op">module</a>
 </li>
         </ul></li>
-        <li>
-    xma.xtuner
-
-        <ul>
-          <li><a href="xma.xtuner.html#module-xma.xtuner">module</a>
-</li>
-        </ul></li>
-        <li>
-    xma.xtuner.config
-
-        <ul>
-          <li><a href="xma.xtuner.config.html#module-xma.xtuner.config">module</a>
-</li>
-        </ul></li>
-        <li>
-    xma.xtuner.tuner
-
-        <ul>
-          <li><a href="xma.xtuner.tuner.html#module-xma.xtuner.tuner">module</a>
-</li>
-        </ul></li>
         <li><a href="xma.custom_op.html#xma.custom_op.xma_op">xma_op() (in module xma.custom_op)</a>
-</li>
-        <li><a href="xma.xtuner.tuner.html#xma.xtuner.tuner.xtune">xtune() (in module xma.xtuner.tuner)</a>
-</li>
-        <li><a href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig">XTuneConfig (class in xma.xtuner.config)</a>
-</li>
-        <li><a href="xma.xtuner.tuner.html#xma.xtuner.tuner.XTunedFunction">XTunedFunction (class in xma.xtuner.tuner)</a>
 </li>
     </ul></td>
   </tr></table>

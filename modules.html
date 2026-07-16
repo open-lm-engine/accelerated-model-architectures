@@ -221,12 +221,12 @@
 <p class="caption" role="heading"><span class="caption-text">Utilities</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
-<li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><input aria-label="Toggle navigation of xma.xtuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a></li>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.autotuner.html">xma.autotuner</a><input aria-label="Toggle navigation of xma.autotuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="xma.autotuner.config.html">xma.autotuner.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xma.autotuner.tuner.html">xma.autotuner.tuner</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
 </ul>
 
 </div>
@@ -295,6 +295,19 @@
 <li class="toctree-l4"><a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend.torch"><code class="docutils literal notranslate"><span class="pre">KernelBackend.torch</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend.triton"><code class="docutils literal notranslate"><span class="pre">KernelBackend.triton</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend.verify_accelerator"><code class="docutils literal notranslate"><span class="pre">KernelBackend.verify_accelerator()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="xma.autotuner.html">xma.autotuner</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="xma.autotuner.config.html">xma.autotuner.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.autotuner.config.html#xma.autotuner.config.AutotuneConfig"><code class="docutils literal notranslate"><span class="pre">AutotuneConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.autotuner.config.html#xma.autotuner.config.get_cartesian_product_autotune_configs"><code class="docutils literal notranslate"><span class="pre">get_cartesian_product_autotune_configs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="xma.autotuner.tuner.html">xma.autotuner.tuner</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="xma.autotuner.tuner.html#xma.autotuner.tuner.AutotunedFunction"><code class="docutils literal notranslate"><span class="pre">AutotunedFunction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="xma.autotuner.tuner.html#xma.autotuner.tuner.autotune"><code class="docutils literal notranslate"><span class="pre">autotune()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -418,19 +431,6 @@
 <li class="toctree-l3"><a class="reference internal" href="xma.optimizers.sgd.html">xma.optimizers.sgd</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="xma.optimizers.sgd.html#xma.optimizers.sgd.module.SGD"><code class="docutils literal notranslate"><span class="pre">SGD</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="xma.optimizers.sgd.html#xma.optimizers.sgd.op.sgd"><code class="docutils literal notranslate"><span class="pre">sgd()</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="xma.xtuner.html">xma.xtuner</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="xma.xtuner.config.html">xma.xtuner.config</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.XTuneConfig"><code class="docutils literal notranslate"><span class="pre">XTuneConfig</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="xma.xtuner.config.html#xma.xtuner.config.get_cartesian_product_xtune_configs"><code class="docutils literal notranslate"><span class="pre">get_cartesian_product_xtune_configs()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="xma.xtuner.tuner.html">xma.xtuner.tuner</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="xma.xtuner.tuner.html#xma.xtuner.tuner.XTunedFunction"><code class="docutils literal notranslate"><span class="pre">XTunedFunction</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="xma.xtuner.tuner.html#xma.xtuner.tuner.xtune"><code class="docutils literal notranslate"><span class="pre">xtune()</span></code></a></li>
 </ul>
 </li>
 </ul>

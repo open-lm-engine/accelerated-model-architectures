@@ -5,6 +5,7 @@ xma
    :maxdepth: 4
 
    xma.accelerator
+   xma.autotuner
    xma.counters
    xma.custom_op
    xma.functional
@@ -13,7 +14,6 @@ xma
    xma.layers
    xma.math
    xma.optimizers
-   xma.xtuner
 
 .. automodule:: xma
    :members:
