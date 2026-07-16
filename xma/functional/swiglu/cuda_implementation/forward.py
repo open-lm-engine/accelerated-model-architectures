@@ -91,9 +91,9 @@ def _swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor, BLOC
 @xma_op(mutates_args={"y"})
 @autotune(configs=_get_autotune_configs(), triggers={"x.size(1)", "x.dtype"})
 def _swiglu_packed_forward_cuda(x: torch.Tensor, y: torch.Tensor, BLOCK_SIZE: int, M: int) -> None:
-    N = x.size(1) >> 1
+    N = x.size(1)
     div_x = math.gcd(16 // x.dtype.itemsize, N)
-    div_y = math.gcd(8 // x.dtype.itemsize, N)
+    div_y = math.gcd(16 // x.dtype.itemsize, N >> 1)
 
     stream = cuda.CUstream(torch.cuda.current_stream().cuda_stream)
 
