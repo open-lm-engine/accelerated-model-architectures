@@ -3,6 +3,7 @@
 # **************************************************
 
 from .accelerator import Accelerator, KernelBackend
+from .autotuner import AutotuneConfig, autotune, get_cartesian_product_autotune_configs
 from .counters import enable_counters, get_counter_value, reset_counters
 from .functional import (
     bmm,
@@ -23,4 +24,3 @@ from .layers import GRU, M2RNN, RNN, LinearAttention, MoE, gru, linear_attention
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .optimizers import SGD, sgd
 from .utils import get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
-from .xtuner import XTuneConfig, get_cartesian_product_xtune_configs, xtune

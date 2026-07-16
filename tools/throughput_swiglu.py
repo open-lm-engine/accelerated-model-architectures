@@ -6,6 +6,8 @@ import torch
 from tabulate import tabulate
 
 from xma import Accelerator, KernelBackend, swiglu
+from xma.cute_dsl_utils import enable_cute_ptx_dump, get_ptx_from_cute_op
+from xma.functional.swiglu.cuda_implementation.forward import _swiglu_forward_cuda
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -76,3 +78,17 @@ for kernel, kernel_backend, row_header in kernels:
 
 
 print(tabulate(table, headers=headers))
+
+
+ptx_output_directory = "dump_swiglu_ptx"
+enable_cute_ptx_dump()
+_swiglu_forward_cuda.cache = {}
+
+device = KernelBackend.cuda.get_compatible_accelerator().get_current_device()
+for dtype in dtypes:
+    g = torch.randn(B, H, device=device, dtype=dtype)
+    u = torch.randn(B, H, device=device, dtype=dtype)
+    swiglu(g, u, kernel_backend=KernelBackend.cuda)
+
+get_ptx_from_cute_op(_swiglu_forward_cuda, ptx_output_directory)
+print(f"dumped PTX for _swiglu_forward_cuda to {ptx_output_directory}")

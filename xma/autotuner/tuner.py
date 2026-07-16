@@ -12,10 +12,10 @@ import torch
 
 from ..accelerator import Accelerator
 from ..utils import get_boolean_env_variable
-from .config import XTuneConfig
+from .config import AutotuneConfig
 
 
-_XTUNE_PRINT_AUTOTUNING = get_boolean_env_variable("XTUNE_PRINT_AUTOTUNING", False)
+_XMA_PRINT_AUTOTUNING = get_boolean_env_variable("XMA_PRINT_AUTOTUNING", False)
 _SEPARATOR = "."
 _DEFAULT_WARMUP_ITERATIONS = 5
 _BENCHMARK_ITERATIONS = 10
@@ -52,18 +52,18 @@ def _parse_trigger(trigger: str) -> tuple[str, str, Callable]:
     return variable_name, func_name, func
 
 
-class XTunedFunction:
+class AutotunedFunction:
     def __init__(
         self,
         function: Callable,
-        configs: list[XTuneConfig],
+        configs: list[AutotuneConfig],
         triggers: set[str],
         warmup_iterations: int,
         benchmark_iterations: int,
         functional_triggers: dict[str, Callable] = {},
         reset_to_zero: dict = {},
-    ) -> XTunedFunction:
-        assert len(configs) > 0, "no xtune config is passed"
+    ) -> AutotunedFunction:
+        assert len(configs) > 0, "no autotune config is passed"
 
         self.function = function
         self.configs = configs
@@ -71,14 +71,14 @@ class XTunedFunction:
         self.benchmark_iterations = benchmark_iterations
 
         self.signature = inspect.getfullargspec(function)
-        self.xtuneable_parameters = set(self.configs[0].get_key_values().keys())
+        self.autotuneable_parameters = set(self.configs[0].get_key_values().keys())
 
         self._setup_trigger_map(triggers)
 
         for config in self.configs:
             assert (
-                set(config.get_key_values().keys()) == self.xtuneable_parameters
-            ), "xtune configs don't match the expected function signature"
+                set(config.get_key_values().keys()) == self.autotuneable_parameters
+            ), "autotune configs don't match the expected function signature"
 
         self.functional_triggers = functional_triggers
         self.reset_to_zero = reset_to_zero
@@ -99,7 +99,7 @@ class XTunedFunction:
             parameters=[
                 parameter
                 for name, parameter in full_signature.parameters.items()
-                if name not in self.xtuneable_parameters
+                if name not in self.autotuneable_parameters
             ]
         )
 
@@ -108,24 +108,24 @@ class XTunedFunction:
         best_config = self.function_cache.get(lookup_key, None)
 
         if best_config is None:
-            # bypass xtune for single config
+            # bypass autotune for single config
             if len(self.configs) == 1:
                 best_config = self.configs[0]
                 best_time = 0
             else:
-                best_config, best_time, _ = self._xtune(*args, **kwargs)
+                best_config, best_time, _ = self._autotune(*args, **kwargs)
 
             self.function_cache[lookup_key] = best_config
 
-            if _XTUNE_PRINT_AUTOTUNING:
+            if _XMA_PRINT_AUTOTUNING:
                 print(
-                    f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
+                    f"config {best_config} achieved the best time ({best_time:.3f} sec) for {lookup_key} for "
                     f"function {self.function.__name__}"
                 )
 
         return self.function(**self._get_function_arguments(config=best_config, args=args, kwargs=kwargs))
 
-    def _get_function_arguments(self, config: XTuneConfig, args: list, kwargs: dict) -> dict:
+    def _get_function_arguments(self, config: AutotuneConfig, args: list, kwargs: dict) -> dict:
         # copy the best_config first so we can override with args or kwargs
         result = {variable_name: value for variable_name, value in config.get_key_values().items()}
 
@@ -141,26 +141,26 @@ class XTunedFunction:
 
     @torch.compiler.set_stance("force_eager")
     @torch.inference_mode()
-    def _xtune(self, *args, **kwargs) -> tuple[XTuneConfig, float, list[tuple[XTuneConfig, float]]]:
+    def _autotune(self, *args, **kwargs) -> tuple[AutotuneConfig, float, list[tuple[AutotuneConfig, float]]]:
         best_config = None
         best_time = float("inf")
         timed_configs = []
 
         for config in self.configs:
             if not config.is_condition_valid(
-                **self._get_function_arguments(config=XTuneConfig({}), args=args, kwargs=kwargs)
+                **self._get_function_arguments(config=AutotuneConfig({}), args=args, kwargs=kwargs)
             ):
-                if _XTUNE_PRINT_AUTOTUNING:
+                if _XMA_PRINT_AUTOTUNING:
                     print(f"Skipping config {config} for function {self.function.__name__}")
 
                 continue
 
-            if _XTUNE_PRINT_AUTOTUNING:
-                print(f"Autotuning function {self.function.__name__} with config {config}")
-
             elapsed_time = self._run_benchmark(
                 **self._get_function_arguments(config=config, args=args, kwargs=kwargs),
             )
+
+            if _XMA_PRINT_AUTOTUNING:
+                print(f"config {config} took {elapsed_time:.3f} sec for function {self.function.__name__}")
 
             timed_configs.append((config, elapsed_time))
 
@@ -168,7 +168,7 @@ class XTunedFunction:
                 best_config = config
                 best_time = elapsed_time
 
-        assert best_config is not None, "no best_config found, check that at least 1 xtune config is valid"
+        assert best_config is not None, "no best_config found, check that at least 1 autotune config is valid"
 
         return best_config, best_time, timed_configs
 
@@ -206,7 +206,7 @@ class XTunedFunction:
 
         # now run the functional triggers
         if len(self.functional_triggers) > 0:
-            kwargs = self._get_function_arguments(config=XTuneConfig({}), args=args, kwargs=kwargs)
+            kwargs = self._get_function_arguments(config=AutotuneConfig({}), args=args, kwargs=kwargs)
 
             for variable_name, func in self.functional_triggers.items():
                 lookup_key.append(f"{variable_name} = {func(**kwargs)}")
@@ -268,35 +268,35 @@ class XTunedFunction:
                 variable_name in self.signature.args
             ), f"unexpected variable_name ({variable_name}) found in triggers"
 
-        for variable_name in self.xtuneable_parameters:
+        for variable_name in self.autotuneable_parameters:
             assert variable_name not in self.variable_name_trigger_map, "trigger can't be a tuneable parameter"
 
     def __repr__(self):
-        return f"""XTunedFunction(
+        return f"""AutotunedFunction(
     function_cache = {self.function_cache}
     configs = {self.configs}
     warmup iterations = {self.warmup_iterations}
     benchmark iterations = {self.benchmark_iterations}
-    xtuneable parameters = {self.xtuneable_parameters}
+    autotuneable parameters = {self.autotuneable_parameters}
     functional triggers = {self.functional_triggers}
     reset to zero = {self.reset_to_zero}
     function hash = {self.function_hash}
 )"""
 
 
-def xtune(
-    configs: list[XTuneConfig],
+def autotune(
+    configs: list[AutotuneConfig],
     triggers: set[str] = set(),
     functional_triggers: dict[str, Callable] = {},
     warmup_iterations: int = _DEFAULT_WARMUP_ITERATIONS,
     benchmark_iterations: int = _BENCHMARK_ITERATIONS,
     reset_to_zero: dict = {},
-) -> XTunedFunction:
+) -> AutotunedFunction:
     """
     autotuner for any function or kernel
 
     :param configs: list of configs to autotune over
-    :type configs: list[XTuneConfig]
+    :type configs: list[AutotuneConfig]
     :param triggers: change in these parameters will trigger autotuning
     :type triggers: set[str]
     :param functional_triggers: key, function mapping. change in the function outputs will trigger autotuning.
@@ -310,11 +310,11 @@ def xtune(
         True.
     :type reset_to_zero: dict
     :return: autotuned version of the function
-    :rtype: _XTune
+    :rtype: _Autotune
     """
 
     def inner(function: Callable) -> Callable:
-        return XTunedFunction(
+        return AutotunedFunction(
             function=function,
             configs=configs,
             triggers=triggers,
