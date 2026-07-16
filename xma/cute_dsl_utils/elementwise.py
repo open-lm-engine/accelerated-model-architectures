@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 import cuda.bindings.driver as cuda
+import cutlass
 import cutlass.cute as cute
 import torch
 
@@ -71,7 +72,7 @@ class ElementwiseCUDAKernel:
         copy_atom_Ys: list[cute.CopyAtom],
         tiled_copy_Xs: list[cute.TiledCopy],
         shape: cute.Shape,
-        TOTAL_TILES: cute.Int32,
+        TOTAL_TILES: cutlass.Int32,
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
         NUM_BLOCKS, _, _ = cute.arch.grid_dim()
