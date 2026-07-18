@@ -9,11 +9,14 @@ from torch.distributed.tensor import DTensor
 from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
 
 from ...accelerator import Accelerator, KernelBackend
-from ...utils import is_triton_available
+from ...utils import is_cute_dsl_available, is_triton_available
 
 
 if is_triton_available():
     from .triton_implementation import _single_tensor_sgd_triton
+
+if is_cute_dsl_available():
+    from .cuda_implementation import _sgd_multi_tensor_cuda
 
 
 @torch.no_grad()

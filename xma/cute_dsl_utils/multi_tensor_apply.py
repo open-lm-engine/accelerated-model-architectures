@@ -27,7 +27,7 @@ class MultiTensorApplyCUDAKernel:
         self.depth_y = depth_y
         self.num_tensors = num_tensors
 
-    def compute(self, xs: list[cute.TensorSSA]) -> list[cute.TensorSSA | None]:
+    def compute(self, xs: list[cute.TensorSSA], scalars: list[Float32]) -> list[cute.TensorSSA | None]:
         raise NotImplementedError
 
     @cute.kernel
@@ -42,6 +42,7 @@ class MultiTensorApplyCUDAKernel:
         shape: cute.Shape,
         total_tiles_per_tensor: Int32,
         grand_total_tiles: Int32,
+        scalars: list[Float32],
     ) -> None:
         BLOCK_ID, _, _ = cute.arch.block_idx()
         NUM_BLOCKS, _, _ = cute.arch.grid_dim()
@@ -75,7 +76,7 @@ class MultiTensorApplyCUDAKernel:
                             for d in range_constexpr(self.depth_x)
                         ]
 
-                        ys = self.compute(xs)
+                        ys = self.compute(xs, scalars)
 
                         for d in range_constexpr(self.depth_y):
                             _store(
@@ -91,7 +92,13 @@ class MultiTensorApplyCUDAKernel:
             BLOCK_ID += NUM_BLOCKS
 
     @cute.jit
-    def __call__(self, mXss: list[list[cute.Tensor]], mYss: list[list[cute.Tensor]], stream: cuda.CUstream) -> None:
+    def __call__(
+        self,
+        mXss: list[list[cute.Tensor]],
+        mYss: list[list[cute.Tensor]],
+        scalars: list[Float32],
+        stream: cuda.CUstream,
+    ) -> None:
         vector_size = min(
             [128 // mXs[0].element_type.width for mXs in mXss] + [128 // mYs[0].element_type.width for mYs in mYss]
         )
@@ -126,6 +133,7 @@ class MultiTensorApplyCUDAKernel:
             shape=shape,
             total_tiles_per_tensor=total_tiles_per_tensor,
             grand_total_tiles=grand_total_tiles,
+            scalars=scalars,
         ).launch(grid=(NUM_BLOCKS, 1, 1), block=(self.BLOCK_SIZE, 1, 1), stream=stream)
 
 
@@ -155,6 +163,7 @@ def get_compiled_multi_tensor_apply_cuda_kernel(
     example_y_tensors_list: tuple[tuple[torch.Tensor]],
     divisibility_x_list_list: tuple[tuple[int]],
     divisibility_y_list_list: tuple[tuple[int]],
+    scalars: list[float],
     stream: cuda.CUstream,
 ) -> MultiTensorApplyCUDAKernel:
     if not hasattr(caller_op, "cache"):
@@ -166,7 +175,7 @@ def get_compiled_multi_tensor_apply_cuda_kernel(
         fake_mXss = _build_fake_tensor_groups(example_x_tensors_list, divisibility_x_list_list)
         fake_mYss = _build_fake_tensor_groups(example_y_tensors_list, divisibility_y_list_list)
 
-        kernel = cute.compile(kernel_class(), fake_mXss, fake_mYss, stream, options="--enable-tvm-ffi")
+        kernel = cute.compile(kernel_class(), fake_mXss, fake_mYss, scalars, stream, options="--enable-tvm-ffi")
         caller_op.cache[key] = kernel
 
     return kernel
@@ -179,6 +188,7 @@ def multi_tensor_apply(
     x_tensor_lists: list[list[torch.Tensor]],
     y_tensor_lists: list[list[torch.Tensor]],
     divisibility_list: list[int],
+    scalars: list[float],
     stream: cuda.CUstream,
 ) -> None:
     depth_x = len(x_tensor_lists)
@@ -200,7 +210,8 @@ def multi_tensor_apply(
         example_y_tensors_list=tuple(tuple(mYs) for mYs in y_tensor_lists),
         divisibility_x_list_list=tuple(tuple(divisibility_list) for _ in range(depth_x)),
         divisibility_y_list_list=tuple(tuple(divisibility_list) for _ in range(depth_y)),
+        scalars=scalars,
         stream=stream,
     )
 
-    compiled_kernel(x_tensor_lists, y_tensor_lists, stream)
+    compiled_kernel(x_tensor_lists, y_tensor_lists, scalars, stream)
