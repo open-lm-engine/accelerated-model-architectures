@@ -9,18 +9,15 @@ import pytest
 
 from xma import KernelBackend, is_torch_available
 
-from ..utils import (
-    assert_equal_tensors,
-    get_2d_tensor_sizes,
-    get_random_duplicated_tensors,
-    skip_if_incompatible_kernel_backend,
-)
+from ..utils import get_2d_tensor_sizes, skip_if_incompatible_kernel_backend
 
 
 if is_torch_available():
     import torch
 
     from xma import swiglu
+
+    from ..utils import assert_equal_tensors, get_random_duplicated_tensors
 
     def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
         args = list(

@@ -8,7 +8,7 @@ import pytest
 
 from xma import KernelBackend, is_torch_available
 
-from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
+from ..utils import skip_if_incompatible_kernel_backend
 
 
 def _get_problem_shapes(packed: bool) -> list[tuple[int]]:
@@ -26,6 +26,8 @@ if is_torch_available():
     import torch
 
     from xma import pack_sequence, unpack_sequence
+
+    from ..utils import assert_equal_tensors, get_random_duplicated_tensors
 
     @pytest.mark.parametrize("size", _get_problem_shapes(False))
     @pytest.mark.parametrize("cu_seqlens", [[0, 70, 170, 295, 393, 412, 515, 691]])

@@ -6,12 +6,7 @@ import pytest
 
 from xma import KernelBackend, is_torch_available
 
-from ..utils import (
-    assert_equal_tensors,
-    collect_gradients_from_module_and_zero_grads,
-    get_random_duplicated_tensors,
-    skip_if_incompatible_kernel_backend,
-)
+from ..utils import skip_if_incompatible_kernel_backend
 
 
 _SEED = 42
@@ -22,6 +17,12 @@ if is_torch_available():
     import torch.nn as nn
 
     from xma import RNN, set_seed
+
+    from ..utils import (
+        assert_equal_tensors,
+        collect_gradients_from_module_and_zero_grads,
+        get_random_duplicated_tensors,
+    )
 
     def _get_packed_tensor_inputs(
         batch_size: int,

@@ -8,12 +8,7 @@ import pytest
 
 from xma import KernelBackend, is_torch_available
 
-from ..utils import (
-    assert_equal_tensors,
-    collect_gradients_from_module_and_zero_grads,
-    get_activation_function,
-    skip_if_incompatible_kernel_backend,
-)
+from ..utils import skip_if_incompatible_kernel_backend
 
 
 _SEED = 42
@@ -23,6 +18,8 @@ if is_torch_available():
     import torch
 
     from xma import MoE, set_seed
+
+    from ..utils import assert_equal_tensors, collect_gradients_from_module_and_zero_grads, get_activation_function
 
     def _generate_args() -> list:
         args = list(

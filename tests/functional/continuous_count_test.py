@@ -8,7 +8,7 @@ import pytest
 
 from xma import KernelBackend, is_torch_available
 
-from ..utils import assert_equal_tensors, get_1d_tensor_sizes, skip_if_incompatible_kernel_backend
+from ..utils import get_1d_tensor_sizes, skip_if_incompatible_kernel_backend
 
 
 _MAX_EXPERTS = 72
@@ -18,6 +18,8 @@ if is_torch_available():
     import torch
 
     from xma import continuous_count, set_seed
+
+    from ..utils import assert_equal_tensors
 
     @pytest.mark.parametrize("bins", get_1d_tensor_sizes())
     @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda])

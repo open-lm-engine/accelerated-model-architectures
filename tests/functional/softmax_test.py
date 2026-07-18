@@ -8,7 +8,7 @@ import pytest
 
 from xma import KernelBackend, is_torch_available
 
-from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
+from ..utils import skip_if_incompatible_kernel_backend
 from .rmsnorm_test import _get_sizes
 
 
@@ -19,6 +19,8 @@ if is_torch_available():
     import torch
 
     from xma import set_seed, softmax
+
+    from ..utils import assert_equal_tensors, get_random_duplicated_tensors
 
     @pytest.mark.parametrize("size", _get_sizes())
     @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])

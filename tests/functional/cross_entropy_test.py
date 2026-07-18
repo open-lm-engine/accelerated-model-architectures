@@ -8,12 +8,7 @@ import pytest
 
 from xma import KernelBackend, is_torch_available
 
-from ..utils import (
-    assert_equal_tensors,
-    get_2d_tensor_sizes,
-    get_random_duplicated_tensors,
-    skip_if_incompatible_kernel_backend,
-)
+from ..utils import get_2d_tensor_sizes, skip_if_incompatible_kernel_backend
 
 
 _SEED = 42
@@ -22,6 +17,8 @@ if is_torch_available():
     import torch
 
     from xma import cross_entropy, set_seed
+
+    from ..utils import assert_equal_tensors, get_random_duplicated_tensors
 
     @pytest.mark.parametrize("size", get_2d_tensor_sizes())
     @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])

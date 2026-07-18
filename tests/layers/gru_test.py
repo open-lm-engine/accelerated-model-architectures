@@ -6,12 +6,7 @@ import pytest
 
 from xma import KernelBackend, is_torch_available
 
-from ..utils import (
-    assert_equal_tensors,
-    collect_gradients_from_module_and_zero_grads,
-    skip_if_incompatible_kernel_backend,
-)
-from .rnn_test import _get_packed_tensor_inputs
+from ..utils import skip_if_incompatible_kernel_backend
 
 
 _SEED = 42
@@ -34,6 +29,9 @@ if is_torch_available():
     import torch.nn as nn
 
     from xma import GRU, set_seed
+
+    from ..utils import assert_equal_tensors, collect_gradients_from_module_and_zero_grads
+    from .rnn_test import _get_packed_tensor_inputs
 
     @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float16])

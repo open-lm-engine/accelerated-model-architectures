@@ -8,9 +8,9 @@ from typing import Callable
 
 import pytest
 
-from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, is_torch_available, reset_counters
+from xma import KernelBackend, enable_counters, get_counter_value, is_torch_available, reset_counters
 
-from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
+from ..utils import skip_if_incompatible_kernel_backend
 from .fused_residual_add_rmsnorm_test import _get_sizes
 
 
@@ -22,8 +22,10 @@ if is_torch_available():
     import torch._inductor.config as config
     import torch.nn as nn
 
-    from xma import rmsnorm, set_seed
+    from xma import enable_kernels, rmsnorm, set_seed
     from xma.inductor import _CallablePatternMatcherPass
+
+    from ..utils import assert_equal_tensors, get_random_duplicated_tensors
 
     @pytest.mark.parametrize("size", _get_sizes())
     @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
