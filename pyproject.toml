@@ -19,7 +19,6 @@ dependencies = [
     "ninja==1.13.0",
     "numpy==2.5.1",
     "pyyaml==6.0.3",
-    "torch==2.10.0",
 ]
 
 [project.urls]
@@ -35,16 +34,28 @@ dev = [
     "sphinx==9.1.0",
     "sphinx-autobuild==2025.8.25",
 ]
-cpu = []
-mps = []
+cpu = ["torch==2.10.0"]
+mps = ["torch==2.10.0"]
 cuda = [
+    "torch==2.10.0",
     "apache-tvm-ffi==0.1.12",
     "nvidia-cutlass-dsl==4.6.0",
     "tabulate==0.10.0",
 ]
 tpu = [
+    "torch==2.8.0",
     "torch-xla[pallas,tpu]==2.8.0",
     "tabulate==0.10.0",
+]
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "mps" },
+        { extra = "cuda" },
+        { extra = "tpu" },
+    ],
 ]
 
 [tool.hatch.build.targets.wheel]
