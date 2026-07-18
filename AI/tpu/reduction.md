@@ -67,3 +67,11 @@ def correct_sum(x: jax.Array,
 
 result = correct_sum(x)
 ```
+
+**Reduction**: `sum`, `max`, `min` (for floating point values) reductions are supported, as well as any and all for boolean values. Integer reductions are not supported.
+
+Reductions over the last array dimension are generally the slowest. Reductions over the second last dimension are faster, but still slower than over the leading dimensions.
+
+**Broadcasting**: The performance characteristics of broadcasting are very similar to those of reductions. Broadcasting along all but the two trailing dimensions is always supported and free. Broadcasting along the second to last dimension is slower, while broadcasting along the last dimension is the slowest.
+
+
