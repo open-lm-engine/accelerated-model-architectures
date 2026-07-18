@@ -4,8 +4,7 @@
 
 import pytest
 
-from xma import KernelBackend
-from xma.utils import is_torch_available
+from xma import KernelBackend, is_torch_available
 
 from ..utils import (
     assert_equal_tensors,

@@ -7,8 +7,6 @@ from __future__ import annotations
 from typing import Callable
 
 import pytest
-import torch._inductor.config as config
-import torch.nn as nn
 
 from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, is_torch_available, reset_counters
 
@@ -21,6 +19,8 @@ _SEED = 42
 
 if is_torch_available():
     import torch
+    import torch._inductor.config as config
+    import torch.nn as nn
 
     from xma import rmsnorm, set_seed
     from xma.inductor import _CallablePatternMatcherPass
