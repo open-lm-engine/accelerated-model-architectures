@@ -5,6 +5,7 @@ xma.functional\_jax
    :maxdepth: 4
 
    xma.functional_jax.swiglu
+   xma.functional_jax.swiglu
 
 .. automodule:: xma.functional_jax
    :members:
