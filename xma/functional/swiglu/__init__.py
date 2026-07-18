@@ -20,7 +20,6 @@ from .mps_implementation import _swiglu_backward_mps, _swiglu_forward_mps
 
 _FUNCTIONS = {KernelBackend.mps: (_swiglu_forward_mps, _swiglu_backward_mps)}
 
-
 if is_cute_dsl_available():
     from .cuda_implementation import (
         _swiglu_backward_cuda,

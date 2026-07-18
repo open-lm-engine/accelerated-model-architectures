@@ -7,7 +7,10 @@ from __future__ import annotations
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
+
 import torch._inductor.config as config
 import torch.nn as nn
 

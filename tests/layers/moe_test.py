@@ -5,7 +5,9 @@
 from itertools import product
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, MoE, set_seed
 

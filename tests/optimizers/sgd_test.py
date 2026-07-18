@@ -2,10 +2,10 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from __future__ import annotations
-
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import SGD, KernelBackend
 
@@ -15,9 +15,6 @@ from ..utils import (
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
 )
-
-
-_LEARNING_RATE = 1e-3
 
 
 @pytest.mark.parametrize("size", get_1d_tensor_sizes())
@@ -38,6 +35,8 @@ def test_sgd(
     nesterov: bool,
     kernel_backend: KernelBackend,
 ) -> None:
+    lr = 1e-3
+
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
 
@@ -60,7 +59,7 @@ def test_sgd(
 
     sgd_kernel = SGD(
         params=params_kernel,
-        lr=_LEARNING_RATE,
+        lr=lr,
         momentum=momentum,
         dampening=dampening,
         weight_decay=weight_decay,
@@ -70,7 +69,7 @@ def test_sgd(
 
     sgd_torch = SGD(
         params=params_torch,
-        lr=_LEARNING_RATE,
+        lr=lr,
         momentum=momentum,
         dampening=dampening,
         weight_decay=weight_decay,

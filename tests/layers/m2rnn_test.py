@@ -5,7 +5,10 @@
 from itertools import product
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
+
 import torch.nn as nn
 
 from xma import M2RNN, KernelBackend, set_seed

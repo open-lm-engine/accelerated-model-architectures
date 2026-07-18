@@ -5,7 +5,9 @@
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, bmm, set_seed
 

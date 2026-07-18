@@ -7,7 +7,7 @@ import torch
 from cutlass.cute.runtime import from_dlpack
 
 from ..cute_dsl_utils import get_cute_dtype_from_torch_dtype
-from ..utils import get_alignment
+from ..math import get_powers_of_2
 
 
 def get_fake_cute_tensor(
@@ -23,6 +23,19 @@ def get_fake_cute_tensor(
     )
 
     return tensor
+
+
+def get_alignment(x: torch.Tensor) -> int:
+    x = x.data_ptr()
+
+    alignment = 4
+    for i in get_powers_of_2(4, 16):
+        if x % i != 0:
+            break
+        else:
+            alignment = i
+
+    return alignment
 
 
 def torch_tensor_to_cute_tensor(x: torch.Tensor, leading_dim: int) -> cute.Tensor:

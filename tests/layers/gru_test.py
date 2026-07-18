@@ -3,7 +3,10 @@
 # **************************************************
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
+
 import torch.nn as nn
 
 from xma import GRU, KernelBackend, set_seed

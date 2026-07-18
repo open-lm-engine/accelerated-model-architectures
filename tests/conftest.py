@@ -4,17 +4,20 @@
 
 import os
 
+from xma import Accelerator, is_torch_available
+
 
 def pytest_configure(config) -> None:
     worker_id = os.environ.get("PYTEST_XDIST_WORKER")
     if worker_id is None:
         return
 
-    import torch
-
-    gpu_count = torch.cuda.device_count()
-    if gpu_count == 0:
+    if not is_torch_available() or Accelerator.get_accelerator() not in [Accelerator.cuda, Accelerator.rocm]:
         return
 
-    gpu_id = int(worker_id.replace("gw", "")) % gpu_count
+    num_accelerators = Accelerator.device_count()
+    if num_accelerators == 0:
+        return
+
+    gpu_id = int(worker_id.replace("gw", "")) % num_accelerators
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
