@@ -33,7 +33,9 @@ def _swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
 def _swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tuple[jax.Array, jax.Array]:
     B, H = g.shape
     BLOCK_SIZE_H = min(ceil_divide(H, 128) * 128, 1024)
-    BLOCK_SIZE_B = max(1, 32 * 1024 * 1024 // (5 * BLOCK_SIZE_H * g.dtype.itemsize * 8)) << 3
+    # see forward.py: halve the target VMEM budget to leave headroom for Mosaic's double-buffered
+    # pipelining, which pushes actual scoped VMEM usage well above this naive estimate.
+    BLOCK_SIZE_B = max(1, 16 * 1024 * 1024 // (5 * BLOCK_SIZE_H * g.dtype.itemsize * 8)) << 3
 
     kernel = pl.pallas_call(
         _swiglu_backward_pallas_kernel,
