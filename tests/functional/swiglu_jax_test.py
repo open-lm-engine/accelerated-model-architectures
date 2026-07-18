@@ -44,8 +44,8 @@ def test_swiglu_jax(size: tuple[int, int], dtype: str) -> None:
 
     assert_allclose(np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance)
 
-    loss_kernel = y_kernel.astype(jnp.float32).sum()
-    loss_reference = y_expected.astype(jnp.float32).sum()
+    loss_kernel = lambda gate, up: swiglu_jax(gate, up).astype(jnp.float32).sum()
+    loss_reference = lambda gate, up: swiglu_jax(gate, up, kernel_backend=KernelBackend.jax).astype(jnp.float32).sum()
 
     dgate_kernel, dup_kernel = jax.grad(loss_kernel, argnums=(0, 1))(gate, up)
     dgate_expected, dup_expected = jax.grad(loss_reference, argnums=(0, 1))(gate, up)
