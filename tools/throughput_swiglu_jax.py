@@ -21,7 +21,7 @@ dtypes = ["float32", "bfloat16"]
 headers = ["kernel"] + dtypes
 table = []
 
-B = 16 * 4096
+B = 4096
 H = 4096
 
 run_forward = False
