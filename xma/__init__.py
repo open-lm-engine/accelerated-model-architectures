@@ -9,7 +9,7 @@ from .utils import get_ptx_from_triton_kernel, is_jax_available, is_torch_availa
 
 
 if is_jax_available():
-    from .functional import swiglu_jax
+    from .functional_jax import swiglu_jax
 
 
 if is_torch_available():
