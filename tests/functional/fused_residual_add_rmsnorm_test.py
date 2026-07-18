@@ -14,7 +14,6 @@ from ..utils import (
     get_1d_tensor_sizes,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
-    torch_test,
 )
 
 
@@ -48,7 +47,6 @@ if is_torch_available():
             torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
         ],
     )
-    @torch_test
     @torch._dynamo.config.patch(recompile_limit=1024)
     def test_fused_residual_add_rmsnorm(
         size: tuple[int] | int,

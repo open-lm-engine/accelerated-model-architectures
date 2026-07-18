@@ -14,7 +14,6 @@ from ..utils import (
     get_2d_tensor_sizes,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
-    torch_test,
 )
 
 
@@ -25,7 +24,6 @@ if is_torch_available():
 
     from xma import cross_entropy
 
-    @torch_test
     @pytest.mark.parametrize("size", get_2d_tensor_sizes())
     @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])

@@ -9,12 +9,7 @@ import pytest
 from xma import KernelBackend, ceil_divide
 from xma.utils import is_torch_available
 
-from ..utils import (
-    assert_equal_tensors,
-    get_random_duplicated_tensors,
-    skip_if_incompatible_kernel_backend,
-    torch_test,
-)
+from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
 from .swiglu_test import _generate_args
 
 
@@ -26,7 +21,6 @@ if is_torch_available():
     @pytest.mark.parametrize(
         "size,dtype,kernel_backend,function", _generate_args(swiglu_packed, add_triton=False, add_mps=False)
     )
-    @torch_test
     @torch._dynamo.config.patch(recompile_limit=1024)
     def test_swiglu_packed(
         size: tuple[int],

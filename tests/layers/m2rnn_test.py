@@ -16,7 +16,6 @@ from ..utils import (
     assert_equal_tensors,
     collect_gradients_from_module_and_zero_grads,
     skip_if_incompatible_kernel_backend,
-    torch_test,
 )
 from .rnn_test import _get_packed_tensor_inputs
 
@@ -67,7 +66,6 @@ def _generate_args() -> list:
 @pytest.mark.parametrize(
     "kernel_backend,dtype,input_shape,problem_shape,has_input_state,is_compiling", _generate_args()
 )
-@torch_test
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_m2rnn(
     kernel_backend: KernelBackend,

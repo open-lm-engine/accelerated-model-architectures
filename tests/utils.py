@@ -2,29 +2,18 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from __future__ import annotations
-
 import random
 
 import pytest
 
 from xma import KernelBackend
-from xma.utils import is_jax_available, is_torch_available
+from xma.utils import is_torch_available
 
 
 if is_torch_available():
     import torch
     import torch.nn as nn
     from torch.testing import assert_close
-
-
-# markers for tests that only need a lazy, function-local `import torch`/`import jax` (no module-level use of
-# torch/jax objects, e.g. in `@pytest.mark.parametrize(...)` argument lists computed at collection time). Modules
-# that build parametrize arguments out of `torch.float32` etc. at module level can't use these markers, since the
-# module-level import already crashes before the marker gets a chance to run — use
-# `torch = pytest.importorskip("torch")` at the top of the file instead.
-torch_test = pytest.mark.skipif(not is_torch_available(), reason="torch not available")
-jax_test = pytest.mark.skipif(not is_jax_available(), reason="jax not available")
 
 
 def skip_if_incompatible_kernel_backend(kernel_backend: KernelBackend) -> None:

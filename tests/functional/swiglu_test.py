@@ -15,7 +15,6 @@ from ..utils import (
     get_2d_tensor_sizes,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
-    torch_test,
 )
 
 
@@ -64,7 +63,6 @@ if is_torch_available():
 
         return args
 
-    @torch_test
     @pytest.mark.parametrize(
         "size,dtype,kernel_backend,function", _generate_args(swiglu, add_triton=True, add_mps=True)
     )

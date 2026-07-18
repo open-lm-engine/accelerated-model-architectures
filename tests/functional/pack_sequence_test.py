@@ -9,12 +9,7 @@ import pytest
 from xma import KernelBackend
 from xma.utils import is_torch_available
 
-from ..utils import (
-    assert_equal_tensors,
-    get_random_duplicated_tensors,
-    skip_if_incompatible_kernel_backend,
-    torch_test,
-)
+from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
 
 
 def _get_problem_shapes(packed: bool) -> list[tuple[int]]:
@@ -33,7 +28,6 @@ if is_torch_available():
 
     from xma import pack_sequence, unpack_sequence
 
-    @torch_test
     @pytest.mark.parametrize("size", _get_problem_shapes(False))
     @pytest.mark.parametrize("cu_seqlens", [[0, 70, 170, 295, 393, 412, 515, 691]])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
@@ -77,7 +71,6 @@ if is_torch_available():
         assert_equal_tensors(z_kernel, z_expected, True)
         assert_equal_tensors(x_kernel.grad, x_expected.grad, True)
 
-    @torch_test
     @pytest.mark.parametrize("size", _get_problem_shapes(True))
     @pytest.mark.parametrize("cu_seqlens", [[0, 70, 170, 295, 393, 412, 515, 691]])
     @pytest.mark.parametrize("sequence_length", [1000])

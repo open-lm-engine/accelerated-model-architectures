@@ -14,7 +14,6 @@ from ..utils import (
     assert_equal_tensors,
     collect_gradients_from_module_and_zero_grads,
     skip_if_incompatible_kernel_backend,
-    torch_test,
 )
 from .rnn_test import _get_packed_tensor_inputs
 
@@ -34,7 +33,6 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
     return result
 
 
-@torch_test
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
 @pytest.mark.parametrize("input_shape", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])

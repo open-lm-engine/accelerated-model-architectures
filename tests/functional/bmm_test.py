@@ -9,7 +9,7 @@ import pytest
 from xma import KernelBackend, set_seed
 from xma.utils import is_torch_available
 
-from ..utils import assert_equal_tensors, get_2d_tensor_sizes, skip_if_incompatible_kernel_backend, torch_test
+from ..utils import assert_equal_tensors, get_2d_tensor_sizes, skip_if_incompatible_kernel_backend
 
 
 _SEED = 42
@@ -20,7 +20,6 @@ if is_torch_available():
 
     from xma import bmm, set_seed
 
-    @torch_test
     @pytest.mark.parametrize("size", get_2d_tensor_sizes())
     @pytest.mark.parametrize("is_A_transposed", [False, True])
     @pytest.mark.parametrize("is_B_transposed", [False, True])
