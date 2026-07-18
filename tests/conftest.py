@@ -4,7 +4,7 @@
 
 import os
 
-from xma.utils import is_torch_available
+from xma import is_torch_available
 
 
 def pytest_configure(config) -> None:
