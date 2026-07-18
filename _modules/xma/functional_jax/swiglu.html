@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.functional.continuous_count - XMA documentation</title>
+        <title>xma.functional_jax.swiglu - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -258,60 +258,40 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <h1>Source code for xma.functional.continuous_count</h1><div class="highlight"><pre>
+          <h1>Source code for xma.functional_jax.swiglu</h1><div class="highlight"><pre>
 <span></span><span class="c1"># **************************************************</span>
 <span class="c1"># Copyright (c) 2026, Mayank Mishra</span>
 <span class="c1"># **************************************************</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">Accelerator</span><span class="p">,</span> <span class="n">KernelBackend</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_cute_dsl_available</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.pallas_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_swiglu_pallas_jax</span>
 
 
-<span class="k">if</span> <span class="n">is_cute_dsl_available</span><span class="p">():</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.cuda_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_continuous_count_cuda</span>
-
-
-<div class="viewcode-block" id="continuous_count">
-<a class="viewcode-back" href="../../../xma.functional.continuous_count.html#xma.functional.continuous_count.continuous_count">[docs]</a>
-<span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">continuous_count</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">bins</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    counts the number of occurances of the values [0, 1, ..., `bins`) in the input tensor (`bins` is excluded).</span>
-<span class="sd">    NOTE: the user is responsible for ensuring that the values lie in the valid range, any values outside this</span>
-<span class="sd">    range are ignored and not counted.</span>
-
-<span class="sd">    :param x: input tensor</span>
-<span class="sd">    :type x: torch.Tensor</span>
-<span class="sd">    :param bins: values [0, 1, ..., `bins`) are counted (`bins` is excluded)</span>
-<span class="sd">    :type bins: int</span>
-<span class="sd">    :param kernel_backend: KernelBackend</span>
-<span class="sd">    :type kernel_backend: KernelBackend | None</span>
-<span class="sd">    :return: output tensor</span>
-<span class="sd">    :rtype: Tensor</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">if</span> <span class="n">bins</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">numel</span><span class="p">()],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">uint32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-
-    <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;x should be 1-dimensional&quot;</span>
-    <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">in</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">int32</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">]</span>
+<div class="viewcode-block" id="swiglu_jax">
+<a class="viewcode-back" href="../../../xma.functional_jax.swiglu.html#xma.functional_jax.swiglu.swiglu_jax">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">swiglu_jax</span><span class="p">(</span><span class="n">gate</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">up</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="n">gate</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">up</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s2">&quot;gate and up should have the same shape&quot;</span>
 
     <span class="k">if</span> <span class="n">kernel_backend</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">kernel_backend</span> <span class="o">=</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">get_kernel_backend</span><span class="p">()</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">kernel_backend</span><span class="o">.</span><span class="n">verify_accelerator</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">cuda</span><span class="p">:</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">bins</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">uint32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="n">_continuous_count_cuda</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">torch</span><span class="p">:</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">minlength</span><span class="o">=</span><span class="n">bins</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">pallas</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">_swiglu_pallas_jax</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">up</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">jax</span><span class="p">:</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="n">gate</span><span class="o">.</span><span class="n">dtype</span>
+
+        <span class="n">gate</span> <span class="o">=</span> <span class="n">gate</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">up</span> <span class="o">=</span> <span class="n">up</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">up</span> <span class="o">*</span> <span class="n">gate</span> <span class="o">*</span> <span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">gate</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected kernel_backend (</span><span class="si">{</span><span class="n">kernel_backend</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">y</span></div>
+    <span class="k">return</span> <span class="n">x</span></div>
 
 </pre></div>
         </article>
