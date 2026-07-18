@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import torch
 from torch.distributed.tensor import DTensor
-from torch.optim.sgd import _multi_tensor_sgd, _single_tensor_sgd
+from torch.optim.sgd import _multi_tensor_sgd
 
 from ...accelerator import Accelerator, KernelBackend
 from ...utils import is_cute_dsl_available, is_triton_available
