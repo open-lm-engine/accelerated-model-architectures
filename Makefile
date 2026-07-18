@@ -9,6 +9,23 @@ num_accelerators ?= $(shell uv run python -c "import torch; n=torch.cuda.device_
 test:
 	uv run --extra dev --extra $(accelerator) pytest -n $(num_accelerators) tests
 
+test-cpu:
+	uv run --extra dev --extra cpu pytest tests
+
+test-mps:
+	uv run --extra dev --extra mps pytest tests
+
+test-cuda:
+	uv run --extra dev --extra cuda pytest -n $(num_accelerators) tests
+
+# torch-xla and jax share a single TPU runtime per host, so unlike CUDA they aren't split across xdist workers
+# here - multiple workers would race each other for the TPU chip instead of getting a device each.
+test-torch-xla:
+	uv run --extra dev --extra torch-xla pytest tests
+
+test-jax:
+	uv run --extra dev --extra tpu pytest tests
+
 website:
 	uv run --extra dev python tools/build_docs.py
 
