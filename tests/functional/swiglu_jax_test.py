@@ -8,10 +8,9 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from xma import KernelBackend
-from xma.utils import is_jax_available
+from xma import KernelBackend, is_jax_available
 
-from ..utils import get_2d_tensor_sizes, jax_test
+from ..utils import get_2d_tensor_sizes
 
 
 def _generate_args() -> list:
@@ -30,7 +29,6 @@ if is_jax_available():
 
     from xma import swiglu_jax
 
-    @jax_test
     @pytest.mark.parametrize("size,dtype", _generate_args())
     def test_swiglu_jax(size: tuple[int, int], dtype: str) -> None:
         jax_dtype = getattr(jnp, dtype)

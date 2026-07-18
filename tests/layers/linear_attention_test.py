@@ -6,7 +6,7 @@ from itertools import product
 
 import pytest
 
-from xma import KernelBackend, is_torch_available, set_seed
+from xma import KernelBackend, is_torch_available
 
 from ..utils import assert_equal_tensors, skip_if_incompatible_kernel_backend
 from .rnn_test import _get_packed_tensor_inputs
