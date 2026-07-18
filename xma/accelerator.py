@@ -7,19 +7,20 @@ from __future__ import annotations
 from enum import Enum
 from functools import lru_cache
 
-import torch
+from .utils import is_torch_available, is_torch_neuronx_available, is_torch_xla_available
 
-from .utils import is_torch_neuronx_available, is_torch_xla_available
 
+if is_torch_available():
+    import torch
 
 if is_torch_xla_available():
     from torch_xla.core.xla_model import wait_device_ops as xla_wait_device_ops
     from torch_xla.core.xla_model import xla_device
 
 
-_IS_ROCM_AVAILABLE = torch.version.hip is not None
-_IS_CUDA_AVAILABLE = torch.cuda.is_available()
-_IS_MPS_AVAILABLE = torch.mps.is_available()
+_IS_ROCM_AVAILABLE = is_torch_available() and torch.version.hip is not None
+_IS_CUDA_AVAILABLE = is_torch_available() and torch.cuda.is_available()
+_IS_MPS_AVAILABLE = is_torch_available() and torch.mps.is_available()
 
 
 class KernelBackend(Enum):

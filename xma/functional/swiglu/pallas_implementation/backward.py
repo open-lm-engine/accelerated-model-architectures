@@ -17,7 +17,6 @@ import jax.experimental.pallas.tpu as pltpu
 import jax.numpy as jnp
 from jax.nn import sigmoid
 
-from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
@@ -68,6 +67,7 @@ def _swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tu
 
 
 if is_torch_xla_available():
+    from ....custom_op import xma_op
 
     def _fake_func(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         assert g.is_contiguous()

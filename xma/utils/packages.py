@@ -15,6 +15,18 @@ def is_cute_dsl_available() -> bool:
 
 
 try:
+    import torch
+
+    _IS_TORCH_AVAILABLE = True
+except ImportError:
+    _IS_TORCH_AVAILABLE = False
+
+
+def is_torch_available() -> bool:
+    return _IS_TORCH_AVAILABLE
+
+
+try:
     import torch_neuronx
 
     _IS_TORCH_NEURONX_AVAILABLE = True
