@@ -6,9 +6,17 @@ from typing import Callable
 
 import pytest
 
-from xma import KernelBackend, is_torch_available
 
-from ..utils import get_1d_tensor_sizes, skip_if_incompatible_kernel_backend
+torch = pytest.importorskip("torch")
+
+from xma import KernelBackend, fused_residual_add_rmsnorm, set_seed
+
+from ..utils import (
+    assert_equal_tensors,
+    get_1d_tensor_sizes,
+    get_random_duplicated_tensors,
+    skip_if_incompatible_kernel_backend,
+)
 
 
 _EPSILON = 1e-5
@@ -23,115 +31,109 @@ def _get_sizes() -> list[tuple]:
     return sizes
 
 
-if is_torch_available():
-    import torch
+@pytest.mark.parametrize("size", _get_sizes())
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
+@pytest.mark.parametrize("dtype", [torch.float32])
+@pytest.mark.parametrize("memory_efficient", [False, True])
+@pytest.mark.parametrize("has_weight", [False, True])
+@pytest.mark.parametrize("multiplier", [None, 0.9])
+@pytest.mark.parametrize(
+    "function",
+    [
+        fused_residual_add_rmsnorm,
+        torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
+    ],
+)
+@torch._dynamo.config.patch(recompile_limit=1024)
+def test_fused_residual_add_rmsnorm(
+    size: tuple[int] | int,
+    kernel_backend: KernelBackend,
+    dtype: torch.dtype,
+    memory_efficient: bool,
+    has_weight: bool,
+    multiplier: float | None,
+    function: Callable,
+) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-    from xma import fused_residual_add_rmsnorm, set_seed
+    set_seed(_SEED)
 
-    from ..utils import assert_equal_tensors, get_random_duplicated_tensors
+    x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
+    residual_kernel, residual_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-    @pytest.mark.parametrize("size", _get_sizes())
-    @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
-    @pytest.mark.parametrize("dtype", [torch.float32])
-    @pytest.mark.parametrize("memory_efficient", [False, True])
-    @pytest.mark.parametrize("has_weight", [False, True])
-    @pytest.mark.parametrize("multiplier", [None, 0.9])
-    @pytest.mark.parametrize(
-        "function",
-        [
-            fused_residual_add_rmsnorm,
-            torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
-        ],
+    if has_weight:
+        weight_kernel, weight_expected = get_random_duplicated_tensors((size[-1],), device=device, dtype=dtype)
+    else:
+        weight_kernel = None
+        weight_expected = None
+
+    z_kernel, r_kernel = function(
+        x=x_kernel,
+        residual=residual_kernel,
+        weight=weight_kernel,
+        eps=_EPSILON,
+        multiplier=multiplier,
+        memory_efficient=memory_efficient,
+        kernel_backend=kernel_backend,
     )
-    @torch._dynamo.config.patch(recompile_limit=1024)
-    def test_fused_residual_add_rmsnorm(
-        size: tuple[int] | int,
-        kernel_backend: KernelBackend,
-        dtype: torch.dtype,
-        memory_efficient: bool,
-        has_weight: bool,
-        multiplier: float | None,
-        function: Callable,
-    ) -> None:
-        skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-        set_seed(_SEED)
+    z_expected, r_expected = fused_residual_add_rmsnorm(
+        x=x_expected,
+        residual=residual_expected,
+        weight=weight_expected,
+        eps=_EPSILON,
+        multiplier=multiplier,
+        kernel_backend=KernelBackend.torch,
+    )
 
-        x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
-        residual_kernel, residual_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
+    z_kernel = z_kernel * 2 + r_kernel * 3
+    z_expected = z_expected * 2 + r_expected * 3
 
-        if has_weight:
-            weight_kernel, weight_expected = get_random_duplicated_tensors((size[-1],), device=device, dtype=dtype)
-        else:
-            weight_kernel = None
-            weight_expected = None
+    assert_equal_tensors(z_kernel, z_expected, False)
 
-        z_kernel, r_kernel = function(
-            x=x_kernel,
-            residual=residual_kernel,
-            weight=weight_kernel,
-            eps=_EPSILON,
-            multiplier=multiplier,
-            memory_efficient=memory_efficient,
-            kernel_backend=kernel_backend,
-        )
+    z_kernel.sum().backward()
+    z_expected.sum().backward()
 
-        z_expected, r_expected = fused_residual_add_rmsnorm(
-            x=x_expected,
-            residual=residual_expected,
-            weight=weight_expected,
-            eps=_EPSILON,
-            multiplier=multiplier,
-            kernel_backend=KernelBackend.torch,
-        )
+    assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
+    assert_equal_tensors(residual_kernel.grad, residual_expected.grad, False)
 
-        z_kernel = z_kernel * 2 + r_kernel * 3
-        z_expected = z_expected * 2 + r_expected * 3
+    if has_weight:
+        assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=7.7e-5, rtol_float32=0)
 
-        assert_equal_tensors(z_kernel, z_expected, False)
 
-        z_kernel.sum().backward()
-        z_expected.sum().backward()
+# def test_fused_residual_add_rmsnorm_kernel_replacement() -> None:
+#     class Model(nn.Module):
+#         def __init__(self, shape: int) -> Model:
+#             super().__init__()
+#             self.norm = nn.RMSNorm(shape)
+#             self.l1 = nn.Linear(shape, shape)
+#             self.l2 = nn.Linear(shape, shape)
 
-        assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
-        assert_equal_tensors(residual_kernel.grad, residual_expected.grad, False)
+#         def forward(self, x: torch.Tensor) -> torch.Tensor:
+#             x = self.l1(x)
+#             r = x
+#             x = x + r
+#             x = self.norm(x)
+#             x = self.l2(x)
+#             return x
 
-        if has_weight:
-            assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=7.7e-5, rtol_float32=0)
+#     size = (4, 7)
 
-    # def test_fused_residual_add_rmsnorm_kernel_replacement() -> None:
-    #     class Model(nn.Module):
-    #         def __init__(self, shape: int) -> Model:
-    #             super().__init__()
-    #             self.norm = nn.RMSNorm(shape)
-    #             self.l1 = nn.Linear(shape, shape)
-    #             self.l2 = nn.Linear(shape, shape)
+#     device = torch.cuda.current_device()
+#     dtype = torch.float32
 
-    #         def forward(self, x: torch.Tensor) -> torch.Tensor:
-    #             x = self.l1(x)
-    #             r = x
-    #             x = x + r
-    #             x = self.norm(x)
-    #             x = self.l2(x)
-    #             return x
+#     with torch.device(device):
+#         model = Model(size[-1])
 
-    #     size = (4, 7)
+#     x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
-    #     device = torch.cuda.current_device()
-    #     dtype = torch.float32
+#     reset_counters()
 
-    #     with torch.device(device):
-    #         model = Model(size[-1])
+#     enable_kernels([fused_residual_add_rmsnorm.__name__])
+#     model = torch.compile(model)
 
-    #     x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+#     with enable_counters():
+#         model(x)
 
-    #     reset_counters()
-
-    #     enable_kernels([fused_residual_add_rmsnorm.__name__])
-    #     model = torch.compile(model)
-
-    #     with enable_counters():
-    #         model(x)
-
-    #     assert get_counter_value(fused_residual_add_rmsnorm) == 2
+#     assert get_counter_value(fused_residual_add_rmsnorm) == 2
