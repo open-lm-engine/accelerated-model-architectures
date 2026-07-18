@@ -6,14 +6,12 @@ import random
 
 import pytest
 
-from xma import KernelBackend
-from xma.utils import is_torch_available
+from xma import KernelBackend, is_torch_available
 
 
 if is_torch_available():
     import torch
     import torch.nn as nn
-    from torch.testing import assert_close
 
 
 def skip_if_incompatible_kernel_backend(kernel_backend: KernelBackend) -> None:
@@ -84,11 +82,11 @@ def assert_equal_tensors(
         dtype = x.dtype
 
         if dtype == torch.float32:
-            assert_close(x, y, rtol=rtol_float32, atol=atol_float32)
+            torch.testing.assert_close(x, y, rtol=rtol_float32, atol=atol_float32)
         elif dtype == torch.float16:
-            assert_close(x, y, rtol=rtol_float16, atol=atol_float16)
+            torch.testing.assert_close(x, y, rtol=rtol_float16, atol=atol_float16)
         elif dtype == torch.bfloat16:
-            assert_close(x, y, rtol=rtol_bfloat16, atol=atol_bfloat16)
+            torch.testing.assert_close(x, y, rtol=rtol_bfloat16, atol=atol_bfloat16)
         else:
             raise ValueError(f"unexpected dtype ({dtype})")
 
