@@ -1,0 +1,65 @@
+# **************************************************
+# Copyright (c) 2026, Mayank Mishra
+# **************************************************
+
+from itertools import product
+
+import numpy as np
+import pytest
+
+from xma import KernelBackend
+
+from ..utils import get_2d_tensor_sizes, skip_if_incompatible_kernel_backend
+
+
+def _generate_args() -> list:
+    return list(product(get_2d_tensor_sizes(), ["float32", "bfloat16"]))
+
+
+_TOLERANCES = {
+    "float32": {"atol": 1e-5, "rtol": 1e-5},
+    "bfloat16": {"atol": 1e-2, "rtol": 1e-2},
+}
+
+
+@pytest.mark.parametrize("size,dtype", _generate_args())
+def test_swiglu_jax(size: tuple[int, int], dtype: str) -> None:
+    skip_if_incompatible_kernel_backend(KernelBackend.pallas)
+
+    import jax
+    import jax.numpy as jnp
+
+    from xma.functional.swiglu.pallas_implementation import swiglu_jax
+
+    jax_dtype = getattr(jnp, dtype)
+    tolerance = _TOLERANCES[dtype]
+
+    key_gate, key_up = jax.random.split(jax.random.PRNGKey(0))
+    gate = jax.random.normal(key_gate, size, dtype=jnp.float32).astype(jax_dtype)
+    up = jax.random.normal(key_up, size, dtype=jnp.float32).astype(jax_dtype)
+
+    def reference(gate: jax.Array, up: jax.Array) -> jax.Array:
+        gate = gate.astype(jnp.float32)
+        up = up.astype(jnp.float32)
+
+        return (up * gate * jax.nn.sigmoid(gate)).astype(jax_dtype)
+
+    y_kernel = swiglu_jax(gate, up)
+    y_expected = reference(gate, up)
+
+    np.testing.assert_allclose(
+        np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance
+    )
+
+    loss_kernel = lambda gate, up: swiglu_jax(gate, up).astype(jnp.float32).sum()
+    loss_reference = lambda gate, up: reference(gate, up).astype(jnp.float32).sum()
+
+    dgate_kernel, dup_kernel = jax.grad(loss_kernel, argnums=(0, 1))(gate, up)
+    dgate_expected, dup_expected = jax.grad(loss_reference, argnums=(0, 1))(gate, up)
+
+    np.testing.assert_allclose(
+        np.asarray(dgate_kernel, dtype=np.float32), np.asarray(dgate_expected, dtype=np.float32), **tolerance
+    )
+    np.testing.assert_allclose(
+        np.asarray(dup_kernel, dtype=np.float32), np.asarray(dup_expected, dtype=np.float32), **tolerance
+    )

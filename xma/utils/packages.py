@@ -15,6 +15,18 @@ def is_cute_dsl_available() -> bool:
 
 
 try:
+    import jax
+
+    _IS_JAX_AVAILABLE = True
+except ImportError:
+    _IS_JAX_AVAILABLE = False
+
+
+def is_jax_available() -> bool:
+    return _IS_JAX_AVAILABLE
+
+
+try:
     import torch_neuronx
 
     _IS_TORCH_NEURONX_AVAILABLE = True

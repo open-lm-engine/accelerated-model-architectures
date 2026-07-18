@@ -11,6 +11,7 @@ from ...math import divide_if_divisible
 from ...utils import (
     empty_like_contiguous,
     is_cute_dsl_available,
+    is_jax_available,
     is_torch_neuronx_available,
     is_torch_xla_available,
     is_triton_available,
@@ -30,6 +31,9 @@ if is_cute_dsl_available():
     )
 
     _FUNCTIONS[KernelBackend.cuda] = (_swiglu_forward_cuda, _swiglu_backward_cuda)
+
+if is_jax_available():
+    from .pallas_implementation import swiglu_jax
 
 if is_torch_neuronx_available():
     from .nki_implementation import _swiglu_backward_nki, _swiglu_forward_nki
