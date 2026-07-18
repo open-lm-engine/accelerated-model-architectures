@@ -3,27 +3,21 @@
 # **************************************************
 
 import jax
+import jax.numpy as jnp
 
-from .backward import _swiglu_backward_pallas, _swiglu_backward_pallas_jit
-from .forward import _swiglu_forward_pallas, _swiglu_forward_pallas_jit
+from ....accelerator import KernelBackend
+from ....utils import is_torch_xla_available
+from .backward import _swiglu_backward_pallas_jit
+from .forward import _swiglu_forward_pallas_jit
+
+
+if is_torch_xla_available():
+    from .backward import _swiglu_backward_pallas
+    from .forward import _swiglu_forward_pallas
 
 
 @jax.custom_vjp
-def swiglu_jax(gate: jax.Array, up: jax.Array) -> jax.Array:
-    """
-    computes swiglu activation as `up * gate * sigmoid(gate)` using the TPU pallas kernel, differentiable under
-    `jax.grad`/`jax.vjp`
-
-    :param gate: `gate` activation array
-    :type gate: jax.Array
-    :param up: `up` activation array
-    :type up: jax.Array
-    :return: output array
-    :rtype: jax.Array
-    """
-
-    assert gate.shape == up.shape, "gate and up should have the same shape"
-
+def _swiglu_pallas_jax(gate: jax.Array, up: jax.Array) -> jax.Array:
     original_shape = gate.shape
     gate = gate.reshape(-1, original_shape[-1])
     up = up.reshape(-1, original_shape[-1])
@@ -33,11 +27,11 @@ def swiglu_jax(gate: jax.Array, up: jax.Array) -> jax.Array:
     return y.reshape(original_shape)
 
 
-def _swiglu_jax_fwd(gate: jax.Array, up: jax.Array) -> tuple[jax.Array, tuple[jax.Array, jax.Array]]:
-    return swiglu_jax(gate, up), (gate, up)
+def _swiglu_pallas_jax_fwd(gate: jax.Array, up: jax.Array) -> tuple[jax.Array, tuple[jax.Array, jax.Array]]:
+    return _swiglu_pallas_jax(gate, up), (gate, up)
 
 
-def _swiglu_jax_bwd(residuals: tuple[jax.Array, jax.Array], dy: jax.Array) -> tuple[jax.Array, jax.Array]:
+def _swiglu_pallas_jax_bwd(residuals: tuple[jax.Array, jax.Array], dy: jax.Array) -> tuple[jax.Array, jax.Array]:
     gate, up = residuals
     original_shape = gate.shape
 
@@ -50,4 +44,29 @@ def _swiglu_jax_bwd(residuals: tuple[jax.Array, jax.Array], dy: jax.Array) -> tu
     return dg.reshape(original_shape), du.reshape(original_shape)
 
 
-swiglu_jax.defvjp(_swiglu_jax_fwd, _swiglu_jax_bwd)
+_swiglu_pallas_jax.defvjp(_swiglu_pallas_jax_fwd, _swiglu_pallas_jax_bwd)
+
+
+def swiglu_jax(gate: jax.Array, up: jax.Array, *, kernel_backend: KernelBackend | None = None) -> jax.Array:
+    assert gate.shape == up.shape, "gate and up should have the same shape"
+
+    is_tpu = jax.default_backend() == "tpu"
+
+    if kernel_backend is None:
+        kernel_backend = KernelBackend.pallas if is_tpu else KernelBackend.jax
+
+    if kernel_backend == KernelBackend.pallas:
+        assert is_tpu, "KernelBackend.pallas is only supported on TPU"
+        x = _swiglu_pallas_jax(gate, up)
+    elif kernel_backend == KernelBackend.jax:
+        dtype = gate.dtype
+
+        gate = gate.astype(jnp.float32)
+        up = up.astype(jnp.float32)
+
+        x = up * gate * jax.nn.sigmoid(gate)
+        x = x.astype(dtype)
+    else:
+        raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+
+    return x
