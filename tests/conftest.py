@@ -4,7 +4,7 @@
 
 import os
 
-from xma import is_torch_available
+from xma import Accelerator, is_torch_available
 
 
 def pytest_configure(config) -> None:
@@ -12,12 +12,10 @@ def pytest_configure(config) -> None:
     if worker_id is None:
         return
 
-    if not is_torch_available():
+    if not is_torch_available() or Accelerator.get_accelerator() not in [Accelerator.cuda, Accelerator.rocm]:
         return
 
-    import torch
-
-    gpu_count = torch.cuda.device_count()
+    gpu_count = Accelerator.device_count()
     if gpu_count == 0:
         return
 
