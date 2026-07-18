@@ -7,7 +7,7 @@ from typing import Callable
 
 import pytest
 
-from xma import KernelBackend, fused_linear_cross_entropy, set_seed
+from xma import KernelBackend, set_seed
 from xma.utils import is_torch_available
 
 from ..utils import (
@@ -24,6 +24,8 @@ _SEED = 42
 
 if is_torch_available():
     import torch
+
+    from xma import fused_linear_cross_entropy
 
     @pytest.mark.parametrize("size", get_2d_tensor_sizes())
     @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])

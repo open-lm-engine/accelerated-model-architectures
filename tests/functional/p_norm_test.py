@@ -6,7 +6,7 @@ from typing import Callable
 
 import pytest
 
-from xma import KernelBackend, p_norm, set_seed
+from xma import KernelBackend, set_seed
 from xma.utils import is_torch_available
 
 from ..utils import (
@@ -23,6 +23,8 @@ _SEED = 42
 
 if is_torch_available():
     import torch
+
+    from xma import p_norm
 
     @torch_test
     @pytest.mark.parametrize("size", _get_sizes())

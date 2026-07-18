@@ -6,7 +6,7 @@ from typing import Callable
 
 import pytest
 
-from xma import KernelBackend, fused_residual_add_rmsnorm, set_seed
+from xma import KernelBackend, set_seed
 from xma.utils import is_torch_available
 
 from ..utils import (
@@ -32,6 +32,8 @@ def _get_sizes() -> list[tuple]:
 
 if is_torch_available():
     import torch
+
+    from xma import fused_residual_add_rmsnorm
 
     @pytest.mark.parametrize("size", _get_sizes())
     @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
