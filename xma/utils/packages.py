@@ -15,18 +15,6 @@ def is_cute_dsl_available() -> bool:
 
 
 try:
-    import jax
-
-    _IS_JAX_AVAILABLE = True
-except ImportError:
-    _IS_JAX_AVAILABLE = False
-
-
-def is_jax_available() -> bool:
-    return _IS_JAX_AVAILABLE
-
-
-try:
     import torch_neuronx
 
     _IS_TORCH_NEURONX_AVAILABLE = True
@@ -48,6 +36,27 @@ except ImportError:
 
 def is_torch_xla_available() -> bool:
     return _IS_TORCH_XLA_AVAILABLE
+
+
+if is_torch_xla_available():
+    # jax_import_guard() must run before JAX is imported anywhere in the process, so JAX attaches to the same
+    # libtpu runtime torch_xla is using instead of racing it for the TPU chip. This has to happen here since
+    # `import jax` below is the first JAX import reached by importing the `xma` package.
+    from torch_xla.experimental.custom_kernel import jax_import_guard
+
+    jax_import_guard()
+
+
+try:
+    import jax
+
+    _IS_JAX_AVAILABLE = True
+except ImportError:
+    _IS_JAX_AVAILABLE = False
+
+
+def is_jax_available() -> bool:
+    return _IS_JAX_AVAILABLE
 
 
 try:

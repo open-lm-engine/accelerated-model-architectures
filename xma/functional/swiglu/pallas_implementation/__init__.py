@@ -50,7 +50,9 @@ _swiglu_pallas_jax.defvjp(_swiglu_pallas_jax_fwd, _swiglu_pallas_jax_bwd)
 def swiglu_jax(gate: jax.Array, up: jax.Array, *, kernel_backend: KernelBackend | None = None) -> jax.Array:
     assert gate.shape == up.shape, "gate and up should have the same shape"
 
-    is_tpu = jax.default_backend() == "tpu"
+    # this codebase only ever treats torch_xla's presence as TPU (see Accelerator.get_accelerator), so skip the
+    # `jax.default_backend()` call in that case
+    is_tpu = True if is_torch_xla_available() else jax.default_backend() == "tpu"
 
     if kernel_backend is None:
         kernel_backend = KernelBackend.pallas if is_tpu else KernelBackend.jax
