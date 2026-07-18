@@ -42,11 +42,12 @@ cuda = [
     "nvidia-cutlass-dsl==4.6.0",
     "tabulate==0.10.0",
 ]
-tpu = [
+torch-xla = [
     "torch==2.8.0",
     "torch-xla[pallas,tpu]==2.8.0",
     "tabulate==0.10.0",
 ]
+tpu = ["jax[tpu]==0.6.2"]
 
 [tool.uv]
 conflicts = [
@@ -54,7 +55,7 @@ conflicts = [
         { extra = "cpu" },
         { extra = "mps" },
         { extra = "cuda" },
-        { extra = "tpu" },
+        { extra = "torch-xla" },
     ],
 ]
 
