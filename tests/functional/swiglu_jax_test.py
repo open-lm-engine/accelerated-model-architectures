@@ -7,9 +7,7 @@ from itertools import product
 import numpy as np
 import pytest
 
-from xma import KernelBackend
-
-from ..utils import get_2d_tensor_sizes, skip_if_incompatible_kernel_backend
+from ..utils import get_2d_tensor_sizes, skip_test_if_jax_unavailable
 
 
 def _generate_args() -> list:
@@ -24,12 +22,12 @@ _TOLERANCES = {
 
 @pytest.mark.parametrize("size,dtype", _generate_args())
 def test_swiglu_jax(size: tuple[int, int], dtype: str) -> None:
-    skip_if_incompatible_kernel_backend(KernelBackend.pallas)
+    skip_test_if_jax_unavailable()
 
     import jax
     import jax.numpy as jnp
 
-    from xma.functional.swiglu.pallas_implementation import swiglu_jax
+    from xma import swiglu_jax
 
     jax_dtype = getattr(jnp, dtype)
     tolerance = _TOLERANCES[dtype]

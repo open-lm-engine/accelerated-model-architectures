@@ -17,6 +17,14 @@ def skip_if_incompatible_kernel_backend(kernel_backend: KernelBackend) -> None:
         pytest.skip(f"device incompatible with kernel_backend ({kernel_backend})")
 
 
+def skip_test_if_jax_unavailable() -> None:
+    try:
+        import jax
+        import jax.numpy as jnp
+    except ImportError:
+        pytest.skip("jax not available, skipping test")
+
+
 def get_1d_tensor_sizes(log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50) -> set[int]:
     rng = random.Random(0)
     sizes = set()
