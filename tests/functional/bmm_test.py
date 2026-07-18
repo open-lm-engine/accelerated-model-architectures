@@ -7,14 +7,9 @@ from typing import Callable
 import pytest
 
 from xma import KernelBackend, bmm, set_seed
+from xma.utils import is_torch_available
 
-from ..utils import (
-    assert_equal_tensors,
-    get_2d_tensor_sizes,
-    is_torch_available,
-    skip_if_incompatible_kernel_backend,
-    torch_test,
-)
+from ..utils import assert_equal_tensors, get_2d_tensor_sizes, skip_if_incompatible_kernel_backend, torch_test
 
 
 _SEED = 42
