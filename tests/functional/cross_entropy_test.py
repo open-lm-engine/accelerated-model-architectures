@@ -5,7 +5,9 @@
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, cross_entropy, set_seed
 
@@ -14,12 +16,14 @@ from ..utils import (
     get_2d_tensor_sizes,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
+    torch_test,
 )
 
 
 _SEED = 42
 
 
+@torch_test
 @pytest.mark.parametrize("size", get_2d_tensor_sizes())
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])

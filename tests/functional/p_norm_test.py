@@ -7,17 +7,25 @@ from __future__ import annotations
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, p_norm, set_seed
 
-from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
+from ..utils import (
+    assert_equal_tensors,
+    get_random_duplicated_tensors,
+    skip_if_incompatible_kernel_backend,
+    torch_test,
+)
 from .fused_residual_add_rmsnorm_test import _get_sizes
 
 
 _SEED = 42
 
 
+@torch_test
 @pytest.mark.parametrize("size", _get_sizes())
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32])

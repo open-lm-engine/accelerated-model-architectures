@@ -7,7 +7,9 @@ from __future__ import annotations
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, fused_residual_add_rmsnorm, set_seed
 
@@ -16,6 +18,7 @@ from ..utils import (
     get_1d_tensor_sizes,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
+    torch_test,
 )
 
 
@@ -44,6 +47,7 @@ def _get_sizes() -> list[tuple]:
         torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
     ],
 )
+@torch_test
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_fused_residual_add_rmsnorm(
     size: tuple[int] | int,

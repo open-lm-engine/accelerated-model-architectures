@@ -5,7 +5,9 @@
 from itertools import product
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, MoE, set_seed
 
@@ -14,6 +16,7 @@ from ..utils import (
     collect_gradients_from_module_and_zero_grads,
     get_activation_function,
     skip_if_incompatible_kernel_backend,
+    torch_test,
 )
 
 
@@ -54,6 +57,7 @@ def _generate_args() -> list:
     "dtype,num_experts,num_experts_per_tok,hidden_size,intermediate_size,is_glu,kernel_backend,is_compiling",
     _generate_args(),
 )
+@torch_test
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_moe(
     dtype: torch.dtype,

@@ -7,14 +7,21 @@ from __future__ import annotations
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 import torch._inductor.config as config
 import torch.nn as nn
 
 from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
 from xma.inductor import _CallablePatternMatcherPass
 
-from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
+from ..utils import (
+    assert_equal_tensors,
+    get_random_duplicated_tensors,
+    skip_if_incompatible_kernel_backend,
+    torch_test,
+)
 from .fused_residual_add_rmsnorm_test import _get_sizes
 
 
@@ -22,6 +29,7 @@ _EPSILON = 1e-5
 _SEED = 42
 
 
+@torch_test
 @pytest.mark.parametrize("size", _get_sizes())
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
@@ -86,6 +94,7 @@ def test_rmsnorm(
         )
 
 
+@torch_test
 @pytest.mark.parametrize("size", [(4, 4)])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])

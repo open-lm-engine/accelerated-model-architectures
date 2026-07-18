@@ -6,7 +6,9 @@ from itertools import product
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, swiglu
 
@@ -15,6 +17,7 @@ from ..utils import (
     get_2d_tensor_sizes,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
+    torch_test,
 )
 
 
@@ -59,6 +62,7 @@ def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
     return args
 
 
+@torch_test
 @pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(swiglu, add_triton=True, add_mps=True))
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend, function: Callable) -> None:

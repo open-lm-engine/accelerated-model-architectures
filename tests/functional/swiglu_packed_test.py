@@ -5,17 +5,25 @@
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, ceil_divide, swiglu_packed
 
-from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
+from ..utils import (
+    assert_equal_tensors,
+    get_random_duplicated_tensors,
+    skip_if_incompatible_kernel_backend,
+    torch_test,
+)
 from .swiglu_test import _generate_args
 
 
 @pytest.mark.parametrize(
     "size,dtype,kernel_backend,function", _generate_args(swiglu_packed, add_triton=False, add_mps=False)
 )
+@torch_test
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_swiglu_packed(
     size: tuple[int],

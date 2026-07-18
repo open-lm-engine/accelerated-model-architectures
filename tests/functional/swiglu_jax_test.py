@@ -10,7 +10,7 @@ from numpy.testing import assert_allclose
 
 from xma import KernelBackend
 
-from ..utils import get_2d_tensor_sizes, skip_test_if_jax_unavailable
+from ..utils import get_2d_tensor_sizes, jax_test
 
 
 def _generate_args() -> list:
@@ -23,10 +23,9 @@ _TOLERANCES = {
 }
 
 
+@jax_test
 @pytest.mark.parametrize("size,dtype", _generate_args())
 def test_swiglu_jax(size: tuple[int, int], dtype: str) -> None:
-    skip_test_if_jax_unavailable()
-
     import jax
     import jax.numpy as jnp
 

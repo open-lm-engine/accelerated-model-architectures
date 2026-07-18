@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import SGD, KernelBackend
 
@@ -14,12 +16,14 @@ from ..utils import (
     get_1d_tensor_sizes,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
+    torch_test,
 )
 
 
 _LEARNING_RATE = 1e-3
 
 
+@torch_test
 @pytest.mark.parametrize("size", get_1d_tensor_sizes())
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("maximize", [True, False])

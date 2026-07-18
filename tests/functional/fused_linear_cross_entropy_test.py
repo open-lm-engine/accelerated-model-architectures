@@ -6,7 +6,9 @@ import random
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, fused_linear_cross_entropy, set_seed
 
@@ -15,6 +17,7 @@ from ..utils import (
     get_2d_tensor_sizes,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
+    torch_test,
 )
 
 
@@ -32,6 +35,7 @@ _SEED = 42
         torch.compile(fused_linear_cross_entropy, fullgraph=True),
     ],
 )
+@torch_test
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_fused_linear_cross_entropy(
     size: tuple[int],

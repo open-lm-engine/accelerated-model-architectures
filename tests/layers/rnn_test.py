@@ -3,7 +3,9 @@
 # **************************************************
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 import torch.nn as nn
 
 from xma import RNN, KernelBackend, set_seed
@@ -13,6 +15,7 @@ from ..utils import (
     collect_gradients_from_module_and_zero_grads,
     get_random_duplicated_tensors,
     skip_if_incompatible_kernel_backend,
+    torch_test,
 )
 
 
@@ -45,6 +48,7 @@ def _get_packed_tensor_inputs(
     return x_kernel, x_torch, input_state_kernel, input_state_torch
 
 
+@torch_test
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
 @pytest.mark.parametrize("input_shape", [(4, 1024, None), (None, None, [0, 7, 19, 27, 93])])

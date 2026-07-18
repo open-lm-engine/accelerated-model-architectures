@@ -5,17 +5,20 @@
 from typing import Callable
 
 import pytest
-import torch
+
+
+torch = pytest.importorskip("torch")
 
 from xma import KernelBackend, continuous_count, set_seed
 
-from ..utils import assert_equal_tensors, get_1d_tensor_sizes, skip_if_incompatible_kernel_backend
+from ..utils import assert_equal_tensors, get_1d_tensor_sizes, skip_if_incompatible_kernel_backend, torch_test
 
 
 _MAX_EXPERTS = 72
 _SEED = 42
 
 
+@torch_test
 @pytest.mark.parametrize("bins", get_1d_tensor_sizes())
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda])
 @pytest.mark.parametrize("dtype", [torch.long, torch.int])
