@@ -7,8 +7,11 @@ from __future__ import annotations
 from enum import Enum
 from functools import lru_cache
 
-from .utils import is_torch_available, is_torch_neuronx_available, is_torch_xla_available
+from .utils import is_jax_available, is_torch_available, is_torch_neuronx_available, is_torch_xla_available
 
+
+if is_jax_available():
+    import jax
 
 if is_torch_available():
     import torch
@@ -68,7 +71,7 @@ class Accelerator(Enum):
     @staticmethod
     @lru_cache
     def get_accelerator() -> Accelerator:
-        if is_torch_xla_available():
+        if is_torch_xla_available() or (is_jax_available() and jax.default_backend() == "tpu"):
             accelerator = Accelerator.tpu
         elif is_torch_neuronx_available():
             accelerator = Accelerator.trainium
