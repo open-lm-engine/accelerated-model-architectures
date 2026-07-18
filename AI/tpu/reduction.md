@@ -1,7 +1,3 @@
-<!-- **************************************************
-Copyright (c) 2026, Mayank Mishra
-************************************************** -->
-
 # Reduction
 Reduction/accumulation should only be performed over the last (innermost) dimensions of the grid, and the buffer should be initialized manually first.
 

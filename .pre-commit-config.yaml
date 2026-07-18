@@ -10,7 +10,7 @@ repos:
       - id: add-copyright
         name: add copyright header
         language: python
-        entry: python tools/copyright.py --repo . --header "Copyright (c) 2026, Mayank Mishra" --no-contributors
+        entry: python tools/copyright.py --repo . --header "Copyright (c) 2026, Mayank Mishra" --no-contributors --exclude AI
         types: [python]
         pass_filenames: false
       - id: check-copyright
