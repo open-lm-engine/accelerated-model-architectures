@@ -20,15 +20,12 @@ def _get_autotune_configs() -> list[triton.Config]:
 
 
 @triton.jit
-def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, NESTEROV, MAXIMIZE, IS_FIRST_STEP):
+def _sgd_step(W, dW, M, lr, weight_decay, momentum, dampening, NESTEROV, IS_FIRST_STEP):
     W = W.to(tl.float32)
     dW = dW.to(tl.float32)
 
     if M is not None:
         M = M.to(tl.float32)
-
-    if MAXIMIZE:
-        dW = -dW
 
     if weight_decay is not None:
         dW += weight_decay * W
@@ -64,7 +61,6 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
     N,
     lr,
     weight_decay,
-    MAXIMIZE: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(0)
@@ -84,7 +80,6 @@ def _single_tensor_sgd_triton_kernel_no_momentum(
         momentum=None,
         dampening=None,
         NESTEROV=False,
-        MAXIMIZE=MAXIMIZE,
         IS_FIRST_STEP=False,
     )
 
@@ -103,7 +98,6 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
     momentum,
     dampening,
     NESTEROV: tl.constexpr,
-    MAXIMIZE: tl.constexpr,
     IS_FIRST_STEP: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
@@ -125,7 +119,6 @@ def _single_tensor_sgd_triton_kernel_with_momentum(
         momentum=momentum,
         dampening=dampening,
         NESTEROV=NESTEROV,
-        MAXIMIZE=MAXIMIZE,
         IS_FIRST_STEP=IS_FIRST_STEP,
     )
 
@@ -143,7 +136,6 @@ def _single_tensor_sgd_triton(
     momentum: float,
     dampening: float,
     nesterov: bool,
-    maximize: bool,
     is_first_step: bool,
 ) -> None:
     N = W.numel()
@@ -155,7 +147,6 @@ def _single_tensor_sgd_triton(
         "N": N,
         "lr": lr,
         "weight_decay": None if weight_decay == 0 else weight_decay,
-        "MAXIMIZE": maximize,
     }
 
     if M is None:
