@@ -19,6 +19,7 @@ if is_torch_available():
 if is_torch_xla_available():
     from torch_xla.core.xla_model import wait_device_ops as xla_wait_device_ops
     from torch_xla.core.xla_model import xla_device
+    from torch_xla.core.xla_model import xrt_world_size as xla_device_count
 
 
 _IS_ROCM_AVAILABLE = is_torch_available() and torch.version.hip is not None
@@ -100,6 +101,23 @@ class Accelerator(Enum):
             device = "cpu"
 
         return device
+
+    @staticmethod
+    def device_count() -> int:
+        accelerator = Accelerator.get_accelerator()
+
+        if accelerator in [Accelerator.cuda, Accelerator.rocm]:
+            count = torch.cuda.device_count()
+        elif accelerator == Accelerator.mps:
+            count = 1
+        elif accelerator == Accelerator.tpu:
+            count = xla_device_count() if is_torch_xla_available() else jax.device_count()
+        elif accelerator == Accelerator.trainium:
+            count = torch.neuron.device_count()
+        elif accelerator == Accelerator.cpu:
+            count = 1
+
+        return count
 
     @staticmethod
     @lru_cache
