@@ -6,7 +6,7 @@ from itertools import product
 
 import pytest
 
-from xma import KernelBackend, is_torch_available, set_seed
+from xma import KernelBackend, is_torch_available
 
 from ..utils import (
     assert_equal_tensors,
@@ -37,7 +37,7 @@ if is_torch_available():
     import torch
     import torch.nn as nn
 
-    from xma import M2RNN
+    from xma import M2RNN, set_seed
 
     def _generate_args() -> list:
         args = list(
