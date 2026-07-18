@@ -6,6 +6,7 @@ from itertools import product
 
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
 
 from ..utils import get_2d_tensor_sizes, skip_test_if_jax_unavailable
 
@@ -45,9 +46,7 @@ def test_swiglu_jax(size: tuple[int, int], dtype: str) -> None:
     y_kernel = swiglu_jax(gate, up)
     y_expected = reference(gate, up)
 
-    np.testing.assert_allclose(
-        np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance
-    )
+    assert_allclose(np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance)
 
     loss_kernel = lambda gate, up: swiglu_jax(gate, up).astype(jnp.float32).sum()
     loss_reference = lambda gate, up: reference(gate, up).astype(jnp.float32).sum()
@@ -55,9 +54,8 @@ def test_swiglu_jax(size: tuple[int, int], dtype: str) -> None:
     dgate_kernel, dup_kernel = jax.grad(loss_kernel, argnums=(0, 1))(gate, up)
     dgate_expected, dup_expected = jax.grad(loss_reference, argnums=(0, 1))(gate, up)
 
-    np.testing.assert_allclose(
+    assert_allclose(
         np.asarray(dgate_kernel, dtype=np.float32), np.asarray(dgate_expected, dtype=np.float32), **tolerance
     )
-    np.testing.assert_allclose(
-        np.asarray(dup_kernel, dtype=np.float32), np.asarray(dup_expected, dtype=np.float32), **tolerance
-    )
+
+    assert_allclose(np.asarray(dup_kernel, dtype=np.float32), np.asarray(dup_expected, dtype=np.float32), **tolerance)
