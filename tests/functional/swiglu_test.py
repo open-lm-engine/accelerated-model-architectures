@@ -7,10 +7,8 @@ from typing import Callable
 
 import pytest
 
-
-torch = pytest.importorskip("torch")
-
 from xma import KernelBackend, swiglu
+from xma.utils import is_torch_available
 
 from ..utils import (
     assert_equal_tensors,
@@ -21,69 +19,79 @@ from ..utils import (
 )
 
 
-def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
-    args = list(
-        product(
-            get_2d_tensor_sizes(),
-            [torch.float32, torch.float16, torch.bfloat16],
-            [KernelBackend.cuda] + ([KernelBackend.triton] if add_triton else []),
-            [function, torch.compile(function, fullgraph=True)],
-        )
-    )
+if is_torch_available():
+    import torch
 
-    args += list(
-        product(
-            [(4100, 3700)],
-            [torch.float32, torch.float16, torch.bfloat16],
-            [KernelBackend.nki],
-            [function],
-        )
-    )
-
-    args += list(
-        product(
-            [(4100, 3700)],
-            [torch.float32, torch.bfloat16],
-            [KernelBackend.pallas],
-            [function],
-        )
-    )
-
-    if add_mps:
-        args += list(
+    def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
+        args = list(
             product(
-                [(4100, 3700)],
+                get_2d_tensor_sizes(),
                 [torch.float32, torch.float16, torch.bfloat16],
-                [KernelBackend.mps],
+                [KernelBackend.cuda] + ([KernelBackend.triton] if add_triton else []),
                 [function, torch.compile(function, fullgraph=True)],
             )
         )
 
-    return args
+        args += list(
+            product(
+                [(4100, 3700)],
+                [torch.float32, torch.float16, torch.bfloat16],
+                [KernelBackend.nki],
+                [function],
+            )
+        )
 
+        args += list(
+            product(
+                [(4100, 3700)],
+                [torch.float32, torch.bfloat16],
+                [KernelBackend.pallas],
+                [function],
+            )
+        )
 
-@torch_test
-@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(swiglu, add_triton=True, add_mps=True))
-@torch._dynamo.config.patch(recompile_limit=1024)
-def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend, function: Callable) -> None:
-    skip_if_incompatible_kernel_backend(kernel_backend)
-    device = kernel_backend.get_compatible_accelerator().get_current_device()
+        if add_mps:
+            args += list(
+                product(
+                    [(4100, 3700)],
+                    [torch.float32, torch.float16, torch.bfloat16],
+                    [KernelBackend.mps],
+                    [function, torch.compile(function, fullgraph=True)],
+                )
+            )
 
-    x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
-    y_kernel, y_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
+        return args
 
-    z_kernel = function(x_kernel, y_kernel, kernel_backend=kernel_backend)
-    z_expected = swiglu(x_expected, y_expected, kernel_backend=KernelBackend.torch)
-
-    assert_equal_tensors(
-        z_kernel, z_expected, False, atol_float32=7e-5, rtol_float32=0, atol_float16=1e-3, rtol_float16=0
+    @torch_test
+    @pytest.mark.parametrize(
+        "size,dtype,kernel_backend,function", _generate_args(swiglu, add_triton=True, add_mps=True)
     )
+    @torch._dynamo.config.patch(recompile_limit=1024)
+    def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend, function: Callable) -> None:
+        skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-    z_kernel.mean().backward()
-    z_expected.mean().backward()
+        x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
+        y_kernel, y_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-    assert_equal_tensors(
-        x_kernel.grad, x_expected.grad, False, atol_float32=4.6e-5, rtol_float32=0, atol_float16=5e-4, rtol_float16=0
-    )
+        z_kernel = function(x_kernel, y_kernel, kernel_backend=kernel_backend)
+        z_expected = swiglu(x_expected, y_expected, kernel_backend=KernelBackend.torch)
 
-    assert_equal_tensors(y_kernel.grad, y_expected.grad, False)
+        assert_equal_tensors(
+            z_kernel, z_expected, False, atol_float32=7e-5, rtol_float32=0, atol_float16=1e-3, rtol_float16=0
+        )
+
+        z_kernel.mean().backward()
+        z_expected.mean().backward()
+
+        assert_equal_tensors(
+            x_kernel.grad,
+            x_expected.grad,
+            False,
+            atol_float32=4.6e-5,
+            rtol_float32=0,
+            atol_float16=5e-4,
+            rtol_float16=0,
+        )
+
+        assert_equal_tensors(y_kernel.grad, y_expected.grad, False)
