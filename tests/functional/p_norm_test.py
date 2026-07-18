@@ -2,16 +2,12 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from __future__ import annotations
-
 from typing import Callable
 
 import pytest
 
-
-torch = pytest.importorskip("torch")
-
 from xma import KernelBackend, p_norm, set_seed
+from xma.utils import is_torch_available
 
 from ..utils import (
     assert_equal_tensors,
@@ -25,32 +21,35 @@ from .fused_residual_add_rmsnorm_test import _get_sizes
 _SEED = 42
 
 
-@torch_test
-@pytest.mark.parametrize("size", _get_sizes())
-@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
-@pytest.mark.parametrize("dtype", [torch.float32])
-@pytest.mark.parametrize("p", [1, 2, 3, "inf"])
-@pytest.mark.parametrize("multiplier", [None, 0.9])
-@pytest.mark.parametrize("function", [p_norm, torch.compile(p_norm, fullgraph=True)])
-@torch._dynamo.config.patch(recompile_limit=1024)
-def test_p_norm(
-    size: tuple[int],
-    kernel_backend: KernelBackend,
-    dtype: torch.dtype,
-    p: int | str,
-    multiplier: float | None,
-    function: Callable,
-) -> None:
-    skip_if_incompatible_kernel_backend(kernel_backend)
-    device = kernel_backend.get_compatible_accelerator().get_current_device()
+if is_torch_available():
+    import torch
 
-    set_seed(_SEED)
+    @torch_test
+    @pytest.mark.parametrize("size", _get_sizes())
+    @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
+    @pytest.mark.parametrize("dtype", [torch.float32])
+    @pytest.mark.parametrize("p", [1, 2, 3, "inf"])
+    @pytest.mark.parametrize("multiplier", [None, 0.9])
+    @pytest.mark.parametrize("function", [p_norm, torch.compile(p_norm, fullgraph=True)])
+    @torch._dynamo.config.patch(recompile_limit=1024)
+    def test_p_norm(
+        size: tuple[int],
+        kernel_backend: KernelBackend,
+        dtype: torch.dtype,
+        p: int | str,
+        multiplier: float | None,
+        function: Callable,
+    ) -> None:
+        skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-    x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
+        set_seed(_SEED)
 
-    z_kernel = function(x=x_kernel, multiplier=multiplier, p=p, kernel_backend=kernel_backend)
-    z_expected = p_norm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
+        x_kernel, x_expected = get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-    assert_equal_tensors(
-        z_kernel, z_expected, False, atol_float32=3.1e-3 if p == 3 else None, rtol_float32=0 if p == 3 else None
-    )
+        z_kernel = function(x=x_kernel, multiplier=multiplier, p=p, kernel_backend=kernel_backend)
+        z_expected = p_norm(x=x_expected, multiplier=multiplier, p=p, kernel_backend=KernelBackend.torch)
+
+        assert_equal_tensors(
+            z_kernel, z_expected, False, atol_float32=3.1e-3 if p == 3 else None, rtol_float32=0 if p == 3 else None
+        )
