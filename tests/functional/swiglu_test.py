@@ -7,7 +7,7 @@ from typing import Callable
 
 import pytest
 
-from xma import KernelBackend, swiglu
+from xma import KernelBackend
 from xma.utils import is_torch_available
 
 from ..utils import (
@@ -21,6 +21,8 @@ from ..utils import (
 
 if is_torch_available():
     import torch
+
+    from xma import swiglu
 
     def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
         args = list(

@@ -6,7 +6,7 @@ from typing import Callable
 
 import pytest
 
-from xma import KernelBackend, pack_sequence, unpack_sequence
+from xma import KernelBackend
 from xma.utils import is_torch_available
 
 from ..utils import (
@@ -30,6 +30,8 @@ def _get_problem_shapes(packed: bool) -> list[tuple[int]]:
 
 if is_torch_available():
     import torch
+
+    from xma import pack_sequence, unpack_sequence
 
     @torch_test
     @pytest.mark.parametrize("size", _get_problem_shapes(False))

@@ -6,7 +6,7 @@ from typing import Callable
 
 import pytest
 
-from xma import KernelBackend, ceil_divide, swiglu_packed
+from xma import KernelBackend, ceil_divide
 from xma.utils import is_torch_available
 
 from ..utils import (
@@ -20,6 +20,8 @@ from .swiglu_test import _generate_args
 
 if is_torch_available():
     import torch
+
+    from xma import swiglu_packed
 
     @pytest.mark.parametrize(
         "size,dtype,kernel_backend,function", _generate_args(swiglu_packed, add_triton=False, add_mps=False)

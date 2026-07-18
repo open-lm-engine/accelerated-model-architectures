@@ -2,13 +2,15 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from typing import Callable
 
 import pytest
 import torch._inductor.config as config
 import torch.nn as nn
 
-from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
+from xma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters
 from xma.inductor import _CallablePatternMatcherPass
 from xma.utils import is_torch_available
 
@@ -26,6 +28,8 @@ _SEED = 42
 
 if is_torch_available():
     import torch
+
+    from xma import rmsnorm, set_seed
 
     @torch_test
     @pytest.mark.parametrize("size", _get_sizes())
