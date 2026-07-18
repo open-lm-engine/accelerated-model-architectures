@@ -24,6 +24,7 @@ _IS_MPS_AVAILABLE = torch.mps.is_available()
 
 class KernelBackend(Enum):
     cuda = "cuda"
+    jax = "jax"
     mps = "mps"
     nki = "nki"
     pallas = "pallas"
