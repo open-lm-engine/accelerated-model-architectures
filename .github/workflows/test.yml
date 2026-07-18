@@ -1,0 +1,40 @@
+# **************************************************
+# Copyright (c) 2026, Mayank Mishra
+# **************************************************
+
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Test (${{ matrix.target }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cpu, jax]
+
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v2
+
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.12
+
+      - name: clone and install uv
+        run: |
+          git submodule update --init --recursive
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: run tests
+        run: make test-${{ matrix.target }}
