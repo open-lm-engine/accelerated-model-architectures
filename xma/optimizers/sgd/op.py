@@ -64,24 +64,13 @@ def sgd(
                     assert isinstance(M, DTensor)
                     assert W.placements == M.placements
 
-        for W, dW, M in zip(params, grads, momentum_buffer_list):
-            assert W.is_contiguous()
-            dW = dW.contiguous()
+        if kernel_backend == KernelBackend.cuda:
+            assert not is_dtensor
 
-            if M is not None:
-                assert M.is_contiguous()
-
-            if is_dtensor:
-                W = W.to_local()
-                dW = dW.to_local()
-
-                if M is not None:
-                    M = M.to_local()
-
-            _single_tensor_sgd_triton(
-                W=W,
-                dW=dW,
-                M=M,
+            _sgd_multi_tensor_cuda(
+                params=params,
+                grads=grads,
+                momentum_buffer_list=momentum_buffer_list,
                 lr=lr,
                 weight_decay=weight_decay,
                 momentum=momentum,
@@ -90,6 +79,33 @@ def sgd(
                 maximize=maximize,
                 is_first_step=is_first_step,
             )
+        else:
+            for W, dW, M in zip(params, grads, momentum_buffer_list):
+                assert W.is_contiguous()
+                dW = dW.contiguous()
+
+                if M is not None:
+                    assert M.is_contiguous()
+
+                if is_dtensor:
+                    W = W.to_local()
+                    dW = dW.to_local()
+
+                    if M is not None:
+                        M = M.to_local()
+
+                _single_tensor_sgd_triton(
+                    W=W,
+                    dW=dW,
+                    M=M,
+                    lr=lr,
+                    weight_decay=weight_decay,
+                    momentum=momentum,
+                    dampening=dampening,
+                    nesterov=nesterov,
+                    maximize=maximize,
+                    is_first_step=is_first_step,
+                )
     elif kernel_backend == KernelBackend.torch:
         (_multi_tensor_sgd if foreach else _single_tensor_sgd)(
             params=params,

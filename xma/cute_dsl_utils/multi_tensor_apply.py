@@ -9,7 +9,7 @@ from typing import Any, Callable
 import cuda.bindings.driver as cuda
 import cutlass.cute as cute
 import torch
-from cutlass import Int32, range_constexpr
+from cutlass import Float32, Int32, range_constexpr
 
 from ..constants import LOG_WARP_SIZE, WARP_SIZE
 from .boundary import lane_boundary
