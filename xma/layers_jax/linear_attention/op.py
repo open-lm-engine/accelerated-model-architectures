@@ -3,12 +3,13 @@
 # **************************************************
 
 import math
+from functools import partial
 
 import jax
 import jax.numpy as jnp
 
 from ...accelerator import Accelerator, KernelBackend
-from .pallas_implementation import _linear_attention_forward_pallas_jit
+from .pallas_implementation import _linear_attention_backward_pallas_jit, _linear_attention_forward_pallas_jit
 
 
 def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, int, int]:
@@ -51,6 +52,55 @@ def _linear_attention_reference(
     return y.astype(q.dtype), h
 
 
+@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
+def _linear_attention_pallas_jax(
+    query: jax.Array,
+    key: jax.Array,
+    value: jax.Array,
+    input_state: jax.Array | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+) -> tuple[jax.Array, jax.Array]:
+    return _linear_attention_forward_pallas_jit(
+        query, key, value, input_state, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+    )
+
+
+def _linear_attention_pallas_jax_fwd(
+    query: jax.Array,
+    key: jax.Array,
+    value: jax.Array,
+    input_state: jax.Array | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+) -> tuple[tuple[jax.Array, jax.Array], tuple]:
+    y, h = _linear_attention_pallas_jax(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S)
+    return (y, h), (query, key, value, input_state)
+
+
+def _linear_attention_pallas_jax_bwd(
+    attention_multiplier: float, BLOCK_SIZE_S: int, residuals: tuple, cotangents: tuple
+) -> tuple:
+    query, key, value, input_state = residuals
+    dy, dh = cotangents
+
+    dq, dk, dv, dh0 = _linear_attention_backward_pallas_jit(
+        query,
+        key,
+        value,
+        dy,
+        input_state,
+        dh,
+        attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+    )
+
+    return dq, dk, dv, (dh0 if input_state is not None else None)
+
+
+_linear_attention_pallas_jax.defvjp(_linear_attention_pallas_jax_fwd, _linear_attention_pallas_jax_bwd)
+
+
 def linear_attention_jax(
     query: jax.Array,
     key: jax.Array,
@@ -80,9 +130,7 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        y, h = _linear_attention_forward_pallas_jit(
-            query, key, value, input_state, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
-        )
+        y, h = _linear_attention_pallas_jax(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S)
     elif kernel_backend == KernelBackend.jax:
         y, h = _linear_attention_reference(query, key, value, input_state, attention_multiplier)
     else:

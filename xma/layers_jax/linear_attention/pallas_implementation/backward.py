@@ -51,11 +51,6 @@ def _linear_attention_backward_pallas_kernel(
     S: int,
     NUM_BLOCKS_S: int,
 ) -> None:
-    # reverse-direction sweep: grid position rc (0..NUM_BLOCKS_S-1) processes physical chunk
-    # NUM_BLOCKS_S - 1 - rc, i.e. the last chunk first. dh0_ref is revisited across rc, doubling as the running
-    # "future gradient" state g: g^{(C)} = dh (the incoming gradient on the final state), g^{(c)} =
-    # g^{(c+1)} + q_c^T @ dy_c, and dh0 = g^{(0)} once the sweep reaches chunk 0 - the same revisit trick
-    # h_ref uses in the forward pass, just accumulating backwards instead of forwards.
     rc = pl.program_id(2)
 
     @pl.when(rc == 0)
