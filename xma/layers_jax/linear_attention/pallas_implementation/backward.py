@@ -10,6 +10,7 @@ import jax.experimental.pallas.tpu as pltpu
 import jax.numpy as jnp
 
 from ....math import ceil_divide
+from .forward import _output_readout, _state_update
 
 
 def _state_update(h: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
@@ -17,35 +18,12 @@ def _state_update(h: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
     return h
 
 
-def _output_readout(
-    h: jax.Array,
-    q: jax.Array,
-    k: jax.Array,
-    v: jax.Array,
-    BLOCK_SIZE_S: int,
-    dtype: jax.dtype,
-    attention_multiplier: float,
-) -> jax.Array:
-    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
-    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
-    causal_mask = causal_row_ids > causal_col_ids
-
-    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
-
-    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
-    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
-    y *= attention_multiplier
-
-    return y
-
-
-def _linear_attention_forward_pallas_kernel(
+def _linear_attention_backward_pallas_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
     @pl.when(pl.program_id(2) == 0)
     def _():
-        h_ref[...] = h0_ref[...]
+        dh_ref[...] = dh0_ref[...]
 
     dtype = q_ref.dtype
 
@@ -58,9 +36,18 @@ def _linear_attention_forward_pallas_kernel(
     v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
     h = h_ref[...]
 
-    y_ref[...] = _output_readout(
-        h=h, q=q, k=k, v=v, BLOCK_SIZE_S=BLOCK_SIZE_S, attention_multiplier=attention_multiplier
-    )
+    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+
+    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
+    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
+    causal_mask = causal_row_ids > causal_col_ids
+    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
+
+    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
+    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
+    y *= attention_multiplier
+    y = y.astype(dtype)
+    y_ref[...] = y
 
     h = _state_update(h=h, k=k, v=v)
     h_ref[...] = h
@@ -68,6 +55,8 @@ def _linear_attention_forward_pallas_kernel(
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
 def _linear_attention_forward_pallas_jit(
+    dy: jax.Array,
+    dh: jax.Array,
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
@@ -88,13 +77,17 @@ def _linear_attention_forward_pallas_jit(
     if h0 is None:
         h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
 
+    if dh is None:
+        dh = jnp.zeros((B, N, K, V), dtype=jnp.float32)
+
     q = jnp.swapaxes(q, 1, 2)
     k = jnp.swapaxes(k, 1, 2)
     v = jnp.swapaxes(v, 1, 2)
+    dy = jnp.swapaxes(dy, 1, 2)
 
     kernel = pl.pallas_call(
         partial(
-            _linear_attention_forward_pallas_kernel,
+            _linear_attention_backward_pallas_kernel,
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             S=S,
@@ -117,7 +110,7 @@ def _linear_attention_forward_pallas_jit(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary")),
     )
 
-    y, h = kernel(q, k, v, h0)
+    y, ht = kernel(q, k, v, h0)
     y = jnp.swapaxes(y, 1, 2)
 
-    return y, h
+    return y, ht
