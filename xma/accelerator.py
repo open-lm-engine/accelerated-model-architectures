@@ -19,7 +19,7 @@ if is_torch_available():
 if is_torch_xla_available():
     from torch_xla.core.xla_model import wait_device_ops as xla_wait_device_ops
     from torch_xla.core.xla_model import xla_device
-    from torch_xla.core.xla_model import xrt_world_size as xla_device_count
+    from torch_xla.runtime import world_size as xla_device_count
 
 
 _IS_ROCM_AVAILABLE = is_torch_available() and torch.version.hip is not None

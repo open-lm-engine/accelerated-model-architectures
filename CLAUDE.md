@@ -89,3 +89,6 @@ Tracked in `tools/kernels.yml` and auto-rendered into `README.md` by `tools/popu
 ### CUTLASS / cute_dsl kernels
 
 `xma/cute_dsl_utils/` wraps NVIDIA's CUTLASS DSL for writing high-performance GEMM and related kernels directly in Python. Only available with the `cuda` extra.
+
+## Tips
+Look at the ./AI folder for tips.

@@ -27,7 +27,10 @@ def _swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
 def _swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
     B, H = g.shape
     BLOCK_SIZE_H = min(ceil_divide(H, 128) * 128, 1024)
-    BLOCK_SIZE_B = min(1, 32 * 1024 * 1024 // (3 * BLOCK_SIZE_H * g.dtype.itemsize * 8)) << 3
+    # Mosaic double-buffers the grid for pipelining, so scoped VMEM usage runs well above this
+    # naive (block_size_b * block_size_h * 3 live buffers) estimate; target half the 32MB scoped
+    # VMEM limit here to leave headroom, instead of exceeding it (see RESOURCE_EXHAUSTED at full budget).
+    BLOCK_SIZE_B = max(1, 16 * 1024 * 1024 // (3 * BLOCK_SIZE_H * g.dtype.itemsize * 8)) << 3
 
     kernel = pl.pallas_call(
         _swiglu_forward_pallas_kernel,
