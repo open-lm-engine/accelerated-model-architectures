@@ -173,7 +173,7 @@ def _linear_attention_backward_pallas_jit(
 
     # pass 2: reverse-direction sweep, consuming the checkpoints to produce dQ, dK, dV (kept at full N heads
     # here - GQA reduction back down to Nq/Nk/Nv happens below) and dH0
-    dq_full, dk_full, dv_full, dh0 = pl.pallas_call(
+    kernel = pl.pallas_call(
         partial(
             _linear_attention_backward_pallas_kernel,
             attention_multiplier=attention_multiplier,
@@ -222,16 +222,16 @@ def _linear_attention_backward_pallas_jit(
             h_running_spec,
         ),
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary")),
-    )(q, k, v, dy, h_checkpoints, dh)
+    )
 
-    dq_full = jnp.swapaxes(dq_full, 1, 2)
-    dk_full = jnp.swapaxes(dk_full, 1, 2)
-    dv_full = jnp.swapaxes(dv_full, 1, 2)
+    dq, dk, dv, dh0 = kernel(q, k, v, dy, h_checkpoints, dh)
 
-    # reduce back down from the expanded N heads to the original Nq/Nk/Nv heads (sum over each head's
-    # repeated group): a no-op when Nq/Nk/Nv == N, a full reduction over all N copies when == 1
-    dq = dq_full.reshape(B, S, Nq, Gq, K).sum(axis=3)
-    dk = dk_full.reshape(B, S, Nk, Gk, K).sum(axis=3)
-    dv = dv_full.reshape(B, S, Nv, Gv, V).sum(axis=3)
+    dq = jnp.swapaxes(dq, 1, 2)
+    dk = jnp.swapaxes(dk, 1, 2)
+    dv = jnp.swapaxes(dv, 1, 2)
+
+    dq = dq.reshape(B, S, Nq, Gq, K).sum(axis=3)
+    dk = dk.reshape(B, S, Nk, Gk, K).sum(axis=3)
+    dv = dv.reshape(B, S, Nv, Gv, V).sum(axis=3)
 
     return dq, dk, dv, dh0
