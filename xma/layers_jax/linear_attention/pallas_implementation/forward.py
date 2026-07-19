@@ -12,6 +12,34 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
+def _state_update(h: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
+    h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+    return h
+
+
+def _output_readout(
+    h: jax.Array,
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    BLOCK_SIZE_S: int,
+    dtype: jax.dtype,
+    attention_multiplier: float,
+) -> jax.Array:
+    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
+    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
+    causal_mask = causal_row_ids > causal_col_ids
+
+    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
+
+    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
+    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
+    y *= attention_multiplier
+
+    return y
+
+
 def _linear_attention_forward_pallas_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
@@ -30,20 +58,11 @@ def _linear_attention_forward_pallas_kernel(
     v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
     h = h_ref[...]
 
-    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+    y_ref[...] = _output_readout(
+        h=h, q=q, k=k, v=v, BLOCK_SIZE_S=BLOCK_SIZE_S, attention_multiplier=attention_multiplier
+    )
 
-    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
-    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
-    causal_mask = causal_row_ids > causal_col_ids
-    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
-
-    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
-    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
-    y *= attention_multiplier
-    y = y.astype(dtype)
-    y_ref[...] = y
-
-    h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+    h = _state_update(h=h, k=k, v=v)
     h_ref[...] = h
 
 
