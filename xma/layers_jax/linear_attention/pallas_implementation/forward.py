@@ -15,46 +15,36 @@ from ....math import ceil_divide
 def _linear_attention_forward_pallas_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
-    # h_ref is revisited (same block) across the sequential chunk grid dimension, so it doubles as the running
-    # (K, V) recurrent state carried from one chunk to the next
     @pl.when(pl.program_id(2) == 0)
     def _():
         h_ref[...] = h0_ref[...]
 
     dtype = q_ref.dtype
-
-    # the last chunk is padded when S is not a multiple of BLOCK_SIZE_S; padding values are unspecified garbage
-    # (not guaranteed zero), so mask it out here rather than relying on it for the state accumulation below
-    chunk_id = pl.program_id(2)
     row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
-    valid = (chunk_id * BLOCK_SIZE_S + row_ids) < S
 
-    q = jnp.where(valid, q_ref[...], 0).astype(dtype)
-    k = jnp.where(valid, k_ref[...], 0).astype(dtype)
-    v = jnp.where(valid, v_ref[...], 0).astype(dtype)
+    BLOCK_ID_S = pl.program_id(2)
+    MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + row_ids) < S
+
+    q = jnp.where(MASK_S, q_ref[...], 0).astype(dtype)
+    k = jnp.where(MASK_S, k_ref[...], 0).astype(dtype)
+    v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
     h = h_ref[...]
 
-    # intra-chunk contribution: strictly causal (token s excludes its own key/value, matching the sequential
-    # recurrence y_s = q_s @ h_{s-1}, h_s = h_{s-1} + k_s ⊗ v_s). dot_general fuses the k transpose into the
-    # matmul instead of materializing it.
     qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-    # built via iota comparison rather than jnp.tril(jnp.ones(..., dtype=bool)): the latter selects between two
-    # boolean vectors internally, which Mosaic cannot legalize on TPU ("failed to legalize operation
-    # 'arith.select'" on vector<.., i1>). Comparing int32 iotas produces the mask directly, with no bool select.
+
     causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
     causal_mask = causal_row_ids > causal_col_ids
     qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
     y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
-    # inter-chunk contribution: state accumulated from all strictly-previous chunks
     y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
-    y = (y * attention_multiplier).astype(dtype)
-
+    y *= attention_multiplier
+    y = y.astype(dtype)
     y_ref[...] = y
 
-    dh = jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-    h_ref[...] = h + dh
+    h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+    h_ref[...] = h
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
