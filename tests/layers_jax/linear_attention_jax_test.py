@@ -37,8 +37,8 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
 def _generate_args() -> list:
     return list(
         product(
-            [3, 16, 37, 64, 130],  # sequence length: shorter than, equal to, or not a multiple of CHUNK_SIZE
-            [16, 32],  # CHUNK_SIZE
+            [3, 16, 37, 64, 130],  # sequence length: shorter than, equal to, or not a multiple of BLOCK_SIZE_S
+            [16, 32],  # BLOCK_SIZE_S
             _get_problem_shapes(),
             ["float32", "bfloat16"],
             [False, True],  # has_input_state
@@ -46,10 +46,10 @@ def _generate_args() -> list:
     )
 
 
-@pytest.mark.parametrize("S,CHUNK_SIZE,problem_shape,dtype,has_input_state", _generate_args())
+@pytest.mark.parametrize("S,BLOCK_SIZE_S,problem_shape,dtype,has_input_state", _generate_args())
 def test_linear_attention_forward_pallas(
     S: int,
-    CHUNK_SIZE: int,
+    BLOCK_SIZE_S: int,
     problem_shape: tuple[int, int, int, int, int],
     dtype: str,
     has_input_state: bool,
@@ -78,7 +78,7 @@ def test_linear_attention_forward_pallas(
         v,
         h0,
         attention_multiplier=_ATTENTION_MULTIPLIER,
-        CHUNK_SIZE=CHUNK_SIZE,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
         kernel_backend=KernelBackend.pallas,
     )
     y_expected, ht_expected = linear_attention_jax(
@@ -87,7 +87,7 @@ def test_linear_attention_forward_pallas(
         v,
         h0,
         attention_multiplier=_ATTENTION_MULTIPLIER,
-        CHUNK_SIZE=CHUNK_SIZE,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
         kernel_backend=KernelBackend.jax,
     )
 

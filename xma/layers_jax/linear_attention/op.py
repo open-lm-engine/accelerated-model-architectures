@@ -57,7 +57,7 @@ def linear_attention_jax(
     value: jax.Array,
     input_state: jax.Array | None = None,
     attention_multiplier: float | None = None,
-    CHUNK_SIZE: int = 64,
+    BLOCK_SIZE_S: int = 64,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array]:
@@ -81,7 +81,7 @@ def linear_attention_jax(
 
     if kernel_backend == KernelBackend.pallas:
         y, ht = _linear_attention_forward_pallas_jit(
-            query, key, value, input_state, attention_multiplier=attention_multiplier, CHUNK_SIZE=CHUNK_SIZE
+            query, key, value, input_state, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
         )
     elif kernel_backend == KernelBackend.jax:
         y, ht = _linear_attention_reference(query, key, value, input_state, attention_multiplier)
