@@ -37,7 +37,7 @@ def _output_readout(
     y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
     y *= attention_multiplier
 
-    return y
+    return y.astype(dtype)
 
 
 def _linear_attention_forward_pallas_kernel(
