@@ -13,6 +13,7 @@ xma
    xma.inductor
    xma.jit
    xma.layers
+   xma.layers_jax
    xma.math
    xma.optimizers
 
