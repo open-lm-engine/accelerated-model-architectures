@@ -38,7 +38,12 @@ def _linear_attention_forward_pallas_kernel(
     # recurrence y_s = q_s @ h_{s-1}, h_s = h_{s-1} + k_s ⊗ v_s). dot_general fuses the k transpose into the
     # matmul instead of materializing it.
     qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-    causal_mask = jnp.tril(jnp.ones((CHUNK_SIZE, CHUNK_SIZE), dtype=jnp.bool_), k=-1)
+    # built via iota comparison rather than jnp.tril(jnp.ones(..., dtype=bool)): the latter selects between two
+    # boolean vectors internally, which Mosaic cannot legalize on TPU ("failed to legalize operation
+    # 'arith.select'" on vector<.., i1>). Comparing int32 iotas produces the mask directly, with no bool select.
+    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (CHUNK_SIZE, CHUNK_SIZE), 0)
+    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (CHUNK_SIZE, CHUNK_SIZE), 1)
+    causal_mask = causal_row_ids > causal_col_ids
     qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
     y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
