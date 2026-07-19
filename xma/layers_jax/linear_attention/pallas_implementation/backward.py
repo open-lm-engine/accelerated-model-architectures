@@ -16,10 +16,6 @@ from .forward import _state_update
 def _linear_attention_checkpoint_pallas_kernel(
     k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int
 ) -> None:
-    # forward-direction sweep over chunks that only saves the state h^{(c)} at the START of every chunk c
-    # (before it is updated with chunk c's own key/value) - the reverse pass below needs these, and they
-    # aren't otherwise available since the forward kernel only returns the FINAL state. h_ref is revisited
-    # (same block) across chunks, doubling as the running state, exactly like in the forward kernel.
     @pl.when(pl.program_id(2) == 0)
     def _():
         h_ref[...] = h0_ref[...]
@@ -35,7 +31,6 @@ def _linear_attention_checkpoint_pallas_kernel(
     h = h_ref[...]
 
     h_checkpoint_ref[...] = h[None]
-
     h_ref[...] = _state_update(h=h, k=k, v=v)
 
 
