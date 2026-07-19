@@ -13,7 +13,7 @@ from ....math import ceil_divide
 
 
 def _linear_attention_forward_pallas_kernel(
-    q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, CHUNK_SIZE: int, S: int
+    q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
     # h_ref is revisited (same block) across the sequential chunk grid dimension, so it doubles as the running
     # (K, V) recurrent state carried from one chunk to the next
@@ -23,11 +23,11 @@ def _linear_attention_forward_pallas_kernel(
 
     dtype = q_ref.dtype
 
-    # the last chunk is padded when S is not a multiple of CHUNK_SIZE; padding values are unspecified garbage
+    # the last chunk is padded when S is not a multiple of BLOCK_SIZE_S; padding values are unspecified garbage
     # (not guaranteed zero), so mask it out here rather than relying on it for the state accumulation below
     chunk_id = pl.program_id(2)
-    row_ids = jax.lax.broadcasted_iota(jnp.int32, (CHUNK_SIZE, 1), 0)
-    valid = (chunk_id * CHUNK_SIZE + row_ids) < S
+    row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
+    valid = (chunk_id * BLOCK_SIZE_S + row_ids) < S
 
     q = jnp.where(valid, q_ref[...], 0).astype(dtype)
     k = jnp.where(valid, k_ref[...], 0).astype(dtype)
@@ -41,8 +41,8 @@ def _linear_attention_forward_pallas_kernel(
     # built via iota comparison rather than jnp.tril(jnp.ones(..., dtype=bool)): the latter selects between two
     # boolean vectors internally, which Mosaic cannot legalize on TPU ("failed to legalize operation
     # 'arith.select'" on vector<.., i1>). Comparing int32 iotas produces the mask directly, with no bool select.
-    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (CHUNK_SIZE, CHUNK_SIZE), 0)
-    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (CHUNK_SIZE, CHUNK_SIZE), 1)
+    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
+    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
     causal_mask = causal_row_ids > causal_col_ids
     qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
@@ -57,20 +57,25 @@ def _linear_attention_forward_pallas_kernel(
     h_ref[...] = h + dh
 
 
-@partial(jax.jit, static_argnames=("attention_multiplier", "CHUNK_SIZE"))
+@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
 def _linear_attention_forward_pallas_jit(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
     h0: jax.Array | None,
     attention_multiplier: float,
-    CHUNK_SIZE: int,
+    BLOCK_SIZE_S: int,
 ) -> tuple[jax.Array, jax.Array]:
     B, S, Nq, K = q.shape
     Nk = k.shape[-2]
     Nv, V = v.shape[-2:]
 
     N = max(Nq, Nk, Nv)
+
+    assert Nq in (1, N), f"Nq ({Nq}) must be 1 or {N}"
+    assert Nk in (1, N), f"Nk ({Nk}) must be 1 or {N}"
+    assert Nv in (1, N), f"Nv ({Nv}) must be 1 or {N}"
+
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
@@ -78,9 +83,6 @@ def _linear_attention_forward_pallas_jit(
     if h0 is None:
         h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
 
-    # move the head dim off the second-to-last axis: Pallas TPU block shapes require the last two dims to
-    # either match the full array dimension or be divisible by 8/128, and a squeezed (size-1) head block
-    # there would violate that. With heads leading, only (chunk, feature) occupy the last two positions.
     q = jnp.swapaxes(q, 1, 2)
     k = jnp.swapaxes(k, 1, 2)
     v = jnp.swapaxes(v, 1, 2)
@@ -89,22 +91,22 @@ def _linear_attention_forward_pallas_jit(
         partial(
             _linear_attention_forward_pallas_kernel,
             attention_multiplier=attention_multiplier,
-            CHUNK_SIZE=CHUNK_SIZE,
+            BLOCK_SIZE_S=BLOCK_SIZE_S,
             S=S,
         ),
         out_shape=(
             jax.ShapeDtypeStruct(shape=(B, N, S, V), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
-        grid=(B, N, ceil_divide(S, CHUNK_SIZE)),
+        grid=(B, N, ceil_divide(S, BLOCK_SIZE_S)),
         in_specs=[
-            pl.BlockSpec(block_shape=(None, None, CHUNK_SIZE, K), index_map=lambda b, n, c: (b, n // Gq, c, 0)),
-            pl.BlockSpec(block_shape=(None, None, CHUNK_SIZE, K), index_map=lambda b, n, c: (b, n // Gk, c, 0)),
-            pl.BlockSpec(block_shape=(None, None, CHUNK_SIZE, V), index_map=lambda b, n, c: (b, n // Gv, c, 0)),
+            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, c: (b, n // Gq, c, 0)),
+            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, c: (b, n // Gk, c, 0)),
+            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, c: (b, n // Gv, c, 0)),
             pl.BlockSpec(block_shape=(None, None, K, V), index_map=lambda b, n, c: (b, n, 0, 0)),
         ],
         out_specs=(
-            pl.BlockSpec(block_shape=(None, None, CHUNK_SIZE, V), index_map=lambda b, n, c: (b, n, c, 0)),
+            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, c: (b, n, c, 0)),
             pl.BlockSpec(block_shape=(None, None, K, V), index_map=lambda b, n, c: (b, n, 0, 0)),
         ),
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary")),
