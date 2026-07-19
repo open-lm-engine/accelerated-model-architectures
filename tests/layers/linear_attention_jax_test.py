@@ -65,11 +65,12 @@ def test_linear_attention_forward_pallas(
     tolerance = _TOLERANCES[dtype]
 
     key_q, key_k, key_v, key_h0 = jax.random.split(jax.random.PRNGKey(0), 4)
+    std = 0.01
 
-    q = jax.random.normal(key_q, (B, S, Nq, K), dtype=jnp.float32).astype(jax_dtype)
-    k = jax.random.normal(key_k, (B, S, Nk, K), dtype=jnp.float32).astype(jax_dtype)
-    v = jax.random.normal(key_v, (B, S, Nv, V), dtype=jnp.float32).astype(jax_dtype)
-    h0 = jax.random.normal(key_h0, (B, N, K, V), dtype=jnp.float32) if has_input_state else None
+    q = jax.random.normal(key_q, (B, S, Nq, K), dtype=jnp.float32).astype(jax_dtype) * std
+    k = jax.random.normal(key_k, (B, S, Nk, K), dtype=jnp.float32).astype(jax_dtype) * std
+    v = jax.random.normal(key_v, (B, S, Nv, V), dtype=jnp.float32).astype(jax_dtype) * std
+    h0 = jax.random.normal(key_h0, (B, N, K, V), dtype=jnp.float32) * std if has_input_state else None
 
     y_kernel, ht_kernel = linear_attention_jax(
         q,
