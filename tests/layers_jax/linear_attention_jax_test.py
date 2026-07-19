@@ -13,8 +13,7 @@ jax = pytest.importorskip("jax")
 
 import jax.numpy as jnp
 
-from xma import KernelBackend
-from xma.layers_jax.linear_attention.op import linear_attention_jax
+from xma import KernelBackend, linear_attention_jax
 
 
 _ATTENTION_MULTIPLIER = 0.3
