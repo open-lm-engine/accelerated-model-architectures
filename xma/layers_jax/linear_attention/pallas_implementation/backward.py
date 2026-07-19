@@ -54,10 +54,10 @@ def _linear_attention_backward_pallas_kernel(
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     S: int,
-    NUM_CHUNKS: int,
+    NUM_BLOCKS_S: int,
 ) -> None:
-    # reverse-direction sweep: grid position rc (0..NUM_CHUNKS-1) processes physical chunk
-    # NUM_CHUNKS - 1 - rc, i.e. the last chunk first. dh0_ref is revisited across rc, doubling as the running
+    # reverse-direction sweep: grid position rc (0..NUM_BLOCKS_S-1) processes physical chunk
+    # NUM_BLOCKS_S - 1 - rc, i.e. the last chunk first. dh0_ref is revisited across rc, doubling as the running
     # "future gradient" state g: g^{(C)} = dh (the incoming gradient on the final state), g^{(c)} =
     # g^{(c+1)} + q_c^T @ dy_c, and dh0 = g^{(0)} once the sweep reaches chunk 0 - the same revisit trick
     # h_ref uses in the forward pass, just accumulating backwards instead of forwards.
@@ -69,7 +69,7 @@ def _linear_attention_backward_pallas_kernel(
 
     dtype = q_ref.dtype
 
-    physical_chunk = NUM_CHUNKS - 1 - rc
+    physical_chunk = NUM_BLOCKS_S - 1 - rc
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
     MASK_S = (physical_chunk * BLOCK_SIZE_S + BLOCK_S) < S
 
@@ -137,7 +137,7 @@ def _linear_attention_backward_pallas_jit(
     Gk = N // Nk
     Gv = N // Nv
 
-    NUM_CHUNKS = ceil_divide(S, BLOCK_SIZE_S)
+    NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
     if h0 is None:
         h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
@@ -154,32 +154,30 @@ def _linear_attention_backward_pallas_jit(
     v_in_spec = pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, c: (b, n // Gv, c, 0))
     h_running_spec = pl.BlockSpec(block_shape=(None, None, K, V), index_map=lambda b, n, c: (b, n, 0, 0))
 
-    # pass 1: forward-direction sweep, saving h^{(c)} for every chunk c (the reverse pass needs these; only
-    # the final state is available otherwise)
-    h_checkpoints, _ = pl.pallas_call(
+    kernel = pl.pallas_call(
         partial(_linear_attention_checkpoint_pallas_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
         out_shape=(
-            jax.ShapeDtypeStruct(shape=(B, N, NUM_CHUNKS, K, V), dtype=jnp.float32),
+            jax.ShapeDtypeStruct(shape=(B, N, NUM_BLOCKS_S, K, V), dtype=jnp.float32),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
-        grid=(B, N, NUM_CHUNKS),
+        grid=(B, N, NUM_BLOCKS_S),
         in_specs=[k_in_spec, v_in_spec, h_running_spec],
         out_specs=(
             pl.BlockSpec(block_shape=(None, None, 1, K, V), index_map=lambda b, n, c: (b, n, c, 0, 0)),
             h_running_spec,
         ),
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary")),
-    )(k, v, h0)
+    )
 
-    # pass 2: reverse-direction sweep, consuming the checkpoints to produce dQ, dK, dV (kept at full N heads
-    # here - GQA reduction back down to Nq/Nk/Nv happens below) and dH0
+    h_checkpoints, _ = kernel(k, v, h0)
+
     kernel = pl.pallas_call(
         partial(
             _linear_attention_backward_pallas_kernel,
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             S=S,
-            NUM_CHUNKS=NUM_CHUNKS,
+            NUM_BLOCKS_S=NUM_BLOCKS_S,
         ),
         out_shape=(
             jax.ShapeDtypeStruct(shape=(B, N, S, K), dtype=q.dtype),
@@ -187,37 +185,37 @@ def _linear_attention_backward_pallas_jit(
             jax.ShapeDtypeStruct(shape=(B, N, S, V), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
-        grid=(B, N, NUM_CHUNKS),
+        grid=(B, N, NUM_BLOCKS_S),
         in_specs=[
             pl.BlockSpec(
                 block_shape=(None, None, BLOCK_SIZE_S, K),
-                index_map=lambda b, n, rc: (b, n // Gq, NUM_CHUNKS - 1 - rc, 0),
+                index_map=lambda b, n, rc: (b, n // Gq, NUM_BLOCKS_S - 1 - rc, 0),
             ),
             pl.BlockSpec(
                 block_shape=(None, None, BLOCK_SIZE_S, K),
-                index_map=lambda b, n, rc: (b, n // Gk, NUM_CHUNKS - 1 - rc, 0),
+                index_map=lambda b, n, rc: (b, n // Gk, NUM_BLOCKS_S - 1 - rc, 0),
             ),
             pl.BlockSpec(
                 block_shape=(None, None, BLOCK_SIZE_S, V),
-                index_map=lambda b, n, rc: (b, n // Gv, NUM_CHUNKS - 1 - rc, 0),
+                index_map=lambda b, n, rc: (b, n // Gv, NUM_BLOCKS_S - 1 - rc, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, rc: (b, n, NUM_CHUNKS - 1 - rc, 0)
+                block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, rc: (b, n, NUM_BLOCKS_S - 1 - rc, 0)
             ),
             pl.BlockSpec(
-                block_shape=(None, None, 1, K, V), index_map=lambda b, n, rc: (b, n, NUM_CHUNKS - 1 - rc, 0, 0)
+                block_shape=(None, None, 1, K, V), index_map=lambda b, n, rc: (b, n, NUM_BLOCKS_S - 1 - rc, 0, 0)
             ),
             h_running_spec,
         ],
         out_specs=(
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, rc: (b, n, NUM_CHUNKS - 1 - rc, 0)
+                block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, rc: (b, n, NUM_BLOCKS_S - 1 - rc, 0)
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, rc: (b, n, NUM_CHUNKS - 1 - rc, 0)
+                block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, rc: (b, n, NUM_BLOCKS_S - 1 - rc, 0)
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, rc: (b, n, NUM_CHUNKS - 1 - rc, 0)
+                block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, rc: (b, n, NUM_BLOCKS_S - 1 - rc, 0)
             ),
             h_running_spec,
         ),
