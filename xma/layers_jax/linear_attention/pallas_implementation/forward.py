@@ -20,10 +20,10 @@ def _linear_attention_forward_pallas_kernel(
         h_ref[...] = h0_ref[...]
 
     dtype = q_ref.dtype
-    row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
 
     BLOCK_ID_S = pl.program_id(2)
-    MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + row_ids) < S
+    BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
+    MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
     q = jnp.where(MASK_S, q_ref[...], 0).astype(dtype)
     k = jnp.where(MASK_S, k_ref[...], 0).astype(dtype)
