@@ -23,9 +23,10 @@ def _output_readout(
     k: jax.Array,
     v: jax.Array,
     BLOCK_SIZE_S: int,
-    dtype: jax.dtype,
     attention_multiplier: float,
 ) -> jax.Array:
+    dtype = q.dtype
+
     causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
     causal_mask = causal_row_ids > causal_col_ids

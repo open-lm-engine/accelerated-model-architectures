@@ -80,12 +80,12 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        y, ht = _linear_attention_forward_pallas_jit(
+        y, h = _linear_attention_forward_pallas_jit(
             query, key, value, input_state, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
         )
     elif kernel_backend == KernelBackend.jax:
-        y, ht = _linear_attention_reference(query, key, value, input_state, attention_multiplier)
+        y, h = _linear_attention_reference(query, key, value, input_state, attention_multiplier)
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return y, ht
+    return y, h
