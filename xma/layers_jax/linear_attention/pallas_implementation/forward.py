@@ -72,10 +72,6 @@ def _linear_attention_forward_pallas_jit(
 
     N = max(Nq, Nk, Nv)
 
-    assert Nq in (1, N), f"Nq ({Nq}) must be 1 or {N}"
-    assert Nk in (1, N), f"Nk ({Nk}) must be 1 or {N}"
-    assert Nv in (1, N), f"Nv ({Nv}) must be 1 or {N}"
-
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
