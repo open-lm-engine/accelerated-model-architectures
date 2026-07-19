@@ -13,47 +13,8 @@ from ....math import ceil_divide
 from .forward import _output_readout, _state_update
 
 
-def _state_update(h: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
-    h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-    return h
-
-
-def _linear_attention_backward_pallas_kernel(
-    q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
-) -> None:
-    @pl.when(pl.program_id(2) == 0)
-    def _():
-        dh_ref[...] = dh0_ref[...]
-
-    dtype = q_ref.dtype
-
-    BLOCK_ID_S = pl.program_id(2)
-    BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
-    MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
-
-    q = jnp.where(MASK_S, q_ref[...], 0).astype(dtype)
-    k = jnp.where(MASK_S, k_ref[...], 0).astype(dtype)
-    v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
-    h = h_ref[...]
-
-    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-
-    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
-    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
-    causal_mask = causal_row_ids > causal_col_ids
-    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
-
-    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
-    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
-    y *= attention_multiplier
-    y_ref[...] = y.astype(dtype)
-
-    h = _state_update(h=h, k=k, v=v)
-    h_ref[...] = h
-
-
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
-def _linear_attention_forward_pallas_jit(
+def _linear_attention_backward_pallas_jit(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
