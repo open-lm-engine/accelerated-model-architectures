@@ -3,7 +3,7 @@ Reduction/accumulation should only be performed over the last (innermost) dimens
 
 Reductions are one of the few cases where the pipeline supports both reading and writing to an output buffer, but the reason it works is subtle. The Pallas pipeline emitter performs an optimization where if the data slices between two consecutive iterations are the same, the pipeline will not issue a copy_in/copy_out on that buffer. This means the same SRAM buffer used in a previous iteration will be passed into the kernel again on the following iteration, and thus any writes that were issued to the output buffer will become visible on the next iteration. Once the data slice changes, the final accumulated SRAM buffer will be written out to HBM. This is also why reductions must be performed over the last dimensions of the grid -- we want to finish all of the accumulation while the output buffer is in SRAM in the innermost loop, then write it to HBM and never touch that output block again.
 
-As a concrete example, let's consider performing the following computation for reducing an (8, 1024, 1024) array along the first axies into a (1024, 1024) array.
+As a concrete example, let's consider performing the following computation for reducing an (8, 1024, 1024) array along the first axis into a (1024, 1024) array.
 
 ```python
 x = jnp.ones((8, 1024, 1024))
