@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 
 from ...accelerator import Accelerator, KernelBackend
-from .pallas_implementation.forward import _linear_attention_forward_pallas_jit
+from .pallas_implementation import _linear_attention_forward_pallas_jit
 
 
 def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, int, int]:
