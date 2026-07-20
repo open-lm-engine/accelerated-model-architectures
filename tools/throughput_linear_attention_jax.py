@@ -2,6 +2,7 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+import sys
 import time
 
 import jax
@@ -12,14 +13,26 @@ from xma import KernelBackend, linear_attention_jax
 
 
 # peak dense-matmul bf16 FLOPs/sec per chip, used only to compute MFU (fp32 MXU throughput isn't a well defined
-# fraction of this across TPU generations, so MFU is only reported for bfloat16)
-_TPU_PEAK_BF16_FLOPS = {
-    "TPU v3": 123e12,
-    "TPU v4": 275e12,
-    "TPU v5e": 197e12,
-    "TPU v5p": 459e12,
-    "TPU v6e": 918e12,
-}
+# fraction of this across TPU generations, so MFU is only reported for bfloat16). Matched by substring since
+# jax.devices()[0].device_kind spells generations inconsistently (e.g. "TPU v5 lite" for v5e, "TPU v5" for v5p).
+_TPU_PEAK_BF16_FLOPS = [("TPU v6 lite", 918e12)]
+
+
+def _get_peak_bf16_flops() -> float | None:
+    return 918e12
+    if jax.default_backend() != "tpu":
+        return None
+
+    device_kind = jax.devices()[0].device_kind
+    kind = device_kind.lower()
+
+    for name, peak_flops in _TPU_PEAK_BF16_FLOPS:
+        if name in kind:
+            return peak_flops
+
+    print(f"WARNING: unrecognized TPU device_kind {device_kind!r}, MFU cannot be computed", file=sys.stderr)
+    return None
+
 
 n = 100
 
@@ -39,11 +52,19 @@ BLOCK_SIZE_S = 512
 
 run_forward = True
 
-# recurrent-form FLOPs: per token, q @ h (2KV) + state update k^T (x) v (2KV)
-flops_forward = B * N * S * 4 * K * V
-# backward's compute-dominant term (BLOCK_SIZE_S^2 intra-chunk term is negligible next to BLOCK_SIZE_S * K * V
-# when K, V >> 1) is 10 * BLOCK_SIZE_S * K * V per chunk vs forward's 4 * BLOCK_SIZE_S * K * V, i.e. ~2.5x
-flops = flops_forward if run_forward else 2.5 * flops_forward
+NUM_CHUNKS = -(-S // BLOCK_SIZE_S)  # ceil division
+
+# reference ("jax") path is a strict per-token recurrence: q @ h (2KV) + state update k^T (x) v (2KV)
+flops_forward_jax = B * N * S * 4 * K * V
+# pallas path additionally does an intra-chunk causal matmul per chunk (qk: 2*BLOCK^2*K, qk@v: 2*BLOCK^2*V) on
+# top of the same q @ h / state update terms above, real compute that's only negligible when BLOCK_SIZE_S << K, V
+flops_forward_pallas = B * N * (NUM_CHUNKS * 2 * BLOCK_SIZE_S**2 * (K + V) + S * 4 * K * V)
+# backward redoes the forward-checkpoint pass (same cost as forward) plus, per chunk: qk, d_masked_qk, dq's
+# intra-chunk term, dk's intra-chunk term (4 * 2*BLOCK^2*K-or-V terms) and 4 BLOCK*K*V cross-chunk terms
+flops_backward_pallas = flops_forward_pallas + B * N * (
+    NUM_CHUNKS * 2 * BLOCK_SIZE_S**2 * (3 * K + 2 * V) + S * 8 * K * V
+)
+flops_backward_jax = 2 * flops_forward_jax  # standard backward ~= 2x forward heuristic for autodiff'd code
 
 # forward: read q, k, v, write y, h_out
 bytes_forward_elements = 3 * B * S * N * K + B * S * N * V + B * N * K * V
@@ -51,9 +72,7 @@ bytes_forward_elements = 3 * B * S * N * K + B * S * N * V + B * N * K * V
 bytes_backward_elements = 4 * B * S * N * K + B * N * K * V + 3 * B * S * N * K + B * N * K * V
 bytes_elements = bytes_forward_elements if run_forward else bytes_backward_elements
 
-peak_flops = None
-if jax.default_backend() == "tpu":
-    peak_flops = _TPU_PEAK_BF16_FLOPS.get(jax.devices()[0].device_kind)
+peak_flops = _get_peak_bf16_flops()
 
 mfu_table = []
 bw_table = []
@@ -61,6 +80,11 @@ bw_table = []
 for kernel_backend, row_header in kernels:
     mfu_row = [row_header]
     bw_row = [row_header]
+
+    if kernel_backend == KernelBackend.pallas:
+        flops = flops_forward_pallas if run_forward else flops_backward_pallas
+    else:
+        flops = flops_forward_jax if run_forward else flops_backward_jax
 
     if kernel_backend == KernelBackend.pallas and not kernel_backend.verify_accelerator():
         mfu_row.extend(["NA"] * len(dtypes))
