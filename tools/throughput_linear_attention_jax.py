@@ -19,7 +19,6 @@ _TPU_PEAK_BF16_FLOPS = [("TPU v6 lite", 918e12)]
 
 
 def _get_peak_bf16_flops() -> float | None:
-    return 918e12
     if jax.default_backend() != "tpu":
         return None
 
