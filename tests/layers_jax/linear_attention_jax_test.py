@@ -113,7 +113,7 @@ def test_linear_attention_pallas(
 
 
 @pytest.mark.parametrize("has_input_state", [False, True])
-def test_linear_attention_module(has_input_state: bool) -> None:
+def test_linear_attention_module_works(has_input_state: bool) -> None:
     Embed = haliax.Axis("embed", 32)
     Output = haliax.Axis("output", 24)
     Batch = haliax.Axis("batch", 2)
