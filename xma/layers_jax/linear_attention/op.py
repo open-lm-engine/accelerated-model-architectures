@@ -35,6 +35,7 @@ def _linear_attention_reference(
     Nk = k.shape[-2]
     Nv, V = v.shape[-2:]
     N = max(Nq, Nk, Nv)
+    dtype = q.dtype
 
     q = jnp.repeat(q, N // Nq, axis=-2).astype(jnp.float32)
     k = jnp.repeat(k, N // Nk, axis=-2).astype(jnp.float32)
@@ -49,7 +50,7 @@ def _linear_attention_reference(
 
     y = jnp.stack(y, axis=1) * attention_multiplier
 
-    return y.astype(q.dtype), h
+    return y.astype(dtype), h
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(4, 5))
