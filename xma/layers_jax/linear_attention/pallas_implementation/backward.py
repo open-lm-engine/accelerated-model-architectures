@@ -76,25 +76,18 @@ def _linear_attention_backward_pallas_kernel(
     causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
     causal_mask = causal_row_ids > causal_col_ids
 
-    # qk[i, j] = q_i . k_j (i = query position, j = key position), masked strictly causal (i > j) exactly as
-    # in the forward pass
     qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
     masked_qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
-    # d(masked_qk)[i, j] = dy_i . v_j, then re-apply the same causal mask (masked_qk = causal_mask * qk, so
-    # the gradient flowing back through that elementwise product carries the same mask)
     d_masked_qk = jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
     d_qk = jnp.where(causal_mask, d_masked_qk, 0).astype(dtype)
 
-    # dq_i = sum_j d_qk[i, j] * k_j  (intra-chunk)  +  dy_i @ h_c^T  (inter-chunk, through y_inter = q @ h_c)
     dq = jax.lax.dot_general(d_qk, k, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
     dq += jax.lax.dot_general(dy, h_c, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
 
-    # dk_j = sum_i d_qk[i, j] * q_i  (intra-chunk)  +  v_j @ g^T  (through the state update h += k^T @ v)
     dk = jax.lax.dot_general(d_qk, q, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
     dk += jax.lax.dot_general(v, g.astype(dtype), (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
 
-    # dv_j = sum_i masked_qk[i, j] * dy_i  (intra-chunk)  +  k_j @ g  (through the state update)
     dv = jax.lax.dot_general(masked_qk, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
     dv += jax.lax.dot_general(k, g.astype(dtype), (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
 
@@ -102,7 +95,6 @@ def _linear_attention_backward_pallas_kernel(
     dk_ref[...] = dk.astype(dtype)
     dv_ref[...] = dv.astype(dtype)
 
-    # g^{(c)} = g^{(c+1)} + q_c^T @ dy_c, ready for the next (earlier) chunk
     dh0_ref[...] = g + jax.lax.dot_general(q, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
 
 
