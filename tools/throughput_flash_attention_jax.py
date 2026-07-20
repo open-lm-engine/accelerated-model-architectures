@@ -2,42 +2,12 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-import sys
 import time
 
 import jax
 import jax.numpy as jnp
 from jax.experimental.pallas.ops.tpu.flash_attention import flash_attention
 from tabulate import tabulate
-
-
-# peak dense-matmul bf16 FLOPs/sec per chip, used only to compute MFU (fp32 MXU throughput isn't a well defined
-# fraction of this across TPU generations, so MFU is only reported for bfloat16). Matched by substring since
-# jax.devices()[0].device_kind spells generations inconsistently (e.g. "TPU v5 lite" for v5e, "TPU v5" for v5p).
-_TPU_PEAK_BF16_FLOPS = [
-    ("v6e", 918e12),
-    ("v5e", 197e12),
-    ("v5 lite", 197e12),
-    ("v5p", 459e12),
-    ("v5", 459e12),
-    ("v4", 275e12),
-    ("v3", 123e12),
-]
-
-
-def _get_peak_bf16_flops() -> float | None:
-    if jax.default_backend() != "tpu":
-        return None
-
-    device_kind = jax.devices()[0].device_kind
-    kind = device_kind.lower()
-
-    for name, peak_flops in _TPU_PEAK_BF16_FLOPS:
-        if name in kind:
-            return peak_flops
-
-    print(f"WARNING: unrecognized TPU device_kind {device_kind!r}, MFU cannot be computed", file=sys.stderr)
-    return None
 
 
 n = 100
@@ -66,7 +36,7 @@ bytes_forward_elements = 4 * B * S * N * D
 bytes_backward_elements = 8 * B * S * N * D
 bytes_elements = bytes_forward_elements if run_forward else bytes_backward_elements
 
-peak_flops = _get_peak_bf16_flops()
+peak_flops = 918e12
 
 mfu_row = ["flash_attention"]
 bw_row = ["flash_attention"]
