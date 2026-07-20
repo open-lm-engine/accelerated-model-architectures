@@ -25,7 +25,7 @@ n = 100
 
 kernels = [
     (KernelBackend.pallas, "pallas"),
-    (KernelBackend.jax, "jax"),
+    # (KernelBackend.jax, "jax"),
 ]
 dtypes = ["float32", "bfloat16"]
 headers = ["kernel"] + dtypes
@@ -33,11 +33,11 @@ headers = ["kernel"] + dtypes
 B = 4
 S = 4096
 N = 32
-K = 128
-V = 128
-BLOCK_SIZE_S = 64
+K = 512
+V = 512
+BLOCK_SIZE_S = 512
 
-run_forward = False
+run_forward = True
 
 # recurrent-form FLOPs: per token, q @ h (2KV) + state update k^T (x) v (2KV)
 flops_forward = B * N * S * 4 * K * V
