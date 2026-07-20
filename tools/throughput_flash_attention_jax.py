@@ -7,6 +7,8 @@ import time
 import jax
 import jax.numpy as jnp
 from jax.experimental.pallas.ops.tpu.flash_attention import flash_attention
+from jax.experimental.pallas.ops.tpu.splash_attention import splash_attention_kernel as splash_kernel
+from jax.experimental.pallas.ops.tpu.splash_attention import splash_attention_mask as splash_mask
 from tabulate import tabulate
 
 
@@ -38,24 +40,40 @@ bytes_elements = bytes_forward_elements if run_forward else bytes_backward_eleme
 
 peak_flops = 918e12
 
-mfu_row = ["flash_attention"]
-bw_row = ["flash_attention"]
+# splash attention's causal structure is a static per-head mask baked into the kernel at construction time
+# (unlike flash_attention's `causal=` flag), and batching over B is done via jax.vmap rather than a leading
+# batch dim the kernel understands natively -- built once, outside the timed loop
+_splash_mask = splash_mask.MultiHeadMask([splash_mask.CausalMask(shape=(S, S)) for _ in range(N)])
+_splash_fn = jax.vmap(splash_kernel.make_splash_mha_single_device(mask=_splash_mask))
 
-if jax.default_backend() != "tpu":
-    mfu_row.extend(["NA"] * len(dtypes))
-    bw_row.extend(["NA"] * len(dtypes))
-else:
+kernels = [
+    ("flash_attention", lambda q, k, v: flash_attention(q, k, v, causal=causal, sm_scale=1.0)),
+    ("splash_attention", _splash_fn),
+]
+
+mfu_table = []
+bw_table = []
+
+for row_header, fn in kernels:
+    mfu_row = [row_header]
+    bw_row = [row_header]
+
+    if jax.default_backend() != "tpu":
+        mfu_row.extend(["NA"] * len(dtypes))
+        bw_row.extend(["NA"] * len(dtypes))
+        mfu_table.append(mfu_row)
+        bw_table.append(bw_row)
+        continue
+
     for dtype in dtypes:
         jax_dtype = getattr(jnp, dtype)
         itemsize = jnp.dtype(jax_dtype).itemsize
 
         key_q, key_k, key_v, key_do = jax.random.split(jax.random.PRNGKey(0), 4)
-        # jax.experimental.pallas.ops.tpu.flash_attention expects (batch, num_heads, seq_len, head_dim)
+        # (batch, num_heads, seq_len, head_dim) for both kernels (splash_attention via the jax.vmap above)
         q = jax.random.normal(key_q, (B, N, S, D), dtype=jnp.float32).astype(jax_dtype)
         k = jax.random.normal(key_k, (B, N, S, D), dtype=jnp.float32).astype(jax_dtype)
         v = jax.random.normal(key_v, (B, N, S, D), dtype=jnp.float32).astype(jax_dtype)
-
-        fn = lambda q, k, v: flash_attention(q, k, v, causal=causal, sm_scale=1.0)
 
         if run_forward:
             forward = jax.jit(fn)
@@ -79,16 +97,19 @@ else:
 
         t = (end - start) / n
 
-        if peak_flops is not None and dtype == "bfloat16":
+        if dtype == "bfloat16":
             mfu_row.append(100 * flops / t / peak_flops)
         else:
             mfu_row.append("NA")
 
         bw_row.append(bytes_elements * itemsize / t / 1e12)
 
+    mfu_table.append(mfu_row)
+    bw_table.append(bw_row)
+
 
 print("MFU (%)")
-print(tabulate([mfu_row], headers=headers))
+print(tabulate(mfu_table, headers=headers))
 print()
 print("Bandwidth (TB/s)")
-print(tabulate([bw_row], headers=headers))
+print(tabulate(bw_table, headers=headers))
