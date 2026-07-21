@@ -2,6 +2,7 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+import re
 import time
 
 import jax
@@ -10,6 +11,24 @@ from jax.experimental.pallas.ops.tpu.flash_attention import flash_attention
 from jax.experimental.pallas.ops.tpu.splash_attention import splash_attention_kernel as splash_kernel
 from jax.experimental.pallas.ops.tpu.splash_attention import splash_attention_mask as splash_mask
 from tabulate import tabulate
+
+
+def _print_compiled_info(jitted_fn, name: str, *args) -> None:
+    # inspect the *actual* compiled program instead of just trusting timing numbers: this both proves the
+    # jitted function only compiles once here (the timing loop's own warmup call below reuses this exact
+    # cache entry, since .lower(...).compile() populates the same jit cache keyed by arg avals) and confirms
+    # what's really running on device -- e.g. that a genuine Mosaic/pallas custom-call is being dispatched
+    # (not some silent fallback), and, where available, the compiled VMEM footprint.
+    text = jitted_fn.lower(*args).compile().as_text()
+
+    custom_call_targets = sorted(set(re.findall(r'custom_call_target="([^"]+)"', text)))
+    print(f"  [{name}] custom-call targets: {custom_call_targets}")
+
+    vmem_match = re.search(r'"used_scoped_memory_configs":\[\{"memory_space":"1",.*?"size":"(\d+)"', text)
+    if vmem_match:
+        print(f"  [{name}] VMEM usage: {int(vmem_match.group(1)) / 1024:.1f} KiB")
+    else:
+        print(f"  [{name}] VMEM usage: not found in compiled text")
 
 
 n = 100
@@ -77,6 +96,7 @@ for row_header, fn in kernels:
 
         if run_forward:
             forward = jax.jit(fn)
+            _print_compiled_info(forward, f"{row_header}/{dtype}/fwd", q, k, v)
             run = lambda: forward(q, k, v)
         else:
             do = jax.random.normal(key_do, (B, N, S, D), dtype=jnp.float32).astype(jax_dtype)
@@ -85,6 +105,7 @@ for row_header, fn in kernels:
             # backward (pullback), mirroring how torch.autograd.grad(..., retain_graph=True) is used elsewhere
             _, vjp_fn = jax.vjp(fn, q, k, v)
             backward = jax.jit(vjp_fn)
+            _print_compiled_info(backward, f"{row_header}/{dtype}/bwd", do)
             run = lambda: backward(do)
 
         jax.block_until_ready(run())
