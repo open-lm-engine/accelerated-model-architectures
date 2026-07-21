@@ -60,6 +60,11 @@ def _linear_attention_forward_pallas(
     if _CACHE is None:
         _CACHE = make_kernel_from_pallas(_linear_attention_forward_pallas_jit, _output_shape_dtype_fn)
 
+    if h0 is None:
+        # materialize so trace_pallas doesn't drop it from tensor_args, causing an operand-count mismatch
+        B, S, K, V, N = _get_output_shapes(q, k, v)
+        h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device)
+
     return _CACHE(
         q,
         k,
