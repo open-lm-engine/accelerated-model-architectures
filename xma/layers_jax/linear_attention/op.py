@@ -85,7 +85,7 @@ def _linear_attention_backward_jax(
     query, key, value, input_state = residuals
     dy, dh = cotangents
 
-    dq, dk, dv, dh0 = _linear_attention_backward_pallas_jit(
+    dq, dk, dv, dh0 = _linear_attention_backward_pallas(
         query,
         key,
         value,
