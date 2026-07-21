@@ -98,39 +98,22 @@ def _linear_attention_backward_pallas_kernel(
     dh0_ref[...] = g + jax.lax.dot_general(q, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
 
 
-@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
-def _linear_attention_backward_pallas(
-    q: jax.Array,
+@partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
+def _linear_attention_backward_checkpoint_pallas(
     k: jax.Array,
     v: jax.Array,
-    dy: jax.Array,
-    h0: jax.Array | None,
-    dh: jax.Array | None,
-    attention_multiplier: float,
+    h0: jax.Array,
     BLOCK_SIZE_S: int,
-) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-    B, S, Nq, K = q.shape
-    Nk = k.shape[-2]
-    Nv, V = v.shape[-2:]
+) -> jax.Array:
+    # k, v are already transposed to (B, Nk/Nv, S, K/V); h0 is (B, N, K, V), already defaulted (never None).
+    B, Nk, S, K = k.shape
+    Nv, V = v.shape[1], v.shape[-1]
+    N = h0.shape[1]
 
-    N = max(Nq, Nk, Nv)
-
-    Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
 
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
-
-    if h0 is None:
-        h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
-
-    if dh is None:
-        dh = jnp.zeros((B, N, K, V), dtype=jnp.float32)
-
-    q = jnp.swapaxes(q, 1, 2)
-    k = jnp.swapaxes(k, 1, 2)
-    v = jnp.swapaxes(v, 1, 2)
-    dy = jnp.swapaxes(dy, 1, 2)
 
     k_in_spec = pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, c: (b, n // Gk, c, 0))
     v_in_spec = pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, c: (b, n // Gv, c, 0))
@@ -152,6 +135,33 @@ def _linear_attention_backward_pallas(
     )
 
     h_checkpoints, _ = kernel(k, v, h0)
+    return h_checkpoints
+
+
+@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
+def _linear_attention_backward_main_pallas(
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    dy: jax.Array,
+    h_checkpoints: jax.Array,
+    dh: jax.Array,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
+    # q, k, v, dy are already transposed to (B, Nq/Nk/Nv/N, S, K/V); dh is (B, N, K, V), already defaulted.
+    B, Nq, S, K = q.shape
+    Nk = k.shape[1]
+    Nv, V = v.shape[1], v.shape[-1]
+    N = dy.shape[1]
+
+    Gq = N // Nq
+    Gk = N // Nk
+    Gv = N // Nv
+
+    NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
+
+    h_running_spec = pl.BlockSpec(block_shape=(None, None, K, V), index_map=lambda b, n, c: (b, n, 0, 0))
 
     kernel = pl.pallas_call(
         partial(
@@ -215,3 +225,38 @@ def _linear_attention_backward_pallas(
     dv = dv.reshape(B, S, Nv, Gv, V).sum(axis=3)
 
     return dq, dk, dv, dh0
+
+
+@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
+def _linear_attention_backward_pallas(
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    dy: jax.Array,
+    h0: jax.Array | None,
+    dh: jax.Array | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
+    B, S, Nq, K = q.shape
+    Nk = k.shape[-2]
+    Nv, V = v.shape[-2:]
+
+    N = max(Nq, Nk, Nv)
+
+    if h0 is None:
+        h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
+
+    if dh is None:
+        dh = jnp.zeros((B, N, K, V), dtype=jnp.float32)
+
+    q = jnp.swapaxes(q, 1, 2)
+    k = jnp.swapaxes(k, 1, 2)
+    v = jnp.swapaxes(v, 1, 2)
+    dy = jnp.swapaxes(dy, 1, 2)
+
+    h_checkpoints = _linear_attention_backward_checkpoint_pallas(k, v, h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
+
+    return _linear_attention_backward_main_pallas(
+        q, k, v, dy, h_checkpoints, dh, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+    )
