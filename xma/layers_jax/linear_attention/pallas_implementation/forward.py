@@ -68,7 +68,7 @@ def _linear_attention_forward_pallas_kernel(
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
-def _linear_attention_forward_pallas_jit(
+def _linear_attention_forward_pallas(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
