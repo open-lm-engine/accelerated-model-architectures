@@ -43,6 +43,7 @@ cuda = [
     "tabulate==0.10.0",
 ]
 torch-xla = [
+    "haliax==1.4.dev452",
     "torch==2.8.0",
     "torch-xla[pallas,tpu]==2.8.0",
     "tabulate==0.10.0",
