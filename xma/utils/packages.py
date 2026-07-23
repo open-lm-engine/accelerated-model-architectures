@@ -72,6 +72,18 @@ def is_jax_available() -> bool:
 
 
 try:
+    import haliax
+
+    _IS_HALIAX_AVAILABLE = True
+except ImportError:
+    _IS_HALIAX_AVAILABLE = False
+
+
+def is_haliax_available() -> bool:
+    return _IS_HALIAX_AVAILABLE
+
+
+try:
     import triton
 
     _IS_TRITON_AVAILABLE = True

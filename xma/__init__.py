@@ -5,11 +5,14 @@
 from .accelerator import Accelerator, KernelBackend
 from .counters import enable_counters, get_counter_value, reset_counters
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
-from .utils import get_ptx_from_triton_kernel, is_jax_available, is_torch_available
+from .utils import get_ptx_from_triton_kernel, is_haliax_available, is_jax_available, is_torch_available
 
 
 if is_jax_available():
-    from .layers_jax import LinearAttentionJAX, linear_attention_jax
+    from .layers_jax import linear_attention_jax
+
+    if is_haliax_available():
+        from .layers_jax import LinearAttentionJAX
 
 
 if is_torch_available():
