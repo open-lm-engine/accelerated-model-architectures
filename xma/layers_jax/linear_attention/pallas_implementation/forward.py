@@ -68,30 +68,23 @@ def _linear_attention_forward_pallas_kernel(
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
-def _linear_attention_forward_pallas(
+def _linear_attention_forward_pallas_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
-    h0: jax.Array | None,
+    h0: jax.Array,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
 ) -> tuple[jax.Array, jax.Array]:
-    B, S, Nq, K = q.shape
-    Nk = k.shape[-2]
-    Nv, V = v.shape[-2:]
-
-    N = max(Nq, Nk, Nv)
+    B, Nq, S, K = q.shape
+    Nk = k.shape[1]
+    Nv = v.shape[1]
+    V = v.shape[-1]
+    N = h0.shape[1]
 
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
-
-    if h0 is None:
-        h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
-
-    q = jnp.swapaxes(q, 1, 2)
-    k = jnp.swapaxes(k, 1, 2)
-    v = jnp.swapaxes(v, 1, 2)
 
     kernel = pl.pallas_call(
         partial(
@@ -118,7 +111,36 @@ def _linear_attention_forward_pallas(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary")),
     )
 
-    y, h = kernel(q, k, v, h0)
+    return kernel(q, k, v, h0)
+
+
+def _linear_attention_forward_pallas(
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    h0: jax.Array | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+) -> tuple[jax.Array, jax.Array]:
+    B, _, Nq, K = q.shape
+    Nk = k.shape[-2]
+    Nv, V = v.shape[-2:]
+
+    N = max(Nq, Nk, Nv)
+
+    if h0 is None:
+        h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
+    else:
+        h0 = h0.astype(jnp.float32)
+
+    q = jnp.swapaxes(q, 1, 2)
+    k = jnp.swapaxes(k, 1, 2)
+    v = jnp.swapaxes(v, 1, 2)
+
+    y, h = _linear_attention_forward_pallas_core(
+        q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+    )
+
     y = jnp.swapaxes(y, 1, 2)
 
     return y, h
