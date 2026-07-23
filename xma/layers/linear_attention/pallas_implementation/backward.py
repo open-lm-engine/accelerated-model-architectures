@@ -10,12 +10,9 @@ from ....layers_jax.linear_attention.pallas_implementation import (
     _linear_attention_backward_checkpoint_pallas as _linear_attention_backward_checkpoint_pallas_jit,
 )
 from ....layers_jax.linear_attention.pallas_implementation import (
-    _linear_attention_backward_main_pallas as _linear_attention_backward_main_pallas_jit,
+    _linear_attention_backward_main_pallas_core as _linear_attention_backward_main_pallas_core_jit,
 )
-
-
-def _get_num_blocks_s(S: int, BLOCK_SIZE_S: int) -> int:
-    return (S + BLOCK_SIZE_S - 1) // BLOCK_SIZE_S
+from ....math import ceil_divide
 
 
 def _checkpoint_output_shape_dtype_fn(
@@ -24,18 +21,22 @@ def _checkpoint_output_shape_dtype_fn(
     B, _, S, K = k.shape
     V = v.shape[-1]
     N = h0.shape[1]
-    NUM_BLOCKS_S = _get_num_blocks_s(S, BLOCK_SIZE_S)
+    NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
-    return [((B, N, NUM_BLOCKS_S, K, V), torch.float32)]
+    # NUM_BLOCKS_S is folded into the N axis (rather than kept as its own axis), matching the jax-side kernel, to
+    # keep this rank 4. The underlying pallas_call always produces both the checkpoints and the final running
+    # state, even though the jax-side wrapper only returns the checkpoints; both outputs must be declared here to
+    # match its window_params
+    return [((B, N * NUM_BLOCKS_S, K, V), torch.float32), ((B, N, K, V), torch.float32)]
 
 
 def _checkpoint_fake_function(k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int) -> torch.Tensor:
     B, _, S, K = k.shape
     V = v.shape[-1]
     N = h0.shape[1]
-    NUM_BLOCKS_S = _get_num_blocks_s(S, BLOCK_SIZE_S)
+    NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
-    return torch.empty(B, N, NUM_BLOCKS_S, K, V, dtype=torch.float32, device=k.device)
+    return torch.empty(B, N * NUM_BLOCKS_S, K, V, dtype=torch.float32, device=k.device)
 
 
 _CHECKPOINT_CACHE = None
@@ -53,7 +54,8 @@ def _linear_attention_backward_checkpoint_pallas(
             _linear_attention_backward_checkpoint_pallas_jit, _checkpoint_output_shape_dtype_fn
         )
 
-    return _CHECKPOINT_CACHE(k, v, h0, BLOCK_SIZE_S, static_argnums=(3,))
+    h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, BLOCK_SIZE_S, static_argnums=(3,))
+    return h_checkpoints
 
 
 def _main_output_shape_dtype_fn(
@@ -64,15 +66,14 @@ def _main_output_shape_dtype_fn(
     h_checkpoints: torch.Tensor,
     dh: torch.Tensor,
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
-    B, Nq, S, K = q.shape
-    Nk = k.shape[1]
-    Nv, V = v.shape[1], v.shape[-1]
+    B, _, S, K = q.shape
+    V = v.shape[-1]
     N = dh.shape[1]
 
     return [
-        ((B, S, Nq, K), q.dtype),
-        ((B, S, Nk, K), k.dtype),
-        ((B, S, Nv, V), v.dtype),
+        ((B, N, S, K), q.dtype),
+        ((B, N, S, K), q.dtype),
+        ((B, N, S, V), q.dtype),
         ((B, N, K, V), torch.float32),
     ]
 
@@ -87,14 +88,13 @@ def _main_fake_function(
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    B, Nq, S, K = q.shape
-    Nk = k.shape[1]
-    Nv, V = v.shape[1], v.shape[-1]
+    B, _, S, K = q.shape
+    V = v.shape[-1]
     N = dh.shape[1]
 
-    dq = torch.empty(B, S, Nq, K, dtype=q.dtype, device=q.device)
-    dk = torch.empty(B, S, Nk, K, dtype=k.dtype, device=k.device)
-    dv = torch.empty(B, S, Nv, V, dtype=v.dtype, device=v.device)
+    dq = torch.empty(B, N, S, K, dtype=q.dtype, device=q.device)
+    dk = torch.empty(B, N, S, K, dtype=q.dtype, device=q.device)
+    dv = torch.empty(B, N, S, V, dtype=q.dtype, device=q.device)
     dh0 = torch.empty(B, N, K, V, dtype=torch.float32, device=q.device)
 
     return dq, dk, dv, dh0
@@ -104,7 +104,7 @@ _MAIN_CACHE = None
 
 
 @xma_op(mutates_args={}, fake_func=_main_fake_function)
-def _linear_attention_backward_main_pallas(
+def _linear_attention_backward_main_pallas_core(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -114,11 +114,13 @@ def _linear_attention_backward_main_pallas(
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    # q, k, v, dy: already transposed to (B, Nq/Nk/Nv/N, S, K/V); dh: (B, N, K, V), never None
+    # q, k, v, dy: already transposed to (B, N, S, K/V); dh: (B, N, K, V), never None
     global _MAIN_CACHE
 
     if _MAIN_CACHE is None:
-        _MAIN_CACHE = make_kernel_from_pallas(_linear_attention_backward_main_pallas_jit, _main_output_shape_dtype_fn)
+        _MAIN_CACHE = make_kernel_from_pallas(
+            _linear_attention_backward_main_pallas_core_jit, _main_output_shape_dtype_fn
+        )
 
     return _MAIN_CACHE(
         q,
@@ -144,16 +146,24 @@ def _linear_attention_backward_pallas(
     BLOCK_SIZE_S: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     B, S, Nq, K = q.shape
-    Nk = k.shape[-2]
-    Nv, V = v.shape[-2:]
+    Nk = k.size(-2)
+    Nv, V = v.size()[-2:]
 
     N = max(Nq, Nk, Nv)
 
+    Gq = N // Nq
+    Gk = N // Nk
+    Gv = N // Nv
+
     if h0 is None:
         h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device)
+    else:
+        h0 = h0.float()
 
     if dh is None:
         dh = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device)
+    else:
+        dh = dh.float()
 
     q = q.transpose(1, 2)
     k = k.transpose(1, 2)
@@ -162,6 +172,16 @@ def _linear_attention_backward_pallas(
 
     h_checkpoints = _linear_attention_backward_checkpoint_pallas(k, v, h0, BLOCK_SIZE_S)
 
-    return _linear_attention_backward_main_pallas(
+    dq, dk, dv, dh0 = _linear_attention_backward_main_pallas_core(
         q, k, v, dy, h_checkpoints, dh, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
     )
+
+    dq = dq.transpose(1, 2)
+    dk = dk.transpose(1, 2)
+    dv = dv.transpose(1, 2)
+
+    dq = dq.reshape(B, S, Nq, Gq, K).sum(dim=3)
+    dk = dk.reshape(B, S, Nk, Gk, K).sum(dim=3)
+    dv = dv.reshape(B, S, Nv, Gv, V).sum(dim=3)
+
+    return dq, dk, dv, dh0
