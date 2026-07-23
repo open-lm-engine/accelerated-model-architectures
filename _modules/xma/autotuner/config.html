@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.functional_jax.swiglu - XMA documentation</title>
+        <title>xma.autotuner.config - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -262,42 +262,55 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <h1>Source code for xma.functional_jax.swiglu</h1><div class="highlight"><pre>
+          <h1>Source code for xma.autotuner.config</h1><div class="highlight"><pre>
 <span></span><span class="c1"># **************************************************</span>
 <span class="c1"># Copyright (c) 2026, Mayank Mishra</span>
 <span class="c1"># **************************************************</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
-
-<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">...accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">Accelerator</span><span class="p">,</span> <span class="n">KernelBackend</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.pallas_implementation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_swiglu_pallas_jax</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">product</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
 
 
-<div class="viewcode-block" id="swiglu_jax">
-<a class="viewcode-back" href="../../../xma.functional_jax.swiglu.html#xma.functional_jax.swiglu.swiglu_jax">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">swiglu_jax</span><span class="p">(</span><span class="n">gate</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">up</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">kernel_backend</span><span class="p">:</span> <span class="n">KernelBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
-    <span class="k">assert</span> <span class="n">gate</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">up</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s2">&quot;gate and up should have the same shape&quot;</span>
+<div class="viewcode-block" id="AutotuneConfig">
+<a class="viewcode-back" href="../../../xma.autotuner.config.html#xma.autotuner.config.AutotuneConfig">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AutotuneConfig</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">condition</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">condition</span> <span class="o">=</span> <span class="n">condition</span>
 
-    <span class="k">if</span> <span class="n">kernel_backend</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">kernel_backend</span> <span class="o">=</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">get_kernel_backend</span><span class="p">()</span>
+<div class="viewcode-block" id="AutotuneConfig.get_key_values">
+<a class="viewcode-back" href="../../../xma.autotuner.config.html#xma.autotuner.config.AutotuneConfig.get_key_values">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_key_values</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span></div>
 
-    <span class="k">if</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">pallas</span><span class="p">:</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="n">_swiglu_pallas_jax</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">up</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">kernel_backend</span> <span class="o">==</span> <span class="n">KernelBackend</span><span class="o">.</span><span class="n">jax</span><span class="p">:</span>
-        <span class="n">dtype</span> <span class="o">=</span> <span class="n">gate</span><span class="o">.</span><span class="n">dtype</span>
 
-        <span class="n">gate</span> <span class="o">=</span> <span class="n">gate</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="n">up</span> <span class="o">=</span> <span class="n">up</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<div class="viewcode-block" id="AutotuneConfig.is_condition_valid">
+<a class="viewcode-back" href="../../../xma.autotuner.config.html#xma.autotuner.config.AutotuneConfig.is_condition_valid">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_condition_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="c1"># note that here we override the values from the args passed by the user</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_key_values</span><span class="p">())</span>
+        <span class="k">return</span> <span class="kc">True</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">condition</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
-        <span class="n">x</span> <span class="o">=</span> <span class="n">up</span> <span class="o">*</span> <span class="n">gate</span> <span class="o">*</span> <span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">gate</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected kernel_backend (</span><span class="si">{</span><span class="n">kernel_backend</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">x</span></div>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_cartesian_product_autotune_configs">
+<a class="viewcode-back" href="../../../xma.autotuner.config.html#xma.autotuner.config.get_cartesian_product_autotune_configs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_cartesian_product_autotune_configs</span><span class="p">(</span>
+    <span class="n">condition</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">AutotuneConfig</span><span class="p">]:</span>
+    <span class="n">configs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">all_values</span> <span class="o">=</span> <span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+
+    <span class="k">for</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">all_values</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">values</span><span class="p">)}</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">AutotuneConfig</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="n">condition</span><span class="p">)</span>
+        <span class="n">configs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">configs</span></div>
 
 </pre></div>
         </article>

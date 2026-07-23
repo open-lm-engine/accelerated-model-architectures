@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.optimizers" href="xma.optimizers.html"><link rel="prev" title="xma.layers_jax" href="xma.layers_jax.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>xma.layers_jax.linear_attention - XMA documentation</title>
@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -191,7 +191,7 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1 has-children"><a class="reference internal" href="xma.functional.html">xma.functional</a><input aria-label="Toggle navigation of xma.functional" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.bmm.html">xma.functional.bmm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.continuous_count.html">xma.functional.continuous_count</a></li>
@@ -213,7 +213,11 @@
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.optimizers.html">xma.optimizers</a><input aria-label="Toggle navigation of xma.optimizers" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="xma.layers_jax.html">xma.layers_jax</a><input aria-label="Toggle navigation of xma.layers_jax" checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">xma.layers_jax.linear_attention</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.optimizers.html">xma.optimizers</a><input aria-label="Toggle navigation of xma.optimizers" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.optimizers.sgd.html">xma.optimizers.sgd</a></li>
 </ul>
 </li>
@@ -221,7 +225,7 @@
 <p class="caption" role="heading"><span class="caption-text">Utilities</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.autotuner.html">xma.autotuner</a><input aria-label="Toggle navigation of xma.autotuner" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="xma.autotuner.html">xma.autotuner</a><input aria-label="Toggle navigation of xma.autotuner" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.autotuner.config.html">xma.autotuner.config</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.autotuner.tuner.html">xma.autotuner.tuner</a></li>
 </ul>
@@ -260,22 +264,66 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="xma-layers-jax-linear-attention">
-<h1>xma.layers_jax.linear_attention<a class="headerlink" href="#xma-layers-jax-linear-attention" title="Link to this heading">¶</a></h1>
-</section>
+          <section id="module-xma.layers_jax.linear_attention.module">
+<span id="xma-layers-jax-linear-attention"></span><h1>xma.layers_jax.linear_attention<a class="headerlink" href="#module-xma.layers_jax.linear_attention.module" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="xma.layers_jax.linear_attention.module.LinearAttentionJAX">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">LinearAttentionJAX</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/layers_jax/linear_attention/module.html#LinearAttentionJAX"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="xma.layers_jax.linear_attention.module.LinearAttentionJAX.init">
+<span class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">init</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Embed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">haliax.Axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Output</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">haliax.Axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key_head_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value_head_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_query_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_key_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_value_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_multiplier</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">BLOCK_SIZE_S</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jaxtyping.PRNGKeyArray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX" title="xma.layers_jax.linear_attention.module.LinearAttentionJAX"><span class="pre">LinearAttentionJAX</span></a></span></span><a class="reference internal" href="_modules/xma/layers_jax/linear_attention/module.html#LinearAttentionJAX.init"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX.init" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="xma.layers_jax.linear_attention.module.LinearAttentionJAX.input_projection">
+<span class="sig-name descname"><span class="pre">input_projection</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">hax.nn.Linear</span></span><a class="headerlink" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX.input_projection" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="xma.layers_jax.linear_attention.module.LinearAttentionJAX.output_projection">
+<span class="sig-name descname"><span class="pre">output_projection</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">hax.nn.Linear</span></span><a class="headerlink" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX.output_projection" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function" id="module-xma.layers_jax.linear_attention.op">
+<dt class="sig sig-object py" id="xma.layers_jax.linear_attention.op.linear_attention_jax">
+<span class="sig-name descname"><span class="pre">linear_attention_jax</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_multiplier</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">BLOCK_SIZE_S</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_backend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="xma.accelerator.html#xma.accelerator.KernelBackend" title="xma.accelerator.KernelBackend"><span class="pre">KernelBackend</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">jax.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/layers_jax/linear_attention/op.html#linear_attention_jax"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.linear_attention.op.linear_attention_jax" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<span class="target" id="module-xma.layers_jax.linear_attention"></span></section>
 
         </article>
       </div>
       <footer>
         
         <div class="related-pages">
-          
-          
+          <a class="next-page" href="xma.optimizers.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">xma.optimizers</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="xma.layers_jax.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">xma.layers_jax</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -294,8 +342,33 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">xma.layers_jax.linear_attention</a><ul>
+<li><a class="reference internal" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX"><code class="docutils literal notranslate"><span class="pre">LinearAttentionJAX</span></code></a><ul>
+<li><a class="reference internal" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX.init"><code class="docutils literal notranslate"><span class="pre">LinearAttentionJAX.init()</span></code></a></li>
+<li><a class="reference internal" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX.input_projection"><code class="docutils literal notranslate"><span class="pre">LinearAttentionJAX.input_projection</span></code></a></li>
+<li><a class="reference internal" href="#xma.layers_jax.linear_attention.module.LinearAttentionJAX.output_projection"><code class="docutils literal notranslate"><span class="pre">LinearAttentionJAX.output_projection</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#xma.layers_jax.linear_attention.op.linear_attention_jax"><code class="docutils literal notranslate"><span class="pre">linear_attention_jax()</span></code></a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
