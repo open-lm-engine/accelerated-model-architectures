@@ -39,7 +39,10 @@ add_module_names = False
 autodoc_mock_imports = [
     "cuda",
     "cutlass",
+    "equinox",
+    "haliax",
     "jax",
+    "jaxtyping",
     "neuronxcc",
     "torch._dynamo",
     "torch._inductor",

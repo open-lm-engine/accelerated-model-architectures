@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import jax
 import jax.experimental.pallas as pl
 import jax.experimental.pallas.tpu as pltpu

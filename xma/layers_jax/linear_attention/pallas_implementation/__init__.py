@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from .backward import (
     _linear_attention_backward_checkpoint_pallas,
     _linear_attention_backward_main_pallas,

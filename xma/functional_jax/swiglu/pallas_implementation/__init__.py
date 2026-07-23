@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import jax
 
 from .backward import _swiglu_backward_pallas_jit
