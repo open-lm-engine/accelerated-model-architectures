@@ -2,4 +2,12 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from .forward import _linear_attention_forward_pallas_jit
+from __future__ import annotations
+
+from .backward import (
+    _linear_attention_backward_checkpoint_pallas,
+    _linear_attention_backward_main_pallas,
+    _linear_attention_backward_main_pallas_core,
+    _linear_attention_backward_pallas,
+)
+from .forward import _linear_attention_forward_pallas, _linear_attention_forward_pallas_core

@@ -2,6 +2,11 @@ xma.layers\_jax.linear\_attention
 =================================
 
 
+.. automodule:: xma.layers_jax.linear_attention.module
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. automodule:: xma.layers_jax.linear_attention.op
    :members:
    :undoc-members:

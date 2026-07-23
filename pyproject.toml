@@ -43,11 +43,15 @@ cuda = [
     "tabulate==0.10.0",
 ]
 torch-xla = [
+    "haliax==1.4.dev452",
     "torch==2.8.0",
     "torch-xla[pallas,tpu]==2.8.0",
     "tabulate==0.10.0",
 ]
-tpu = ["jax[tpu]==0.6.2"]
+tpu = [
+    "haliax==1.4.dev452",
+    "jax[tpu]==0.6.2",
+]
 
 [tool.uv]
 conflicts = [

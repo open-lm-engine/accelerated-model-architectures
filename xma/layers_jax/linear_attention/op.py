@@ -2,13 +2,16 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import math
+from functools import partial
 
 import jax
 import jax.numpy as jnp
 
 from ...accelerator import Accelerator, KernelBackend
-from .pallas_implementation import _linear_attention_forward_pallas_jit
+from .pallas_implementation import _linear_attention_backward_pallas, _linear_attention_forward_pallas
 
 
 def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, int, int]:
@@ -34,6 +37,7 @@ def _linear_attention_reference(
     Nk = k.shape[-2]
     Nv, V = v.shape[-2:]
     N = max(Nq, Nk, Nv)
+    dtype = q.dtype
 
     q = jnp.repeat(q, N // Nq, axis=-2).astype(jnp.float32)
     k = jnp.repeat(k, N // Nk, axis=-2).astype(jnp.float32)
@@ -48,7 +52,56 @@ def _linear_attention_reference(
 
     y = jnp.stack(y, axis=1) * attention_multiplier
 
-    return y.astype(q.dtype), h
+    return y.astype(dtype), h
+
+
+@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
+def _linear_attention_jax_op(
+    query: jax.Array,
+    key: jax.Array,
+    value: jax.Array,
+    input_state: jax.Array | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+) -> tuple[jax.Array, jax.Array]:
+    return _linear_attention_forward_pallas(
+        query, key, value, input_state, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+    )
+
+
+def _linear_attention_forward_jax(
+    query: jax.Array,
+    key: jax.Array,
+    value: jax.Array,
+    input_state: jax.Array | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+) -> tuple[tuple[jax.Array, jax.Array], tuple]:
+    y, h = _linear_attention_jax_op(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S)
+    return (y, h), (query, key, value, input_state)
+
+
+def _linear_attention_backward_jax(
+    attention_multiplier: float, BLOCK_SIZE_S: int, residuals: tuple, cotangents: tuple
+) -> tuple:
+    query, key, value, input_state = residuals
+    dy, dh = cotangents
+
+    dq, dk, dv, dh0 = _linear_attention_backward_pallas(
+        query,
+        key,
+        value,
+        dy,
+        input_state,
+        dh,
+        attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+    )
+
+    return dq, dk, dv, (dh0 if input_state is not None else None)
+
+
+_linear_attention_jax_op.defvjp(_linear_attention_forward_jax, _linear_attention_backward_jax)
 
 
 def linear_attention_jax(
@@ -80,12 +133,10 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        y, ht = _linear_attention_forward_pallas_jit(
-            query, key, value, input_state, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
-        )
+        y, h = _linear_attention_jax_op(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S)
     elif kernel_backend == KernelBackend.jax:
-        y, ht = _linear_attention_reference(query, key, value, input_state, attention_multiplier)
+        y, h = _linear_attention_reference(query, key, value, input_state, attention_multiplier)
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return y, ht
+    return y, h

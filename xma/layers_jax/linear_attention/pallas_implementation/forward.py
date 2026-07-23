@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax
@@ -12,6 +14,35 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
+def _state_update(h: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
+    h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+    return h
+
+
+def _output_readout(
+    h: jax.Array,
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    BLOCK_SIZE_S: int,
+    attention_multiplier: float,
+) -> jax.Array:
+    dtype = q.dtype
+
+    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
+    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
+    causal_mask = causal_row_ids > causal_col_ids
+
+    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
+
+    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
+    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
+    y *= attention_multiplier
+
+    return y.astype(dtype)
+
+
 def _linear_attention_forward_pallas_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
@@ -20,58 +51,42 @@ def _linear_attention_forward_pallas_kernel(
         h_ref[...] = h0_ref[...]
 
     dtype = q_ref.dtype
-    row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
 
     BLOCK_ID_S = pl.program_id(2)
-    MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + row_ids) < S
+    BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
+    MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
     q = jnp.where(MASK_S, q_ref[...], 0).astype(dtype)
     k = jnp.where(MASK_S, k_ref[...], 0).astype(dtype)
     v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
     h = h_ref[...]
 
-    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+    y_ref[...] = _output_readout(
+        h=h, q=q, k=k, v=v, BLOCK_SIZE_S=BLOCK_SIZE_S, attention_multiplier=attention_multiplier
+    )
 
-    causal_row_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
-    causal_col_ids = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
-    causal_mask = causal_row_ids > causal_col_ids
-    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
-
-    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
-    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
-    y *= attention_multiplier
-    y = y.astype(dtype)
-    y_ref[...] = y
-
-    h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+    h = _state_update(h=h, k=k, v=v)
     h_ref[...] = h
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
-def _linear_attention_forward_pallas_jit(
+def _linear_attention_forward_pallas_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
-    h0: jax.Array | None,
+    h0: jax.Array,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
 ) -> tuple[jax.Array, jax.Array]:
-    B, S, Nq, K = q.shape
-    Nk = k.shape[-2]
-    Nv, V = v.shape[-2:]
-
-    N = max(Nq, Nk, Nv)
+    B, Nq, S, K = q.shape
+    Nk = k.shape[1]
+    Nv = v.shape[1]
+    V = v.shape[-1]
+    N = h0.shape[1]
 
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
-
-    if h0 is None:
-        h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
-
-    q = jnp.swapaxes(q, 1, 2)
-    k = jnp.swapaxes(k, 1, 2)
-    v = jnp.swapaxes(v, 1, 2)
 
     kernel = pl.pallas_call(
         partial(
@@ -98,7 +113,36 @@ def _linear_attention_forward_pallas_jit(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary")),
     )
 
-    y, ht = kernel(q, k, v, h0)
+    return kernel(q, k, v, h0)
+
+
+def _linear_attention_forward_pallas(
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    h0: jax.Array | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+) -> tuple[jax.Array, jax.Array]:
+    B, _, Nq, K = q.shape
+    Nk = k.shape[-2]
+    Nv, V = v.shape[-2:]
+
+    N = max(Nq, Nk, Nv)
+
+    if h0 is None:
+        h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
+    else:
+        h0 = h0.astype(jnp.float32)
+
+    q = jnp.swapaxes(q, 1, 2)
+    k = jnp.swapaxes(k, 1, 2)
+    v = jnp.swapaxes(v, 1, 2)
+
+    y, h = _linear_attention_forward_pallas_core(
+        q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+    )
+
     y = jnp.swapaxes(y, 1, 2)
 
-    return y, ht
+    return y, h

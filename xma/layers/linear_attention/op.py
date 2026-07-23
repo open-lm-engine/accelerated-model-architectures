@@ -9,12 +9,15 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients
 from ...math import ceil_divide
-from ...utils import is_triton_available
+from ...utils import is_torch_xla_available, is_triton_available
 from .utils import _get_num_heads
 
 
 if is_triton_available():
     from .triton_implementation import _linear_attention_forward_triton
+
+if is_torch_xla_available():
+    from .pallas_implementation import _linear_attention_backward_pallas, _linear_attention_forward_pallas
 
 
 class _LinearAttention(CustomOp):
@@ -73,7 +76,23 @@ class _LinearAttention(CustomOp):
         CHUNK_SIZE: int,
         kernel_backend: KernelBackend | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton, KernelBackend.pallas]
+
+        ctx.kernel_backend = kernel_backend
+
+        if kernel_backend == KernelBackend.pallas:
+            assert cu_seqlens is None
+
+            y, ht = _linear_attention_forward_pallas(
+                q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=CHUNK_SIZE
+            )
+
+            ctx.h0_is_none = h0 is None
+            ctx.attention_multiplier = attention_multiplier
+            ctx.CHUNK_SIZE = CHUNK_SIZE
+            ctx.save_for_backward(*((q, k, v) if h0 is None else (q, k, v, h0)))
+
+            return y, ht
 
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
@@ -105,6 +124,32 @@ class _LinearAttention(CustomOp):
         )
 
         return y, ht
+
+    @staticmethod
+    def backward(
+        ctx, dy: torch.Tensor, dht: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, None, None, None, None, None]:
+        if ctx.kernel_backend != KernelBackend.pallas:
+            raise NotImplementedError(f"backward is not implemented for kernel_backend ({ctx.kernel_backend})")
+
+        if ctx.h0_is_none:
+            q, k, v = ctx.saved_tensors
+            h0 = None
+        else:
+            q, k, v, h0 = ctx.saved_tensors
+
+        dq, dk, dv, dh0 = _linear_attention_backward_pallas(
+            q=q,
+            k=k,
+            v=v,
+            dy=dy,
+            h0=h0,
+            dh=dht,
+            attention_multiplier=ctx.attention_multiplier,
+            BLOCK_SIZE_S=ctx.CHUNK_SIZE,
+        )
+
+        return dq, dk, dv, (dh0 if h0 is not None else None), None, None, None, None, None
 
 
 def linear_attention(
