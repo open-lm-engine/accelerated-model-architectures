@@ -9,7 +9,6 @@ xma
    xma.counters
    xma.custom_op
    xma.functional
-   xma.functional_jax
    xma.inductor
    xma.jit
    xma.layers

@@ -6,8 +6,8 @@ import torch
 from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
 from ....custom_op import xma_op
-from ....layers_jax.linear_attention.pallas_implementation import (
-    _linear_attention_forward_pallas_core as _linear_attention_forward_pallas_core_jit,
+from ....layers_jax.linear_attention.pallas_implementation.forward import (
+    _linear_attention_forward_core as _forward_core_jax,
 )
 
 
@@ -43,7 +43,7 @@ _CACHE = None
 
 
 @xma_op(mutates_args={}, fake_func=_fake_function)
-def _linear_attention_forward_pallas_core(
+def _linear_attention_forward_core(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -54,7 +54,7 @@ def _linear_attention_forward_pallas_core(
     global _CACHE
 
     if _CACHE is None:
-        _CACHE = make_kernel_from_pallas(_linear_attention_forward_pallas_core_jit, _output_shape_dtype_fn)
+        _CACHE = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
 
     return _CACHE(
         q,
@@ -90,7 +90,7 @@ def _linear_attention_forward_pallas(
     k = k.transpose(1, 2)
     v = v.transpose(1, 2)
 
-    y, h = _linear_attention_forward_pallas_core(
+    y, h = _linear_attention_forward_core(
         q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
     )
     y = y.transpose(1, 2)

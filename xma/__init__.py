@@ -9,7 +9,6 @@ from .utils import get_ptx_from_triton_kernel, is_jax_available, is_torch_availa
 
 
 if is_jax_available():
-    from .functional_jax import swiglu_jax
     from .layers_jax import LinearAttentionJAX, linear_attention_jax
 
 

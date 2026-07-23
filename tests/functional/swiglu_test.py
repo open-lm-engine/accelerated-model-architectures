@@ -20,7 +20,7 @@ from ..utils import (
 )
 
 
-def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
+def _generate_args(function: Callable, add_triton: bool, add_mps: bool, add_pallas: bool) -> list:
     args = list(
         product(
             get_2d_tensor_sizes(),
@@ -39,15 +39,6 @@ def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
         )
     )
 
-    args += list(
-        product(
-            [(4100, 3700)],
-            [torch.float32, torch.bfloat16],
-            [KernelBackend.pallas],
-            [function],
-        )
-    )
-
     if add_mps:
         args += list(
             product(
@@ -58,10 +49,22 @@ def _generate_args(function: Callable, add_triton: bool, add_mps: bool) -> list:
             )
         )
 
+    if add_pallas:
+        args += list(
+            product(
+                [(4100, 3700)],
+                [torch.float32, torch.bfloat16],
+                [KernelBackend.pallas],
+                [function],
+            )
+        )
+
     return args
 
 
-@pytest.mark.parametrize("size,dtype,kernel_backend,function", _generate_args(swiglu, add_triton=True, add_mps=True))
+@pytest.mark.parametrize(
+    "size,dtype,kernel_backend,function", _generate_args(swiglu, add_triton=True, add_mps=True, add_pallas=False)
+)
 @torch._dynamo.config.patch(recompile_limit=1024)
 def test_swiglu(size: tuple[int], dtype: torch.dtype, kernel_backend: KernelBackend, function: Callable) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)

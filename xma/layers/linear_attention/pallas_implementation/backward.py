@@ -6,11 +6,11 @@ import torch
 from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
 from ....custom_op import xma_op
-from ....layers_jax.linear_attention.pallas_implementation import (
-    _linear_attention_backward_checkpoint_pallas as _linear_attention_backward_checkpoint_pallas_jit,
+from ....layers_jax.linear_attention.pallas_implementation.backward import (
+    _linear_attention_backward_core as _backward_core_jax,
 )
-from ....layers_jax.linear_attention.pallas_implementation import (
-    _linear_attention_backward_main_pallas_core as _linear_attention_backward_main_pallas_core_jit,
+from ....layers_jax.linear_attention.pallas_implementation.backward import (
+    _linear_attention_checkpoint_core as _checkpoint_core_jax,
 )
 from ....math import ceil_divide
 
@@ -43,22 +43,20 @@ _CHECKPOINT_CACHE = None
 
 
 @xma_op(mutates_args={}, fake_func=_checkpoint_fake_function)
-def _linear_attention_backward_checkpoint_pallas(
+def _linear_attention_checkpoint_core(
     k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int
 ) -> torch.Tensor:
     # k, v: already transposed to (B, Nk/Nv, S, K/V); h0: (B, N, K, V), never None (defaulted by the caller)
     global _CHECKPOINT_CACHE
 
     if _CHECKPOINT_CACHE is None:
-        _CHECKPOINT_CACHE = make_kernel_from_pallas(
-            _linear_attention_backward_checkpoint_pallas_jit, _checkpoint_output_shape_dtype_fn
-        )
+        _CHECKPOINT_CACHE = make_kernel_from_pallas(_checkpoint_core_jax, _checkpoint_output_shape_dtype_fn)
 
     h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, BLOCK_SIZE_S, static_argnums=(3,))
     return h_checkpoints
 
 
-def _main_output_shape_dtype_fn(
+def _backward_output_shape_dtype_fn(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -78,7 +76,7 @@ def _main_output_shape_dtype_fn(
     ]
 
 
-def _main_fake_function(
+def _backward_fake_function(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -100,11 +98,11 @@ def _main_fake_function(
     return dq, dk, dv, dh0
 
 
-_MAIN_CACHE = None
+_BACKWARD_CACHE = None
 
 
-@xma_op(mutates_args={}, fake_func=_main_fake_function)
-def _linear_attention_backward_main_pallas_core(
+@xma_op(mutates_args={}, fake_func=_backward_fake_function)
+def _linear_attention_backward_core(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -115,14 +113,12 @@ def _linear_attention_backward_main_pallas_core(
     BLOCK_SIZE_S: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     # q, k, v, dy: already transposed to (B, N, S, K/V); dh: (B, N, K, V), never None
-    global _MAIN_CACHE
+    global _BACKWARD_CACHE
 
-    if _MAIN_CACHE is None:
-        _MAIN_CACHE = make_kernel_from_pallas(
-            _linear_attention_backward_main_pallas_core_jit, _main_output_shape_dtype_fn
-        )
+    if _BACKWARD_CACHE is None:
+        _BACKWARD_CACHE = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
 
-    return _MAIN_CACHE(
+    return _BACKWARD_CACHE(
         q,
         k,
         v,
@@ -170,9 +166,9 @@ def _linear_attention_backward_pallas(
     v = v.transpose(1, 2)
     dy = dy.transpose(1, 2)
 
-    h_checkpoints = _linear_attention_backward_checkpoint_pallas(k, v, h0, BLOCK_SIZE_S)
+    h_checkpoints = _linear_attention_checkpoint_core(k, v, h0, BLOCK_SIZE_S)
 
-    dq, dk, dv, dh0 = _linear_attention_backward_main_pallas_core(
+    dq, dk, dv, dh0 = _linear_attention_backward_core(
         q, k, v, dy, h_checkpoints, dh, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
     )
 
