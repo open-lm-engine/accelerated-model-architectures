@@ -8,13 +8,7 @@ import torch.nn.functional as F
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...math import divide_if_divisible
-from ...utils import (
-    empty_like_contiguous,
-    is_cute_dsl_available,
-    is_torch_neuronx_available,
-    is_torch_xla_available,
-    is_triton_available,
-)
+from ...utils import empty_like_contiguous, is_cute_dsl_available, is_torch_neuronx_available, is_triton_available
 from .mps_implementation import _swiglu_backward_mps, _swiglu_forward_mps
 
 
@@ -34,9 +28,6 @@ if is_torch_neuronx_available():
     from .nki_implementation import _swiglu_backward_nki, _swiglu_forward_nki
 
     _FUNCTIONS[KernelBackend.nki] = (_swiglu_forward_nki, _swiglu_backward_nki)
-
-if is_torch_xla_available():
-    from .pallas_implementation import _swiglu_backward_pallas, _swiglu_forward_pallas
 
 if is_triton_available():
     from .triton_implementation import _swiglu_backward_triton, _swiglu_forward_triton
@@ -61,14 +52,13 @@ class _Swiglu(CustomOp):
     def forward(ctx, g: torch.Tensor, u: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
         ctx.kernel_backend = kernel_backend
 
-        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
+        if kernel_backend == KernelBackend.cuda:
             g = g.contiguous()
             u = u.contiguous()
+        elif kernel_backend == KernelBackend.pallas:
+            raise NotImplementedError
 
         ctx_save_for_backward(ctx, g, u)
-
-        if kernel_backend == KernelBackend.pallas:
-            return _swiglu_forward_pallas(g=g, u=u)
 
         y = empty_like_contiguous(g)
 
@@ -85,10 +75,6 @@ class _Swiglu(CustomOp):
 
         if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
             dy = dy.contiguous()
-
-        if kernel_backend == KernelBackend.pallas:
-            dg, du = _swiglu_backward_pallas(g=g, u=u, dy=dy)
-            return dg, du, None
 
         dg = empty_like_contiguous(g)
         du = empty_like_contiguous(u)
