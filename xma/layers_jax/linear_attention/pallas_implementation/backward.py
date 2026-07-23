@@ -15,9 +15,7 @@ from ....math import ceil_divide
 from .forward import _state_update
 
 
-def _linear_attention_checkpoint_pallas_kernel(
-    k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int
-) -> None:
+def _checkpoint_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
     @pl.when(pl.program_id(2) == 0)
     def _():
         h_ref[...] = h0_ref[...]
@@ -36,7 +34,7 @@ def _linear_attention_checkpoint_pallas_kernel(
     h_ref[...] = _state_update(h=h, k=k, v=v)
 
 
-def _linear_attention_backward_pallas_kernel(
+def _backward_kernel(
     q_ref,
     k_ref,
     v_ref,
@@ -101,11 +99,8 @@ def _linear_attention_backward_pallas_kernel(
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
-def _linear_attention_backward_checkpoint_pallas(
-    k: jax.Array,
-    v: jax.Array,
-    h0: jax.Array,
-    BLOCK_SIZE_S: int,
+def _linear_attention_checkpoint_core(
+    k: jax.Array, v: jax.Array, h0: jax.Array, BLOCK_SIZE_S: int
 ) -> tuple[jax.Array, jax.Array]:
     # k, v are already transposed to (B, Nk/Nv, S, K/V); h0 is (B, N, K, V), already defaulted (never None).
     B, Nk, S, K = k.shape
@@ -122,7 +117,7 @@ def _linear_attention_backward_checkpoint_pallas(
     h_running_spec = pl.BlockSpec(block_shape=(None, None, K, V), index_map=lambda b, n, c: (b, n, 0, 0))
 
     kernel = pl.pallas_call(
-        partial(_linear_attention_checkpoint_pallas_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
+        partial(_checkpoint_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
         out_shape=(
             jax.ShapeDtypeStruct(shape=(B, N * NUM_BLOCKS_S, K, V), dtype=jnp.float32),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
@@ -140,7 +135,7 @@ def _linear_attention_backward_checkpoint_pallas(
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
-def _linear_attention_backward_main_pallas_core(
+def _linear_attention_backward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
@@ -166,7 +161,7 @@ def _linear_attention_backward_main_pallas_core(
 
     kernel = pl.pallas_call(
         partial(
-            _linear_attention_backward_pallas_kernel,
+            _backward_kernel,
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             S=S,
@@ -219,41 +214,6 @@ def _linear_attention_backward_main_pallas_core(
     return kernel(q, k, v, dy, h_checkpoints, dh)
 
 
-def _linear_attention_backward_main_pallas(
-    q: jax.Array,
-    k: jax.Array,
-    v: jax.Array,
-    dy: jax.Array,
-    h_checkpoints: jax.Array,
-    dh: jax.Array,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-    # q, k, v, dy are already transposed to (B, Nq/Nk/Nv/N, S, K/V); dh is (B, N, K, V), already defaulted.
-    B, Nq, S, K = q.shape
-    Nk = k.shape[1]
-    Nv, V = v.shape[1], v.shape[-1]
-    N = dh.shape[1]
-
-    Gq = N // Nq
-    Gk = N // Nk
-    Gv = N // Nv
-
-    dq, dk, dv, dh0 = _linear_attention_backward_main_pallas_core(
-        q, k, v, dy, h_checkpoints, dh, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
-    )
-
-    dq = jnp.swapaxes(dq, 1, 2)
-    dk = jnp.swapaxes(dk, 1, 2)
-    dv = jnp.swapaxes(dv, 1, 2)
-
-    dq = dq.reshape(B, S, Nq, Gq, K).sum(axis=3)
-    dk = dk.reshape(B, S, Nk, Gk, K).sum(axis=3)
-    dv = dv.reshape(B, S, Nv, Gv, V).sum(axis=3)
-
-    return dq, dk, dv, dh0
-
-
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
 def _linear_attention_backward_pallas(
     q: jax.Array,
@@ -271,6 +231,10 @@ def _linear_attention_backward_pallas(
 
     N = max(Nq, Nk, Nv)
 
+    Gq = N // Nq
+    Gk = N // Nk
+    Gv = N // Nv
+
     if h0 is None:
         h0 = jnp.zeros((B, N, K, V), dtype=jnp.float32)
     else:
@@ -286,8 +250,18 @@ def _linear_attention_backward_pallas(
     v = jnp.swapaxes(v, 1, 2)
     dy = jnp.swapaxes(dy, 1, 2)
 
-    h_checkpoints, _ = _linear_attention_backward_checkpoint_pallas(k, v, h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
+    h_checkpoints, _ = _linear_attention_checkpoint_core(k, v, h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
-    return _linear_attention_backward_main_pallas(
+    dq, dk, dv, dh0 = _linear_attention_backward_core(
         q, k, v, dy, h_checkpoints, dh, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
     )
+
+    dq = jnp.swapaxes(dq, 1, 2)
+    dk = jnp.swapaxes(dk, 1, 2)
+    dv = jnp.swapaxes(dv, 1, 2)
+
+    dq = dq.reshape(B, S, Nq, Gq, K).sum(axis=3)
+    dk = dk.reshape(B, S, Nk, Gk, K).sum(axis=3)
+    dv = dv.reshape(B, S, Nv, Gv, V).sum(axis=3)
+
+    return dq, dk, dv, dh0

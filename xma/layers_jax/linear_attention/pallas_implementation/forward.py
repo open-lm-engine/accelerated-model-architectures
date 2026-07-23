@@ -43,7 +43,7 @@ def _output_readout(
     return y.astype(dtype)
 
 
-def _linear_attention_forward_pallas_kernel(
+def _forward_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
     @pl.when(pl.program_id(2) == 0)
@@ -70,7 +70,7 @@ def _linear_attention_forward_pallas_kernel(
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
-def _linear_attention_forward_pallas_core(
+def _linear_attention_forward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
@@ -90,7 +90,7 @@ def _linear_attention_forward_pallas_core(
 
     kernel = pl.pallas_call(
         partial(
-            _linear_attention_forward_pallas_kernel,
+            _forward_kernel,
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             S=S,
@@ -139,7 +139,7 @@ def _linear_attention_forward_pallas(
     k = jnp.swapaxes(k, 1, 2)
     v = jnp.swapaxes(v, 1, 2)
 
-    y, h = _linear_attention_forward_pallas_core(
+    y, h = _linear_attention_forward_core(
         q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
     )
 
