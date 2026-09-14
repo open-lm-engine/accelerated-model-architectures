@@ -56,7 +56,7 @@ def _forward_kernel(
 
     taps = [
         jnp.where(BLOCK_S < shift, pltpu.roll(hist_padded, shift, axis=0), pltpu.roll(x_f32, shift, axis=0))
-        for shift in (K - 1 - k for k in range(K))
+        for shift in range(K - 1, -1, -1)
     ]
 
     W = W_ref[...].astype(jnp.float32)
