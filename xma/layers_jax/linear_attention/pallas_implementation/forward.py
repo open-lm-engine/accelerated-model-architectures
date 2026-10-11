@@ -2,14 +2,14 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax
 import jax.experimental.pallas as pl
 import jax.experimental.pallas.tpu as pltpu
 import jax.numpy as jnp
-
-from ....math import ceil_divide
 
 
 _BATCHED_HEAD_GROUP = 4
@@ -27,6 +27,47 @@ def _get_causal_mask(BLOCK_SIZE_S, transpose: bool = False):
     return causal_mask
 
 
+def _scalar_decays(log_f: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
+    # chunk-local scalar log decays, (BS,) for one decay shared by all heads or (G, BS) for one per head ->
+    # exp(c_i - c_j) (..., BS, BS), exp(c_i) (..., BS), exp(c_last) (...) and exp(c_last - c_i) (..., BS). callers
+    # index with `...`, so the shared decay stays 1-D / 0-d (a leading axis of 1 measured ~5% slower: its scalar
+    # multiplies became broadcasts)
+    log_f_last = log_f[..., -1]
+    return (
+        jnp.exp(log_f[..., :, None] - log_f[..., None, :]),
+        jnp.exp(log_f),
+        jnp.exp(log_f_last),
+        jnp.exp(log_f_last[..., None] - log_f),
+    )
+
+
+def _dot_exact_lhs(lhs: jax.Array, rhs: jax.Array, dimension_numbers) -> jax.Array:
+    # a dot whose lhs is exact in bf16 (a 0 / 1 triangle for a prefix / suffix sum) against an fp32 rhs: a default
+    # precision dot rounds rhs to bf16 first, which ruins sums of cancelling terms (the gate gradient), so rhs is split
+    # into hi + lo bf16 halves, ~16 mantissa bits in two MXU passes
+    lhs = lhs.astype(jnp.bfloat16)
+    hi = rhs.astype(jnp.bfloat16)
+    lo = (rhs - hi.astype(jnp.float32)).astype(jnp.bfloat16)
+    return jax.lax.dot_general(lhs, hi, dimension_numbers, preferred_element_type=jnp.float32) + jax.lax.dot_general(
+        lhs, lo, dimension_numbers, preferred_element_type=jnp.float32
+    )
+
+
+# the kernels see every per-head tensor flattened to (B, S, heads * head_dim): the layout a projection produces, so
+# no relayout is needed around the kernel, and a head is a lane-aligned column slice of a block (no transposes).
+def _head(ref, n: int, D: int, start: int = 0, end: int | None = None) -> jax.Array:
+    return ref[:, n * D + start : n * D + (D if end is None else end)]
+
+
+def _heads(ref, n: int, G: int, D: int, start: int = 0, end: int | None = None) -> jax.Array:
+    return jnp.stack([_head(ref, n + i, D, start, end) for i in range(G)], axis=0)
+
+
+def _store_heads(ref, n: int, D: int, x: jax.Array, start: int = 0, end: int | None = None) -> None:
+    for i in range(x.shape[0]):
+        ref[:, (n + i) * D + start : (n + i) * D + (D if end is None else end)] = x[i].astype(ref.dtype)
+
+
 def _linear_attention_forward_kernel(
     q_ref,
     k_ref,
@@ -39,13 +80,15 @@ def _linear_attention_forward_kernel(
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     N: int,
+    K: int,
+    V: int,
     Gq: int,
     Gk: int,
     Gv: int,
     Gf: int | None,
     f_diagonal: bool,
 ) -> None:
-    @pl.when(pl.program_id(2) == 0)
+    @pl.when(pl.program_id(1) == 0)
     def _():
         if h0_ref is None:
             h_scratch[...] = jnp.zeros_like(h_scratch)
@@ -53,26 +96,12 @@ def _linear_attention_forward_kernel(
             h_scratch[...] = h0_ref[...].astype(jnp.float32)
 
     dtype = q_ref.dtype
-
-    q_ = q_ref[...].transpose(1, 0, 2)
-    k_ = k_ref[...].transpose(1, 0, 2)
-    v_ = v_ref[...].transpose(1, 0, 2)
-
-    log_f_cumsum_ = None
-    if log_f_cumsum_ref is not None:
-        log_f_cumsum_ = log_f_cumsum_ref[...]
-
-        if f_diagonal:
-            log_f_cumsum_ = log_f_cumsum_.transpose(1, 0, 2)
-        else:
-            log_f_cumsum_ = log_f_cumsum_.transpose(1, 0)
-
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
 
     for n in range(N):
-        q = q_[n // Gq].astype(dtype)
-        k = k_[n // Gk].astype(dtype)
-        v = v_[n // Gv].astype(dtype)
+        q = _head(q_ref, n // Gq, K).astype(dtype)
+        k = _head(k_ref, n // Gk, K).astype(dtype)
+        v = _head(v_ref, n // Gv, V).astype(dtype)
         h = h_scratch[n]
 
         if log_f_cumsum_ref is None:
@@ -82,7 +111,11 @@ def _linear_attention_forward_kernel(
             y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
             y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
         else:
-            log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
+            if f_diagonal:
+                log_f = _head(log_f_cumsum_ref, n // Gf, K).astype(jnp.float32)
+            else:
+                log_f = log_f_cumsum_ref[:, n // Gf].astype(jnp.float32)
+
             log_f_last = log_f[-1]
 
             if f_diagonal:
@@ -110,7 +143,7 @@ def _linear_attention_forward_kernel(
         k = k.astype(dtype)
 
         y *= attention_multiplier
-        y_ref[:, n, :] = y.astype(y_ref.dtype)
+        y_ref[:, n * V : (n + 1) * V] = y.astype(y_ref.dtype)
 
         h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
         h_scratch[n] = h
@@ -131,46 +164,50 @@ def _linear_attention_forward_batched_kernel(
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     N: int,
+    K: int,
+    V: int,
     f_diagonal: bool,
     fused_scan: bool,
+    G: int,
 ) -> None:
     dtype = q_ref.dtype
 
-    @pl.when(pl.program_id(2) == 0)
+    @pl.when(pl.program_id(1) == 0)
     def _():
         if h0_ref is None:
             h_scratch[...] = jnp.zeros_like(h_scratch)
         else:
             h_scratch[...] = h0_ref[...].astype(jnp.float32)
 
-    q_ = q_ref[...].transpose(1, 0, 2)
-    k_ = k_ref[...].transpose(1, 0, 2)
-    v_ = v_ref[...].transpose(1, 0, 2)
-
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
 
     if log_f_cumsum_ref is not None and f_diagonal and fused_scan:
-        causal_batched = jnp.tril(jnp.ones((_BATCHED_HEAD_GROUP, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
+        causal_batched = jnp.tril(jnp.ones((G, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
 
+    # scalar gate: one decay shared by every head ((BS, 1) block, decays (BS,)) or one per head ((BS, N), decays with a
+    # leading G axis); both broadcast against the (G, ...) group tensors
+    scalar_per_head = log_f_cumsum_ref is not None and not f_diagonal and log_f_cumsum_ref.shape[-1] != 1
     if log_f_cumsum_ref is not None and not f_diagonal:
-        log_f = log_f_cumsum_ref[...][:, 0].astype(jnp.float32)
-        exp_decay = jnp.exp(log_f[:, None] - log_f[None, :])
-        exp_log_f = jnp.exp(log_f)
-        h_decay = jnp.exp(log_f[-1])
-        k_decay = jnp.exp(log_f[-1] - log_f)
+        if scalar_per_head:
+            log_f_all = log_f_cumsum_ref[...].astype(jnp.float32).T  # (N, BS)
+        else:
+            exp_decay, exp_log_f, h_decay, k_decay = _scalar_decays(log_f_cumsum_ref[...][:, 0].astype(jnp.float32))
 
-    for n in range(0, N, _BATCHED_HEAD_GROUP):
-        g = slice(n, n + _BATCHED_HEAD_GROUP)
-        q = q_[g]
-        k = k_[g]
-        v = v_[g]
+    for n in range(0, N, G):
+        g = slice(n, n + G)
+        q = _heads(q_ref, n, G, K)
+        k = _heads(k_ref, n, G, K)
+        v = _heads(v_ref, n, G, V)
         h = h_scratch[g]
+
+        if scalar_per_head:
+            exp_decay, exp_log_f, h_decay, k_decay = _scalar_decays(log_f_all[g])
 
         if log_f_cumsum_ref is None:
             qf = q
             qk = jax.lax.dot_general(q, k, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
         elif f_diagonal:
-            log_f_g = log_f_cumsum_ref[...][:, g, :].transpose(1, 0, 2).astype(jnp.float32)
+            log_f_g = _heads(log_f_cumsum_ref, n, G, K).astype(jnp.float32)
             if fused_scan:
                 log_f_g = jax.lax.dot_general(
                     causal_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
@@ -182,10 +219,10 @@ def _linear_attention_forward_batched_kernel(
             kf_inv = (k * jnp.exp(-log_f_g)).astype(dtype)
             qk = jax.lax.dot_general(qf, kf_inv, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
         else:
-            qf = (q * exp_log_f[None, :, None]).astype(dtype)
+            qf = (q * exp_log_f[..., :, None]).astype(dtype)
 
             qk = jax.lax.dot_general(q, k, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
-            qk *= exp_decay[None]
+            qk *= exp_decay
 
         qk = jnp.where(causal_mask[None], qk, 0).astype(dtype)
 
@@ -193,15 +230,15 @@ def _linear_attention_forward_batched_kernel(
         y += jax.lax.dot_general(qf, h.astype(dtype), (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32)
         y *= attention_multiplier
 
-        y_ref[:, g, :] = y.transpose(1, 0, 2).astype(dtype)
+        _store_heads(y_ref, n, V, y)
 
         if log_f_cumsum_ref is not None:
             if f_diagonal:
                 h *= jnp.exp(log_f_last)[:, :, None]
                 k = (k * jnp.exp(log_f_last[:, None, :] - log_f_g)).astype(dtype)
             else:
-                h *= h_decay
-                k *= k_decay[None, :, None]
+                h *= h_decay[..., None, None]
+                k *= k_decay[..., :, None]
 
         h += jax.lax.dot_general(k, v, (((1,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32)
         h_scratch[g] = h
@@ -212,7 +249,15 @@ def _linear_attention_forward_batched_kernel(
 
 @partial(
     jax.jit,
-    static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "output_state", "fused_scan"),
+    static_argnames=(
+        "attention_multiplier",
+        "BLOCK_SIZE_S",
+        "heads",
+        "output_state",
+        "f_diagonal",
+        "fused_scan",
+        "packed",
+    ),
 )
 def _linear_attention_forward_core(
     q: jax.Array,
@@ -223,16 +268,24 @@ def _linear_attention_forward_core(
     attention_multiplier: float,
     output_state: bool,
     BLOCK_SIZE_S: int,
-    BLOCK_SIZE_V: int,
+    heads: tuple[int, int, int, int],
+    f_diagonal: bool = False,
     fused_scan: bool = False,
+    packed: bool = False,
 ) -> tuple[jax.Array, jax.Array | None]:
-    B, S, Nq, K = q.shape
-    Nk = k.shape[2]
-    Nv = v.shape[2]
-    V = v.shape[-1]
+    # q, k: (B, S, Nq * K), (B, S, Nk * K); v: (B, S, Nv * V); log_f_cumsum: (B, S, Nf) or diagonal (B, S, Nf * K);
+    # heads = (Nq, Nk, Nv, Nf). packed: q is the fused projection (B, S, 3 * W) holding q | k | v, each W = N * K wide
+    # (k and v are ignored); the three BlockSpecs pick their lane block out of it, so it is never split in HBM
+    Nq, Nk, Nv, Nf = heads
+    B, S = q.shape[:2]
 
-    Nf = 0 if log_f_cumsum is None else log_f_cumsum.shape[2]
-    f_diagonal = log_f_cumsum is not None and log_f_cumsum.ndim == 4
+    if packed:
+        assert Nq == Nk == Nv and q.shape[-1] % 3 == 0
+        k = v = q
+        K = V = q.shape[-1] // (3 * Nq)
+    else:
+        K = q.shape[-1] // Nq
+        V = v.shape[-1] // Nv
 
     N = max(Nq, Nk, Nv, Nf)
     Gq = N // Nq
@@ -241,32 +294,23 @@ def _linear_attention_forward_core(
     Gf = None if log_f_cumsum is None else N // Nf
 
     assert S % BLOCK_SIZE_S == 0
-    assert V % BLOCK_SIZE_V == 0
+    NUM_BLOCKS_S = S // BLOCK_SIZE_S
 
-    h_spec = pl.BlockSpec(
-        block_shape=(None, N, K, BLOCK_SIZE_V),
-        index_map=lambda BLOCK_ID_B, BLOCK_ID_V, _: (BLOCK_ID_B, 0, 0, BLOCK_ID_V),
-    )
+    def seq_spec(width: int, lane_block: int = 0) -> pl.BlockSpec:
+        return pl.BlockSpec(block_shape=(None, BLOCK_SIZE_S, width), index_map=lambda b, s: (b, s, lane_block))
+
+    h_spec = pl.BlockSpec(block_shape=(None, N, K, V), index_map=lambda b, s: (b, 0, 0, 0))
 
     f_spec = None
     if log_f_cumsum is not None:
-        if f_diagonal:
-            f_spec = pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, Nf, K),
-                index_map=lambda BLOCK_ID_B, _, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
-            )
-        else:
-            f_spec = pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, Nf),
-                index_map=lambda BLOCK_ID_B, _, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0),
-            )
+        f_spec = seq_spec(Nf * K if f_diagonal else Nf)
 
     batched = (
         Gq == 1
         and Gk == 1
         and Gv == 1
         and N % _BATCHED_HEAD_GROUP == 0
-        and (log_f_cumsum is None or (not f_diagonal and Nf == 1) or (f_diagonal and Gf == 1))
+        and (log_f_cumsum is None or (not f_diagonal and Nf in (1, N)) or (f_diagonal and Gf == 1))
     )
 
     if batched:
@@ -275,8 +319,13 @@ def _linear_attention_forward_core(
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             N=N,
+            K=K,
+            V=V,
             f_diagonal=f_diagonal,
             fused_scan=fused_scan,
+            # heads per batched dot: 8 measured faster for the diagonal gate (-2.7%), 4 for the others (8 is flat to
+            # +0.8% there)
+            G=8 if f_diagonal and N % 8 == 0 else _BATCHED_HEAD_GROUP,
         )
     else:
         kernel_body = partial(
@@ -284,6 +333,8 @@ def _linear_attention_forward_core(
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             N=N,
+            K=K,
+            V=V,
             Gq=Gq,
             Gk=Gk,
             Gv=Gv,
@@ -294,39 +345,26 @@ def _linear_attention_forward_core(
     kernel = pl.pallas_call(
         kernel_body,
         out_shape=(
-            jax.ShapeDtypeStruct(shape=(B, S, N, V), dtype=q.dtype),
+            jax.ShapeDtypeStruct(shape=(B, S, N * V), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32) if output_state else None,
         ),
-        grid=(B, ceil_divide(V, BLOCK_SIZE_V), ceil_divide(S, BLOCK_SIZE_S)),
+        grid=(B, NUM_BLOCKS_S),
         in_specs=(
-            pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, Nq, K),
-                index_map=lambda BLOCK_ID_B, _, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
-            ),
-            pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, Nk, K),
-                index_map=lambda BLOCK_ID_B, _, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
-            ),
-            pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, Nv, BLOCK_SIZE_V),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_V, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, BLOCK_ID_V),
-            ),
+            seq_spec(Nq * K),
+            seq_spec(Nk * K, 1 if packed else 0),
+            seq_spec(Nv * V, 2 if packed else 0),
             f_spec,
             None if h0 is None else h_spec,
         ),
         out_specs=(
-            pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, N, BLOCK_SIZE_V),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_V, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, BLOCK_ID_V),
-            ),
+            seq_spec(N * V),
             h_spec if output_state else None,
         ),
-        scratch_shapes=[pltpu.VMEM((N, K, BLOCK_SIZE_V), jnp.float32)],
+        scratch_shapes=[pltpu.VMEM((N, K, V), jnp.float32)],
         compiler_params=pltpu.CompilerParams(
-            disable_bounds_checks=True, dimension_semantics=("parallel", "parallel", "arbitrary")
+            disable_bounds_checks=True,
+            dimension_semantics=("parallel", "arbitrary"),
         ),
     )
 
-    y, ht = kernel(q, k, v, log_f_cumsum, h0)
-
-    return y, ht
+    return kernel(q, k, v, log_f_cumsum, h0)

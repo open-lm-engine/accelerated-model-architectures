@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax
@@ -29,6 +31,7 @@ def _backward_kernel(
     S: int,
     K: int,
     PAD: int,
+    HEAD: int,
     NUM_BLOCKS_S: int,
     ACTIVATION: str | None,
 ) -> None:
@@ -53,92 +56,95 @@ def _backward_kernel(
         db_ref[...] = jnp.zeros(db_ref.shape, dtype=db_ref.dtype)
 
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
-    PATCH_R = jax.lax.broadcasted_iota(jnp.int32, (PAD, 1), 0)
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
-
     MASKED = S % BLOCK_SIZE_S != 0
-    if MASKED:
-        dy = jnp.where(MASK_S, dy_ref[...], 0).astype(jnp.float32)
-        x_bf = jnp.where(MASK_S, x_ref[...], 0)
-    else:
-        dy = dy_ref[...].astype(jnp.float32)
-        x_bf = x_ref[...]  # kept in bf16; the per-tap fp32 cast commutes with the roll
 
-    hist = h_ref[0].astype(jnp.float32)  # hist[PAD + j] == x[j] for j < 0
-    hist_pad = jnp.pad(hist, ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
-    hist_pad_bf = jnp.pad(h_ref[0], ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
+    # the dW / db reductions run on the (otherwise idle) MXU as (1, BLOCK_SIZE_S) x (BLOCK_SIZE_S, H) dots. a single
+    # bf16 pass would round every fp32 product before it is summed, but the row of ones / zeros is exact in bf16, so
+    # splitting only the fp32 operand into hi + lo bf16 halves recovers ~16 mantissa bits in two passes
+    def dot(row: jax.Array, rhs: jax.Array) -> jax.Array:
+        if rhs.dtype != jnp.float32:
+            return jax.lax.dot(row, rhs, preferred_element_type=jnp.float32)
 
-    # taps with the boundary history folded in via a per-row select, so downstream
-    # sections (y recompute and dW accumulation) need no separate head corrections
-    def x_tap(k: int) -> jax.Array:  # fp32 (activation path)
-        shift = K - 1 - k
-        tap = pltpu.roll(x_bf, shift, axis=0).astype(jnp.float32) if shift > 0 else x_bf.astype(jnp.float32)
-        return jnp.where(BLOCK_S < shift, pltpu.roll(hist_pad, shift, axis=0), tap) if shift > 0 else tap
-
-    def x_tap_bf(k: int) -> jax.Array:  # bf16 (dW dot-RHS path, not activation math)
-        shift = K - 1 - k
-        return (
-            jnp.where(BLOCK_S < shift, pltpu.roll(hist_pad_bf, shift, axis=0), pltpu.roll(x_bf, shift, axis=0))
-            if shift > 0
-            else x_bf
+        row = row.astype(jnp.bfloat16)
+        hi = rhs.astype(jnp.bfloat16)
+        lo = (rhs - hi.astype(jnp.float32)).astype(jnp.bfloat16)
+        return jax.lax.dot(row, hi, preferred_element_type=jnp.float32) + jax.lax.dot(
+            row, lo, preferred_element_type=jnp.float32
         )
 
-    W32 = W_ref[...].astype(jnp.float32)  # hoisted casts
-    b32 = b_ref[...].astype(jnp.float32) if b_ref is not None else None
+    ones_row = jnp.ones((1, BLOCK_SIZE_S), dtype=dtype)
+    body_row = (jax.lax.broadcasted_iota(jnp.int32, (1, BLOCK_SIZE_S), 1) < BLOCK_SIZE_S - HEAD).astype(dtype)
+
+    # this kernel is bound by vector issue slots, so every full-tile op counts:
+    # - the sequence shifts are plain rolls over the whole block. only the rows that wrap around are wrong, and
+    #   those are recomputed on small (PAD + HEAD, H) tiles with the neighbouring rows stacked on and spliced
+    #   back in with sublane-aligned concatenates, instead of full-tile selects
+    # - x is rolled in fp32, while rolling packed 16-bit rows by an odd amount costs 3 extra VALU ops per vreg
+    # - dW reuses the shifted gradient taps of dx (sum_t g[t] x[t - s] == sum_u g[u + s] x[u]), so x is never
+    #   shifted for the dW reduction
+    if MASKED:
+        dy = jnp.where(MASK_S, dy_ref[...], 0).astype(jnp.float32)
+        x = jnp.where(MASK_S, x_ref[...], 0)
+    else:
+        dy = dy_ref[...].astype(jnp.float32)
+        x = x_ref[...]
+
+    x32 = x.astype(jnp.float32)
+    W = W_ref[...]
+    W32 = W.astype(jnp.float32)
 
     if ACTIVATION in ["silu", "swish"]:
-        # taps already carry the boundary history -> single y recompute path,
         # fp32 all the way through (activation math must not touch bf16)
+        hist = h_ref[0].astype(jnp.float32)  # hist[PAD + j] == x[j] for j < 0
+        x_head = jnp.concatenate([hist, x32[:HEAD, :]], axis=0)
+
         y = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
-        if b32 is not None:
+        y_head = jnp.zeros((HEAD, H), dtype=jnp.float32)
+        if b_ref is not None:
+            b32 = b_ref[...].astype(jnp.float32)
             y += b32
+            y_head += b32
 
         for k in range(K):
-            y += W32[k, :][None, :] * x_tap(k)
+            shift = K - 1 - k
+            y += W32[k][None, :] * (pltpu.roll(x32, shift, axis=0) if shift > 0 else x32)
+            y_head += W32[k][None, :] * (pltpu.roll(x_head, shift, axis=0) if shift > 0 else x_head)[PAD:, :]
+
+        y = jnp.concatenate([y_head, y[HEAD:, :]], axis=0)
 
         sigmoid = jax.nn.sigmoid(y)
         dy = dy * sigmoid * (1 + y * (1 - sigmoid))
 
     dy_bf = dy.astype(dtype)
+
+    # the last HEAD rows of each gradient tap read the (already gated) head of the next block from dy_scratch
+    dy_tail = jnp.concatenate([dy[BLOCK_SIZE_S - HEAD :, :], dy_scratch[...]], axis=0)
+    x_tail = x32[BLOCK_SIZE_S - HEAD :, :]
+
+    db_ref[...] += dot(ones_row, dy_bf)
+
     dx = jnp.zeros((BLOCK_SIZE_S, H), dtype=dtype)
+    dx_tail = jnp.zeros((HEAD, H), dtype=jnp.float32)
     for k in range(K):
-        W = W_ref[k, :]
-
         shift = K - 1 - k
         if shift == 0:
-            dx += W[None, :] * dy_bf
+            dx += W[k][None, :] * dy_bf
+            dx_tail += W32[k][None, :] * dy_tail[:HEAD, :]
+            dW_ref[k, :] += dot(ones_row, dy_bf * x)[0]
         else:
-            dx += W[None, :] * pltpu.roll(dy_bf, (BLOCK_SIZE_S - shift) % BLOCK_SIZE_S, axis=0)
+            # g_tap[t] == g[t + shift], valid for t < BLOCK_SIZE_S - shift
+            g_tap = pltpu.roll(dy_bf, BLOCK_SIZE_S - shift, axis=0)
+            g_tap_tail = pltpu.roll(dy_tail, HEAD + PAD - shift, axis=0)[:HEAD, :]
 
-    dy_tail = dy[BLOCK_SIZE_S - PAD :, :]
-    carry = dy_scratch[...]
-    dx_tail = jnp.zeros((PAD, H), dtype=jnp.float32)
-    for k in range(K):
-        W = W32[k, :][None, :]
+            dx += W[k][None, :] * g_tap
+            dx_tail += W32[k][None, :] * g_tap_tail
+            dW_ref[k, :] += dot(body_row, g_tap * x)[0] + jnp.sum(g_tap_tail * x_tail, axis=0)
 
-        shift = K - 1 - k
-        if shift == 0:
-            dx_tail += W * dy_tail
-        else:
-            up = PAD - shift
-            dx_tail += W * jnp.where(
-                PATCH_R < PAD - shift, pltpu.roll(dy_tail, up, axis=0), pltpu.roll(carry, up, axis=0)
-            )
-
-    dx = jnp.where(
-        BLOCK_S >= BLOCK_SIZE_S - (K - 1),
-        jnp.pad(dx_tail, ((BLOCK_SIZE_S - PAD, 0), (0, 0))).astype(dtype),
-        dx,
-    )
-
-    ones_row = jnp.ones((1, BLOCK_SIZE_S), dtype=dtype)
-    db_ref[...] += jax.lax.dot(ones_row, dy_bf, preferred_element_type=jnp.float32)
-
-    for k in range(K):
-        acc = jax.lax.dot(ones_row, dy_bf * x_tap_bf(k), preferred_element_type=jnp.float32)[0]
-        dW_ref[k, :] += acc
-
+    dx = jnp.concatenate([dx[: BLOCK_SIZE_S - HEAD, :], dx_tail.astype(dtype)], axis=0)
     dx_ref[...] = (jnp.where(MASK_S, dx, 0) if MASKED else dx).astype(dtype)
+
+    dy_scratch[...] = dy[:PAD, :]
 
     state_prefix = max(K - 1 - S, 0)
     x_state_start = max(S - (K - 1), 0)
@@ -160,16 +166,23 @@ def _backward_kernel(
 
     @pl.when(BLOCK_ID_S == 0)
     def _():
-        dh0 = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
-        for k in range(K):
-            dh0 += W32[k, :][None, :] * jnp.where(BLOCK_S < k, 0, pltpu.roll(dy, k, axis=0))
+        # the history rows: dh0[PAD + u] = sum_k W[k] g[u + shift_k] for u < 0, and they also close the dW sums (the
+        # pairs g[t] x[t - shift] with t - shift < 0). dy_scratch now holds the first PAD gated rows of this block
+        W32 = W_ref[...].astype(jnp.float32)
+        hist = h_ref[0].astype(jnp.float32)
+        dy_head = jnp.concatenate([jnp.zeros((PAD, H), dtype=jnp.float32), dy_scratch[...]], axis=0)
 
-        dh0_ref[...] = pltpu.roll(dh0[:PAD, :], offset, axis=0)
+        dh0 = jnp.zeros((PAD, H), dtype=jnp.float32)
+        for k in range(K - 1):
+            shift = K - 1 - k
+            g_tap = pltpu.roll(dy_head, 2 * PAD - shift, axis=0)[:PAD, :]
+            dh0 += W32[k][None, :] * g_tap
+            dW_ref[k, :] += jnp.sum(g_tap * hist, axis=0)
+
+        dh0_ref[...] = dh0
 
         for p in range(state_prefix):
             dh0_ref[offset + S + p, :] += dht_scratch[offset + p, :]
-
-    dy_scratch[...] = dy[:PAD, :]
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K", "ACTIVATION"))
@@ -187,10 +200,12 @@ def _backward_core(
     B, S, H = x.shape
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     PAD = ceil_divide(K - 1, 8) * 8
+    # rows patched separately at the block boundaries, a multiple of the packed sublane tile of x.dtype
+    HEAD = ceil_divide(PAD, 32 // x.dtype.itemsize) * (32 // x.dtype.itemsize)
     state_size = K - 1
 
-    # a block has to be long enough to carry the whole history in its leading/trailing PAD rows
-    assert BLOCK_SIZE_S >= PAD, f"BLOCK_SIZE_S ({BLOCK_SIZE_S}) must be >= {PAD} for kernel_size ({K})"
+    # a block has to be long enough to carry the whole history in its leading/trailing HEAD rows
+    assert BLOCK_SIZE_S >= 2 * HEAD, f"BLOCK_SIZE_S ({BLOCK_SIZE_S}) must be >= {2 * HEAD} for kernel_size ({K})"
 
     kernel = pl.pallas_call(
         partial(
@@ -199,6 +214,7 @@ def _backward_core(
             S=S,
             K=K,
             PAD=PAD,
+            HEAD=HEAD,
             NUM_BLOCKS_S=NUM_BLOCKS_S,
             ACTIVATION=ACTIVATION,
         ),

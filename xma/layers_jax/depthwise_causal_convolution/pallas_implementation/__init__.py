@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax
@@ -20,7 +22,8 @@ def _get_block_size_s(H: int, dtype=jnp.float32) -> int:
     # what sets the kernel's bandwidth at small hidden sizes
     budget = (1 << 21) if jnp.dtype(dtype).itemsize == 2 else (1 << 20)
     block_size = 1 << (budget // (H * jnp.dtype(dtype).itemsize)).bit_length() - 1
-    return min(1024, max(8, block_size))
+    # the backward patches the first and last 16 rows of a block separately, so it needs at least 32 rows
+    return min(1024, max(32, block_size))
 
 
 def _pad_h0(h0: jax.Array, K: int) -> jax.Array:

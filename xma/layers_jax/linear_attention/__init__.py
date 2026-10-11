@@ -3,4 +3,4 @@
 # **************************************************
 
 from .module import LinearAttentionJAX
-from .op import linear_attention_jax
+from .op import linear_attention_jax, linear_attention_packed_jax

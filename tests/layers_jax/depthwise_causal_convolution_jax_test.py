@@ -182,10 +182,35 @@ def test_depthwise_causal_convolution_pallas(
     dtype: jnp.dtype,
     activation_function: str | None,
 ) -> None:
+    _check_pallas(2, S, 5, kernel_size, has_input_state, add_bias, output_state, dtype, activation_function)
+
+
+@pytest.mark.parametrize(
+    "S,dtype,activation_function",
+    # H = 1024 makes the internal block size 1024 rows for bfloat16 / 256 rows for float32, so these cover several
+    # blocks per sequence (and a masked tail block), exercising the state carried across block boundaries
+    list(product([1100, 2048], [jnp.float32, jnp.bfloat16], [None, "silu"])),
+)
+def test_depthwise_causal_convolution_pallas_multi_block(
+    S: int, dtype: jnp.dtype, activation_function: str | None
+) -> None:
+    _check_pallas(2, S, 1024, 4, True, True, True, dtype, activation_function)
+
+
+def _check_pallas(
+    B: int,
+    S: int,
+    H: int,
+    kernel_size: int,
+    has_input_state: bool,
+    add_bias: bool,
+    output_state: bool,
+    dtype: jnp.dtype,
+    activation_function: str | None,
+) -> None:
     if jax.default_backend() != "tpu":
         pytest.skip("KernelBackend.pallas is only supported on TPU")
 
-    B, H = 2, 5
     std = 0.1
     tolerance = _PALLAS_TOLERANCE[dtype]
     grad_tolerance = _PALLAS_GRAD_TOLERANCE[dtype]
@@ -222,7 +247,10 @@ def test_depthwise_causal_convolution_pallas(
         )
 
     (y_kernel, ht_kernel), vjp_kernel = _run_vjp(KernelBackend.pallas, x, weight, bias, input_state)
-    (y_expected, ht_expected), vjp_expected = _run_vjp(KernelBackend.jax, x, weight, bias, input_state)
+    # the reference conv runs on the MXU, which by default rounds fp32 operands to a single bf16 pass (off by ~4e-4
+    # at the multi-block shapes); the pallas kernel does true fp32 math, so compare against a full precision reference
+    with jax.default_matmul_precision("highest"):
+        (y_expected, ht_expected), vjp_expected = _run_vjp(KernelBackend.jax, x, weight, bias, input_state)
 
     assert_allclose(np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance)
 
@@ -241,7 +269,8 @@ def test_depthwise_causal_convolution_pallas(
     dht = (jax.random.normal(key_dy, ht_kernel.shape, dtype=jnp.float32) * std).astype(dtype) if output_state else None
 
     dx_kernel, dweight_kernel, dbias_kernel, dinput_state_kernel = vjp_kernel((dy, dht))
-    dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, dht))
+    with jax.default_matmul_precision("highest"):
+        dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, dht))
 
     assert_allclose(
         np.asarray(dx_kernel, dtype=np.float32), np.asarray(dx_expected, dtype=np.float32), **grad_tolerance

@@ -14,7 +14,7 @@ jax = pytest.importorskip("jax")
 import jax.numpy as jnp
 
 from xma import KernelBackend
-from xma.layers_jax import LinearAttentionJAX, linear_attention_jax
+from xma.layers_jax import LinearAttentionJAX, linear_attention_jax, linear_attention_packed_jax
 
 
 _ATTENTION_MULTIPLIER = 0.3
@@ -206,6 +206,62 @@ def test_linear_attention_pallas(
         assert dh0_expected is None
 
 
+@pytest.mark.parametrize(
+    "N,log_forget_kind,dtype",
+    # N = 8 takes the head-group batched kernels, N = 6 the per-head ones
+    list(product([8, 6], ["none", "scalar", "diagonal"], [jnp.float32, jnp.bfloat16])),
+)
+def test_linear_attention_pallas_packed(N: int, log_forget_kind: str, dtype: jnp.dtype) -> None:
+    # the fused-projection entry point reads q / k / v out of one (B, S, 3 * N * K) tensor and produces one fused
+    # gradient for it; it must agree with the split path (same kernels) on outputs and every gradient
+    if jax.default_backend() != "tpu":
+        pytest.skip("KernelBackend.pallas is only supported on TPU")
+
+    B, S, K = 2, 512, 128
+    key_x, key_f, key_h0, key_dy, key_dht = jax.random.split(jax.random.PRNGKey(0), 5)
+    std = 0.01
+
+    qkv = (jax.random.normal(key_x, (B, S, 3 * N * K), dtype=jnp.float32) * std).astype(dtype)
+    log_forget = None
+    if log_forget_kind != "none":
+        shape = (B, S, N, K) if log_forget_kind == "diagonal" else (B, S, 1)
+        log_forget = -0.01 * jax.random.uniform(key_f, shape, dtype=jnp.float32)
+    h0 = jax.random.normal(key_h0, (B, N, K, K), dtype=jnp.float32) * std
+
+    def _packed(qkv, log_forget, h0):
+        return linear_attention_packed_jax(
+            qkv, N, N, N, K, K, log_forget=log_forget, input_state=h0, attention_multiplier=_ATTENTION_MULTIPLIER
+        )
+
+    def _split(qkv, log_forget, h0):
+        q, k, v = jnp.split(qkv, 3, axis=-1)
+        y, ht = linear_attention_jax(
+            q.reshape(B, S, N, K),
+            k.reshape(B, S, N, K),
+            v.reshape(B, S, N, K),
+            log_forget=log_forget,
+            input_state=h0,
+            attention_multiplier=_ATTENTION_MULTIPLIER,
+        )
+        return y.reshape(B, S, N * K), ht
+
+    (y_packed, ht_packed), vjp_packed = jax.vjp(_packed, qkv, log_forget, h0)
+    (y_split, ht_split), vjp_split = jax.vjp(_split, qkv, log_forget, h0)
+
+    dy = (jax.random.normal(key_dy, y_packed.shape, dtype=jnp.float32) * std).astype(dtype)
+    dht = jax.random.normal(key_dht, ht_packed.shape, dtype=jnp.float32) * std
+
+    tolerance = {"atol": 1e-6, "rtol": 0}
+    for packed, split in zip(
+        (y_packed, ht_packed, *vjp_packed((dy, dht))), (y_split, ht_split, *vjp_split((dy, dht)))
+    ):
+        if split is None:
+            assert packed is None
+            continue
+        assert packed.shape == split.shape
+        assert_allclose(np.asarray(packed, dtype=np.float32), np.asarray(split, dtype=np.float32), **tolerance)
+
+
 def test_linear_attention_pallas_block_size_v_above_pad_floor() -> None:
     if jax.default_backend() != "tpu":
         pytest.skip("KernelBackend.pallas is only supported on TPU")
@@ -302,3 +358,46 @@ def test_linear_attention_module_works(has_input_state: bool) -> None:
     assert output.shape == (B, S, output_size)
     assert output_state.shape == (B, module.num_heads, module.key_head_dim, module.value_head_dim)
     assert conv_state is None
+
+
+@pytest.mark.parametrize("forget_gate", [None, "scalar", "diagonal"])
+@pytest.mark.parametrize("kernel_size", [None, 4])
+@pytest.mark.parametrize("output_gate", [False, True])
+def test_linear_attention_module_pallas(forget_gate: str | None, kernel_size: int | None, output_gate: bool) -> None:
+    # the layer as a whole (gate projection, conv, packed linear attention, output norm and gate): pallas vs jax,
+    # forward and gradients
+    if jax.default_backend() != "tpu":
+        pytest.skip("KernelBackend.pallas is only supported on TPU")
+
+    B, S, embed_size = 2, 512, 256
+    key_init, key_input = jax.random.split(jax.random.PRNGKey(0), 2)
+
+    module = LinearAttentionJAX.init(
+        embed_size,
+        embed_size,
+        key_head_dim=128,
+        value_head_dim=128,
+        num_query_heads=2,
+        num_key_heads=2,
+        num_value_heads=2,
+        add_bias=True,
+        kernel_size=kernel_size,
+        conv_activation_function=None if kernel_size is None else "silu",
+        forget_gate=forget_gate,
+        output_gate=output_gate,
+        key=key_init,
+    )
+    input = jax.random.normal(key_input, (B, S, embed_size))
+
+    def loss(module, input, kernel_backend):
+        output, output_state, _ = module(input, kernel_backend=kernel_backend)
+        return (output**2).mean() + output_state.mean(), output
+
+    (l_jax, y_jax), g_jax = jax.value_and_grad(loss, argnums=(0, 1), has_aux=True)(module, input, KernelBackend.jax)
+    (l_pallas, y_pallas), g_pallas = jax.value_and_grad(loss, argnums=(0, 1), has_aux=True)(
+        module, input, KernelBackend.pallas
+    )
+
+    # both sides run their matmuls at TPU default (bf16-pass) precision, so compare relative error norms
+    for a, b in zip([y_pallas, *jax.tree.leaves(g_pallas)], [y_jax, *jax.tree.leaves(g_jax)]):
+        assert jnp.linalg.norm(a - b) <= 1e-2 * jnp.linalg.norm(b)

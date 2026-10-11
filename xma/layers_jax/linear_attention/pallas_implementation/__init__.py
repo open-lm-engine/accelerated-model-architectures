@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax
@@ -31,6 +33,54 @@ def _cumulative_log_decay(log_f: jax.Array | None, BLOCK_SIZE_S: int) -> jax.Arr
     return log_f_cumsum
 
 
+def _flatten_heads(x: jax.Array) -> jax.Array:
+    # (B, S, heads, head_dim) -> (B, S, heads * head_dim): the kernels' operand layout. inside a model this cancels the
+    # reshape that split a projection into heads, so no relayout copy is materialized around the kernels
+    return x.reshape(*x.shape[:2], -1)
+
+
+def _layout(
+    q: jax.Array, k: jax.Array, v: jax.Array, log_f: jax.Array | None
+) -> tuple[tuple[int, int, int, int], bool, bool]:
+    heads = (q.shape[2], k.shape[2], v.shape[2], 0 if log_f is None else log_f.shape[2])
+    N = max(heads)
+
+    f_diagonal = log_f is not None and log_f.ndim == 4
+    # the batched diagonal path consumes raw log_f and scans it in-kernel (see forward.py)
+    fused_scan = f_diagonal and all(i == N for i in heads) and N % _BATCHED_HEAD_GROUP == 0
+
+    return heads, f_diagonal, fused_scan
+
+
+def _prepare(
+    q: jax.Array, k: jax.Array, v: jax.Array, log_f: jax.Array | None, BLOCK_SIZE_S: int
+) -> tuple[jax.Array | None, tuple[int, int, int, int], bool, bool]:
+    heads, f_diagonal, fused_scan = _layout(q, k, v, log_f)
+    log_f_cumsum = log_f if fused_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
+    return log_f_cumsum, heads, f_diagonal, fused_scan
+
+
+def _forward(q, k, v, log_f, h0, attention_multiplier, output_state, BLOCK_SIZE_S):
+    log_f_cumsum, heads, f_diagonal, fused_scan = _prepare(q, k, v, log_f, BLOCK_SIZE_S)
+    B, S, N, V = *q.shape[:2], max(heads), v.shape[-1]
+
+    y, ht = _linear_attention_forward_core(
+        q=_flatten_heads(q),
+        k=_flatten_heads(k),
+        v=_flatten_heads(v),
+        log_f_cumsum=_flatten_heads(log_f_cumsum) if f_diagonal else log_f_cumsum,
+        h0=h0,
+        attention_multiplier=attention_multiplier,
+        output_state=output_state,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        heads=heads,
+        f_diagonal=f_diagonal,
+        fused_scan=fused_scan,
+    )
+
+    return (y.reshape(B, S, N, V), ht), log_f_cumsum
+
+
 @partial(jax.custom_vjp, nondiff_argnums=(5, 6, 7, 8))
 def _linear_attention_pallas(
     q: jax.Array,
@@ -43,33 +93,7 @@ def _linear_attention_pallas(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
-    if log_f is not None and log_f.ndim == 4:
-        Nq = q.shape[2]
-        Nk = k.shape[2]
-        Nv = v.shape[2]
-        Nf = log_f.shape[2]
-        N = max(Nq, Nk, Nv, log_f.shape[2])
-
-        is_multi_head = all([i == N for i in (Nq, Nk, Nv, Nf)])
-        fused_scan = is_multi_head and N % _BATCHED_HEAD_GROUP == 0
-        log_f_cumsum = log_f
-    else:
-        fused_scan = False
-        log_f_cumsum = _cumulative_log_decay(log_f, BLOCK_SIZE_S)
-
-    y, ht = _linear_attention_forward_core(
-        q=q,
-        k=k,
-        v=v,
-        log_f_cumsum=log_f_cumsum,
-        h0=h0,
-        attention_multiplier=attention_multiplier,
-        output_state=output_state,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-        fused_scan=fused_scan,
-    )
-
+    (y, ht), _ = _forward(q, k, v, log_f, h0, attention_multiplier, output_state, BLOCK_SIZE_S)
     return y, ht
 
 
@@ -84,28 +108,10 @@ def _linear_attention_forward(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
-    fused_scan = False
-    if log_f is not None and log_f.ndim == 4:
-        Nq_, Nk_, Nv_ = q.shape[2], k.shape[2], v.shape[2]
-        N_ = max(Nq_, Nk_, Nv_, log_f.shape[2])
-        fused_scan = Nq_ == N_ and Nk_ == N_ and Nv_ == N_ and log_f.shape[2] == N_ and N_ % _BATCHED_HEAD_GROUP == 0
-
-    log_f_cumsum = log_f if fused_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
-
-    y, h = _linear_attention_forward_core(
-        q=q,
-        k=k,
-        v=v,
-        log_f_cumsum=log_f_cumsum,
-        h0=h0,
-        attention_multiplier=attention_multiplier,
-        output_state=output_state,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-        fused_scan=fused_scan,
-    )
-
-    return (y, h), (q, k, v, log_f_cumsum, h0)
+    # the per-chunk states are not kept as residuals (B * S / BLOCK_SIZE_S * N * K * V per layer); the backward
+    # recomputes them with the state-passing kernel
+    (y, ht), log_f_cumsum = _forward(q, k, v, log_f, h0, attention_multiplier, output_state, BLOCK_SIZE_S)
+    return (y, ht), (q, k, v, log_f_cumsum, h0)
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "output_state", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
@@ -121,65 +127,53 @@ def _linear_attention_backward(
     dy, dht = cotangents
     dht = dht if output_state else None
 
-    B, S, Nq, K = q.shape
-    Nk = k.shape[2]
-    Nv, V = v.shape[-2:]
-    Nf = 0 if log_f_cumsum is None else log_f_cumsum.shape[2]
+    # log_f_cumsum has log_f's shape (it is raw log_f on the fused diagonal path), so the layout is recovered exactly
+    heads, f_diagonal, fused_scan = _layout(q, k, v, log_f_cumsum)
 
-    N = max(Nq, Nk, Nv, Nf)
+    Nq, Nk, Nv, Nf = heads
+    B, S, _, K = q.shape
+    V = v.shape[-1]
+    N = max(heads)
 
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
 
-    # a 4-d log_f_cumsum residual on the same batched-layout hypothesis as the VJP
-    # forward is RAW log_f on the fused path (see _linear_attention_forward).
-    fused_scan = (
-        log_f_cumsum is not None
-        and log_f_cumsum.ndim == 4
-        and Nq == N
-        and Nk == Nv == N
-        and log_f_cumsum.shape[2] == N
-        and N % _BATCHED_HEAD_GROUP == 0
-    )
-
-    h = _linear_attention_state_passing_core(
-        k=k,
-        v=v,
-        log_f_cumsum=log_f_cumsum,
-        h0=h0,
-        N=N,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-        fused_scan=fused_scan,
-    )
-
-    # batched bwd kernel: same eligibility as the forward's batched path (un-gated,
-    # scalar-shared-gate, or diagonal raw/cumsum log_f with full-head layout).
+    # batched bwd kernel: same eligibility as the forward's batched path (un-gated, scalar-shared-gate, or the fused
+    # full-head diagonal layout; a cross-head-shared diagonal gate keeps the per-head kernel)
     batched_bwd = (
         Nq == N
         and Nk == Nv == N
         and N % _BATCHED_HEAD_GROUP == 0
-        and (
-            log_f_cumsum is None
-            or (log_f_cumsum.ndim == 3 and log_f_cumsum.shape[2] == 1)
-            # diagonal: only the fused full-head layout (raw log_f; a chunked cross-head-shared
-            # diagonal gate arrives as ndim==4 with Nf == 1 and must keep the per-head kernel)
-            or (log_f_cumsum.ndim == 4 and log_f_cumsum.shape[2] == N and fused_scan)
-        )
+        and (log_f_cumsum is None or (not f_diagonal and Nf in (1, N)) or (f_diagonal and fused_scan))
+    )
+
+    log_f_cumsum_ = _flatten_heads(log_f_cumsum) if f_diagonal else log_f_cumsum
+
+    h = _linear_attention_state_passing_core(
+        k=_flatten_heads(k),
+        v=_flatten_heads(v),
+        log_f_cumsum=log_f_cumsum_,
+        h0=h0,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        heads=heads,
+        f_diagonal=f_diagonal,
+        fused_scan=fused_scan,
     )
 
     dq, dk, dv, dlog_f, dh0 = _linear_attention_backward_core(
-        q=q,
-        k=k,
-        v=v,
-        log_f_cumsum=log_f_cumsum,
+        q=_flatten_heads(q),
+        k=_flatten_heads(k),
+        v=_flatten_heads(v),
+        log_f_cumsum=log_f_cumsum_,
         h=h,
-        dy=dy,
+        dy=_flatten_heads(dy),
         dht=dht,
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
+        heads=heads,
+        f_diagonal=f_diagonal,
         fused_scan=fused_scan,
         batched=batched_bwd,
     )
@@ -190,7 +184,9 @@ def _linear_attention_backward(
 
     if log_f_cumsum is not None:
         Gf = N // Nf
-        dlog_f = dlog_f.reshape(B, S, Nf, Gf, *dlog_f.shape[3:]).sum(axis=3)
+        dlog_f = dlog_f.reshape(B, S, Nf, Gf, *log_f_cumsum.shape[3:]).sum(axis=3)
+        # the diagonal kernel writes dlog_f in the operand dtype; the cotangent must match the gate's
+        dlog_f = dlog_f.astype(log_f_cumsum.dtype)
 
     if h0 is None:
         dh0 = None
@@ -199,6 +195,123 @@ def _linear_attention_backward(
 
 
 _linear_attention_pallas.defvjp(_linear_attention_forward, _linear_attention_backward)
+
+
+@partial(jax.custom_vjp, nondiff_argnums=(3, 4, 5, 6, 7))
+def _linear_attention_pallas_packed(
+    qkv: jax.Array,
+    log_f: jax.Array | None,
+    h0: jax.Array | None,
+    num_heads: int,
+    attention_multiplier: float,
+    output_state: bool,
+    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
+) -> tuple[jax.Array, jax.Array | None]:
+    y, ht, _ = _packed_forward(qkv, log_f, h0, num_heads, attention_multiplier, output_state, BLOCK_SIZE_S)
+    return y, ht
+
+
+def _packed_layout(
+    qkv: jax.Array, log_f: jax.Array | None, num_heads: int
+) -> tuple[tuple[int, int, int, int], bool, bool]:
+    # q | k | v packed along the last dim, num_heads each, K == V
+    N = num_heads
+    heads = (N, N, N, 0 if log_f is None else log_f.shape[2])
+    f_diagonal = log_f is not None and log_f.ndim == 4
+    fused_scan = f_diagonal and heads[3] == N and N % _BATCHED_HEAD_GROUP == 0
+    return heads, f_diagonal, fused_scan
+
+
+def _packed_forward(qkv, log_f, h0, num_heads, attention_multiplier, output_state, BLOCK_SIZE_S):
+    heads, f_diagonal, fused_scan = _packed_layout(qkv, log_f, num_heads)
+    log_f_cumsum = log_f if fused_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
+
+    y, ht = _linear_attention_forward_core(
+        q=qkv,
+        k=None,
+        v=None,
+        log_f_cumsum=_flatten_heads(log_f_cumsum) if f_diagonal else log_f_cumsum,
+        h0=h0,
+        attention_multiplier=attention_multiplier,
+        output_state=output_state,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        heads=heads,
+        f_diagonal=f_diagonal,
+        fused_scan=fused_scan,
+        packed=True,
+    )
+
+    return y, ht, log_f_cumsum
+
+
+def _linear_attention_packed_forward(
+    qkv, log_f, h0, num_heads, attention_multiplier, output_state, BLOCK_SIZE_S, BLOCK_SIZE_V
+):
+    y, ht, log_f_cumsum = _packed_forward(qkv, log_f, h0, num_heads, attention_multiplier, output_state, BLOCK_SIZE_S)
+    return (y, ht), (qkv, log_f_cumsum, h0)
+
+
+@partial(
+    jax.jit, static_argnames=("num_heads", "attention_multiplier", "output_state", "BLOCK_SIZE_S", "BLOCK_SIZE_V")
+)
+def _linear_attention_packed_backward(
+    num_heads: int,
+    attention_multiplier: float,
+    output_state: bool,
+    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
+    residuals: tuple,
+    cotangents: tuple,
+) -> tuple:
+    qkv, log_f_cumsum, h0 = residuals
+    dy, dht = cotangents
+
+    heads, f_diagonal, fused_scan = _packed_layout(qkv, log_f_cumsum, num_heads)
+    N, Nf = num_heads, heads[3]
+    log_f_cumsum_ = _flatten_heads(log_f_cumsum) if f_diagonal else log_f_cumsum
+
+    h = _linear_attention_state_passing_core(
+        k=qkv,
+        v=None,
+        log_f_cumsum=log_f_cumsum_,
+        h0=h0,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        heads=heads,
+        f_diagonal=f_diagonal,
+        fused_scan=fused_scan,
+        packed=True,
+    )
+
+    dqkv, dlog_f, dh0 = _linear_attention_backward_core(
+        q=qkv,
+        k=None,
+        v=None,
+        log_f_cumsum=log_f_cumsum_,
+        h=h,
+        dy=dy,
+        dht=dht if output_state else None,
+        attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
+        heads=heads,
+        f_diagonal=f_diagonal,
+        fused_scan=fused_scan,
+        batched=N % _BATCHED_HEAD_GROUP == 0
+        and (log_f_cumsum is None or (not f_diagonal and Nf in (1, N)) or fused_scan),
+        packed=True,
+    )
+
+    if log_f_cumsum is not None:
+        B, S = qkv.shape[:2]
+        dlog_f = dlog_f.reshape(B, S, Nf, N // Nf, *log_f_cumsum.shape[3:]).sum(axis=3)
+        # the diagonal kernel writes dlog_f in the operand dtype; the cotangent must match the gate's
+        dlog_f = dlog_f.astype(log_f_cumsum.dtype)
+
+    return dqkv, dlog_f, (None if h0 is None else dh0)
+
+
+_linear_attention_pallas_packed.defvjp(_linear_attention_packed_forward, _linear_attention_packed_backward)
 
 
 def _linear_attention_pallas_chunked(
