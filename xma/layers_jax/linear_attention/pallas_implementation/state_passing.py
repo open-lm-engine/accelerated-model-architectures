@@ -31,9 +31,6 @@ def _linear_attention_state_passing_kernel(
     fused_scan: bool,
     G: int | None,
 ) -> None:
-    # writes the state at the start of every chunk (h_ref) and carries it across chunks in VMEM (h_scratch). k / v
-    # use the flattened (B, S, heads * head_dim) operand layout of forward.py; G heads share one systolic dot when
-    # the layout allows it (G is None -> one head at a time)
     @pl.when(pl.program_id(1) == 0)
     def _():
         if h0_ref is None:
@@ -45,16 +42,14 @@ def _linear_attention_state_passing_kernel(
     BLOCK_SIZE_S = k_ref.shape[0]
 
     if fused_scan:
-        # raw log_f in, chunk-local cumsum via a triangular systolic matmul (see forward.py)
         tril = jnp.tril(jnp.ones((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
         if G is not None:
             tril = jnp.broadcast_to(tril, (G, BLOCK_SIZE_S, BLOCK_SIZE_S))
 
     scalar_per_head = log_f_cumsum_ref is not None and not f_diagonal and log_f_cumsum_ref.shape[-1] != 1
     if log_f_cumsum_ref is not None and not f_diagonal and G is not None:
-        # scalar gate, shared by all heads (decays computed once) or one per head (per group, leading head axis)
         if scalar_per_head:
-            log_f_all = log_f_cumsum_ref[...].astype(jnp.float32)  # (N, BS): the core passes it transposed
+            log_f_all = log_f_cumsum_ref[...].astype(jnp.float32)
         else:
             log_f = log_f_cumsum_ref[...][:, 0].astype(jnp.float32)
             h_decay = jnp.exp(log_f[-1])
@@ -130,9 +125,6 @@ def _linear_attention_state_passing_core(
     packed: bool = False,
     HEAD_GROUP: int | None = None,
 ) -> jax.Array:
-    # k: (B, S, Nk * K), v: (B, S, Nv * V); packed: k is the fused (B, S, 3 * W) q | k | v projection (v is ignored)
-    # and the two BlockSpecs pick lane blocks 1 and 2 out of it. returns the state at the start of every chunk,
-    # (B, S / BLOCK_SIZE_S * N, K, V) in k.dtype
     Nq, Nk, Nv, Nf = heads
     B, S = k.shape[:2]
     N = max(heads)
@@ -153,8 +145,6 @@ def _linear_attention_state_passing_core(
     NUM_BLOCKS_S = S // BLOCK_SIZE_S
 
     if HEAD_GROUP is None:
-        # heads per batched dot: 8, or all 16 for one scalar decay per head, which measured -2% there (flat for the
-        # shared decay)
         per_head = log_f_cumsum is not None and not f_diagonal and Nf != 1
         HEAD_GROUP = 16 if per_head and N % 16 == 0 else 8
 
@@ -173,7 +163,6 @@ def _linear_attention_state_passing_core(
         f_spec = seq_spec(Nf * K if f_diagonal else Nf)
 
     if batched and log_f_cumsum is not None and not f_diagonal and Nf != 1:
-        # one decay per head: transposed for the batched kernel, as in forward.py
         log_f_cumsum = log_f_cumsum.transpose(0, 2, 1)
         f_spec = pl.BlockSpec(block_shape=(None, Nf, BLOCK_SIZE_S), index_map=lambda b, s: (b, 0, s))
 

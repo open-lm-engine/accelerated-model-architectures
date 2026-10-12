@@ -28,13 +28,6 @@ def _get_causal_mask(BLOCK_SIZE_S, transpose: bool = False):
 
 
 def _scalar_decays(log_f: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-    # chunk-local scalar log decays, (BS,) for one decay shared by all heads or (G, BS) for one per head ->
-    # exp(c_i - c_j) (..., BS, BS), exp(c_i) (..., BS), exp(c_last) (...) and exp(c_last - c_i) (..., BS). callers
-    # index with `...`, so the shared decay stays 1-D / 0-d (a leading axis of 1 measured ~5% slower: its scalar
-    # multiplies became broadcasts)
-    # one decay per head spends most of its extra time on these BS^2 exps per head (~30 us of the forward). taking
-    # exp(c_i - c_j) as exp(c_i) * exp(-c_j) removes it, but is only finite while a chunk's total log decay stays above
-    # about -80, and branching to the direct exp with lax.cond made the kernels 1.5x slower; bf16 exps were no faster
     log_f_last = log_f[..., -1]
     return (
         jnp.exp(log_f[..., :, None] - log_f[..., None, :]),
@@ -45,9 +38,6 @@ def _scalar_decays(log_f: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array, j
 
 
 def _dot_exact_lhs(lhs: jax.Array, rhs: jax.Array, dimension_numbers) -> jax.Array:
-    # a dot whose lhs is exact in bf16 (a 0 / 1 triangle for a prefix / suffix sum) against an fp32 rhs: a default
-    # precision dot rounds rhs to bf16 first, which ruins sums of cancelling terms (the gate gradient), so rhs is split
-    # into hi + lo bf16 halves, ~16 mantissa bits in two MXU passes
     lhs = lhs.astype(jnp.bfloat16)
     hi = rhs.astype(jnp.bfloat16)
     lo = (rhs - hi.astype(jnp.float32)).astype(jnp.bfloat16)
@@ -56,8 +46,6 @@ def _dot_exact_lhs(lhs: jax.Array, rhs: jax.Array, dimension_numbers) -> jax.Arr
     )
 
 
-# the kernels see every per-head tensor flattened to (B, S, heads * head_dim): the layout a projection produces, so
-# no relayout is needed around the kernel, and a head is a lane-aligned column slice of a block (no transposes).
 def _head(ref, n: int, D: int, start: int = 0, end: int | None = None) -> jax.Array:
     return ref[:, n * D + start : n * D + (D if end is None else end)]
 
@@ -187,12 +175,10 @@ def _linear_attention_forward_batched_kernel(
     if log_f_cumsum_ref is not None and f_diagonal and fused_scan:
         causal_batched = jnp.tril(jnp.ones((G, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
 
-    # scalar gate: one decay shared by every head ((BS, 1) block, decays (BS,)) or one per head ((BS, N), decays with a
-    # leading G axis); both broadcast against the (G, ...) group tensors
     scalar_per_head = log_f_cumsum_ref is not None and not f_diagonal and log_f_cumsum_ref.shape[-1] != 1
     if log_f_cumsum_ref is not None and not f_diagonal:
         if scalar_per_head:
-            log_f_all = log_f_cumsum_ref[...].astype(jnp.float32)  # (N, BS): the core passes it transposed
+            log_f_all = log_f_cumsum_ref[...].astype(jnp.float32)
         else:
             exp_decay, exp_log_f, h_decay, k_decay = _scalar_decays(log_f_cumsum_ref[...][:, 0].astype(jnp.float32))
 
@@ -276,9 +262,6 @@ def _linear_attention_forward_core(
     fused_scan: bool = False,
     packed: bool = False,
 ) -> tuple[jax.Array, jax.Array | None]:
-    # q, k: (B, S, Nq * K), (B, S, Nk * K); v: (B, S, Nv * V); log_f_cumsum: (B, S, Nf) or diagonal (B, S, Nf * K);
-    # heads = (Nq, Nk, Nv, Nf). packed: q is the fused projection (B, S, 3 * W) holding q | k | v, each W = N * K wide
-    # (k and v are ignored); the three BlockSpecs pick their lane block out of it, so it is never split in HBM
     Nq, Nk, Nv, Nf = heads
     B, S = q.shape[:2]
 
@@ -317,8 +300,6 @@ def _linear_attention_forward_core(
     )
 
     if batched and log_f_cumsum is not None and not f_diagonal and Nf != 1:
-        # one decay per head: the batched kernel takes it transposed, (B, Nf, S) in (Nf, BS) blocks, lane-dense along
-        # the sequence instead of a (BS, Nf) block padded to 128 lanes and transposed in the kernel
         log_f_cumsum = log_f_cumsum.transpose(0, 2, 1)
         f_spec = pl.BlockSpec(block_shape=(None, Nf, BLOCK_SIZE_S), index_map=lambda b, s: (b, 0, s))
 
@@ -332,8 +313,6 @@ def _linear_attention_forward_core(
             V=V,
             f_diagonal=f_diagonal,
             fused_scan=fused_scan,
-            # heads per batched dot: 8 measured faster for the diagonal gate (-2.7%), 4 for the others (8 is flat to
-            # +0.8% there)
             G=8 if f_diagonal and N % 8 == 0 else _BATCHED_HEAD_GROUP,
         )
     else:

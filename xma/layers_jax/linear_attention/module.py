@@ -84,10 +84,6 @@ class LinearAttentionJAX(eqx.Module):
         norm_eps: float = 1e-5,
         key: PRNGKeyArray,
     ) -> LinearAttentionJAX:
-        # forget_gate: None (Linear Attention), "scalar" (one decay per head, Mamba-2) or "diagonal" (one decay per
-        # head and key channel, GLA); log f = log_sigmoid of a projection of the layer input
-        # output_gate: normalize each head's output with RMSNorm (a learned scale shared by the heads) and multiply it by
-        # swish of a projection of the layer input before the output projection, as FLA's GLA layer does
         assert forget_gate in (None, "scalar", "diagonal")
 
         num_heads = max(num_query_heads, num_key_heads, num_value_heads)
@@ -126,8 +122,6 @@ class LinearAttentionJAX(eqx.Module):
                 use_bias=True,
                 key=key_forget_gate,
             )
-            # the gate always has a bias, set so every channel starts with a per-token retention sigmoid(b) spread over
-            # [0.9, 0.999] (as Mamba-2's dt_bias does): slow decays at init, and a chunk's summed log decay stays small
             retention = jax.random.uniform(key_retention, forget_gate_projection.bias.shape, minval=0.9, maxval=0.999)
             forget_gate_projection = eqx.tree_at(
                 lambda m: m.bias, forget_gate_projection, jnp.log(retention) - jnp.log1p(-retention)
@@ -188,7 +182,6 @@ class LinearAttentionJAX(eqx.Module):
         if self.forget_gate_projection is not None:
             log_forget = jax.nn.log_sigmoid(self.forget_gate_projection(input).astype(jnp.float32))
             if self.forget_gate == "diagonal":
-                # GLA's gate_logit_normalizer: keeps a chunk's summed log decay inside the fp32 exp range
                 log_forget = log_forget / 16
                 log_forget = log_forget.reshape(*log_forget.shape[:-1], self.num_heads, self.key_head_dim)
 
@@ -227,10 +220,6 @@ class LinearAttentionJAX(eqx.Module):
         return input, input_state, conv_state
 
     def _gated_rms_norm(self, input: jax.Array, output_gate: jax.Array) -> jax.Array:
-        # per-head RMSNorm of (..., N * V), times swish of the gate. Splitting the lane dimension into (N, V) makes XLA
-        # relayout fp32 copies of the whole activation on TPU, so each head's mean square is taken with a (N * V, N)
-        # block-indicator matmul instead, and broadcast back with its transpose. Both are single bf16 MXU passes: the
-        # squares are all positive, so their rounding averages out, and the bf16 scale is no coarser than the output
         dtype = input.dtype
         x = input.astype(jnp.float32)
         heads = jnp.arange(self.num_heads * self.value_head_dim) // self.value_head_dim

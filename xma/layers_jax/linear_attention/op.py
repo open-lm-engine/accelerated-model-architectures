@@ -220,7 +220,6 @@ def linear_attention_packed_jax(
     if attention_multiplier is None:
         attention_multiplier = 1 / math.sqrt(K)
 
-    # the fused path: plain multi-head layout that needs no host-side padding or head chunking
     if (
         kernel_backend == KernelBackend.pallas
         and S > 1
