@@ -56,7 +56,9 @@ def _linear_attention_backward_batched_kernel(
     NUM_BLOCKS_S: int,
     fused_scan: bool,
     G: int,
+    gate_rows: bool = False,
 ) -> None:
+    # gate_rows: the scalar gate's per-head blocks come in, and its gradient goes out, transposed as (heads, BS)
     S_CELLS_VISITED = pl.program_id(1)
 
     @pl.when(S_CELLS_VISITED == 0)
@@ -91,7 +93,7 @@ def _linear_attention_backward_batched_kernel(
     # with a leading G axis, per group); see _scalar_decays
     scalar_per_head = log_f_cumsum_ref is not None and not f_diagonal and log_f_cumsum_ref.shape[-1] != 1
     if scalar_per_head:
-        log_f_all = log_f_cumsum_.astype(jnp.float32).T  # (N, BS)
+        log_f_all = log_f_cumsum_.astype(jnp.float32)  # (N, BS): the core passes it transposed
     elif log_f_cumsum_ref is not None and not f_diagonal:
         # Round 24a negative result: factoring f_ij_scalar = exp(a-b) as exp(a)*exp(-b)
         # (outer product of two (BS,) vectors; the scalar residual is chunk-local so the
@@ -262,10 +264,14 @@ def _linear_attention_backward_batched_kernel(
             else:
                 df = q.astype(jnp.float32) * dq - k.astype(jnp.float32) * dk
 
+            # (for the scalar gate, summing df over K before the suffix sum measured slower, 1075-1091 vs 1047 us per-head:
+            # the in-kernel lane reductions cost more than the second _dot_exact_lhs pass they save)
             dlog_f = _dot_exact_lhs(TriU_batched, df, (((2,), (1,)), ((0,), (0,)))) + df_last[:, None, :]
 
             if f_diagonal:
                 _store_heads(df_ref, n, K, dlog_f)
+            elif gate_rows:
+                df_ref[g, :] = dlog_f.sum(axis=-1).astype(df_ref.dtype)
             else:
                 df_ref[:, g] = dlog_f.sum(axis=-1).transpose(1, 0).astype(df_ref.dtype)
 
@@ -531,6 +537,19 @@ def _linear_attention_backward_core(
         f_spec = seq_spec(Nf * K if f_diagonal else Nf)
         df_spec = seq_spec(N * K if f_diagonal else N)
 
+    # the batched kernel takes a per-head scalar gate transposed, (B, Nf, S) in (Nf, BS) blocks, and writes every scalar
+    # gate's gradient that way: lane-dense along the sequence, instead of (BS, heads) blocks padded to 128 lanes and
+    # transposed in the kernel (see forward.py)
+    gate_rows = batched and log_f_cumsum is not None and not f_diagonal
+    if gate_rows:
+        rows_spec = lambda heads: pl.BlockSpec(
+            block_shape=(None, heads, BLOCK_SIZE_S), index_map=lambda b, s: (b, 0, NUM_BLOCKS_S - 1 - s)
+        )
+        if Nf != 1:
+            log_f_cumsum = log_f_cumsum.transpose(0, 2, 1)
+            f_spec = rows_spec(Nf)
+        df_spec = rows_spec(N)
+
     target = (
         partial(
             _linear_attention_backward_batched_kernel,
@@ -544,9 +563,15 @@ def _linear_attention_backward_core(
             NUM_BLOCKS_V=NUM_BLOCKS_V,
             NUM_BLOCKS_S=NUM_BLOCKS_S,
             fused_scan=fused_scan,
-            # 8 heads per batched dot measured faster than 4 here (scalar gate -0.6%, diagonal -2%); 16 overflows the
-            # scoped VMEM on the gated lanes
-            G=_BACKWARD_HEAD_GROUP if N % _BACKWARD_HEAD_GROUP == 0 else _BATCHED_HEAD_GROUP,
+            # 8 heads per batched dot measured faster than 4 here (shared scalar gate -0.6%, diagonal -2%); 16 overflows
+            # the scoped VMEM on the gated lanes. one decay per head keeps a (G, BS, BS) fp32 decay matrix per group,
+            # and 4 heads measured faster there (-2.2%)
+            G=(
+                _BACKWARD_HEAD_GROUP
+                if N % _BACKWARD_HEAD_GROUP == 0 and (f_diagonal or log_f_cumsum is None or Nf == 1)
+                else _BATCHED_HEAD_GROUP
+            ),
+            gate_rows=gate_rows,
         )
         if batched
         else partial(
@@ -613,7 +638,7 @@ def _linear_attention_backward_core(
                 None
                 if log_f_cumsum is None
                 else jax.ShapeDtypeStruct(
-                    shape=(B, S, N * K) if f_diagonal else (B, S, N),
+                    shape=(B, S, N * K) if f_diagonal else ((B, N, S) if gate_rows else (B, S, N)),
                     # diagonal df in the operand dtype: the f32 variant is 537MB at S=4096 and
                     # single-handedly triggers E1001 scoped-vmem in the custom-call stack allocator;
                     # accumulation stays fp32 in-VMEM, only the HBM output narrows.
@@ -665,4 +690,8 @@ def _linear_attention_backward_core(
         ),
     )
 
-    return kernel(q, k, v, log_f_cumsum, h, dy, dht)
+    outputs = kernel(q, k, v, log_f_cumsum, h, dy, dht)
+    if gate_rows:
+        outputs = (*outputs[:-2], outputs[-2].transpose(0, 2, 1), outputs[-1])
+
+    return outputs

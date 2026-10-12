@@ -27,7 +27,15 @@ def _cumulative_log_decay(log_f: jax.Array | None, BLOCK_SIZE_S: int) -> jax.Arr
 
     log_f = log_f.reshape(B, S // BLOCK_SIZE_S, BLOCK_SIZE_S, *log_f.shape[2:])
     log_f = log_f.astype(jnp.float32)
-    log_f_cumsum = jnp.cumsum(log_f, axis=2)
+
+    if log_f.ndim == 4:
+        # scalar gate (B, S, Nf): the chunk-local cumsum as a triangular matmul at full fp32 precision. XLA's cumsum
+        # over the sublane axis of a narrow (..., Nf) array takes 86 us for a per-head (8, 4096, 16) gate, the matmul 6
+        tril = jnp.tril(jnp.ones((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
+        log_f_cumsum = jnp.einsum("ts,bcsn->bctn", tril, log_f, precision=jax.lax.Precision.HIGHEST)
+    else:
+        log_f_cumsum = jnp.cumsum(log_f, axis=2)
+
     log_f_cumsum = log_f_cumsum.reshape(B, S, *log_f.shape[3:])
 
     return log_f_cumsum

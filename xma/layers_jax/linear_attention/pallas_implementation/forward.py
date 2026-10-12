@@ -32,6 +32,9 @@ def _scalar_decays(log_f: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array, j
     # exp(c_i - c_j) (..., BS, BS), exp(c_i) (..., BS), exp(c_last) (...) and exp(c_last - c_i) (..., BS). callers
     # index with `...`, so the shared decay stays 1-D / 0-d (a leading axis of 1 measured ~5% slower: its scalar
     # multiplies became broadcasts)
+    # one decay per head spends most of its extra time on these BS^2 exps per head (~30 us of the forward). taking
+    # exp(c_i - c_j) as exp(c_i) * exp(-c_j) removes it, but is only finite while a chunk's total log decay stays above
+    # about -80, and branching to the direct exp with lax.cond made the kernels 1.5x slower; bf16 exps were no faster
     log_f_last = log_f[..., -1]
     return (
         jnp.exp(log_f[..., :, None] - log_f[..., None, :]),
@@ -189,7 +192,7 @@ def _linear_attention_forward_batched_kernel(
     scalar_per_head = log_f_cumsum_ref is not None and not f_diagonal and log_f_cumsum_ref.shape[-1] != 1
     if log_f_cumsum_ref is not None and not f_diagonal:
         if scalar_per_head:
-            log_f_all = log_f_cumsum_ref[...].astype(jnp.float32).T  # (N, BS)
+            log_f_all = log_f_cumsum_ref[...].astype(jnp.float32)  # (N, BS): the core passes it transposed
         else:
             exp_decay, exp_log_f, h_decay, k_decay = _scalar_decays(log_f_cumsum_ref[...][:, 0].astype(jnp.float32))
 
@@ -312,6 +315,12 @@ def _linear_attention_forward_core(
         and N % _BATCHED_HEAD_GROUP == 0
         and (log_f_cumsum is None or (not f_diagonal and Nf in (1, N)) or (f_diagonal and Gf == 1))
     )
+
+    if batched and log_f_cumsum is not None and not f_diagonal and Nf != 1:
+        # one decay per head: the batched kernel takes it transposed, (B, Nf, S) in (Nf, BS) blocks, lane-dense along
+        # the sequence instead of a (BS, Nf) block padded to 128 lanes and transposed in the kernel
+        log_f_cumsum = log_f_cumsum.transpose(0, 2, 1)
+        f_spec = pl.BlockSpec(block_shape=(None, Nf, BLOCK_SIZE_S), index_map=lambda b, s: (b, 0, s))
 
     if batched:
         kernel_body = partial(
