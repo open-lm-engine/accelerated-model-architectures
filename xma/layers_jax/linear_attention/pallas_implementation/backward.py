@@ -43,7 +43,6 @@ def _linear_attention_backward_batched_kernel(
     NUM_BLOCKS_S: int,
     fused_scan: bool,
     G: int,
-    gate_rows: bool = False,
 ) -> None:
     S_CELLS_VISITED = pl.program_id(1)
 
@@ -58,10 +57,6 @@ def _linear_attention_backward_batched_kernel(
 
     h_ = h_ref[...].astype(dtype)
 
-    log_f_cumsum_ = None
-    if log_f_cumsum_ref is not None and not f_diagonal:
-        log_f_cumsum_ = log_f_cumsum_ref[...]
-
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
 
     TriL_batched = None
@@ -74,10 +69,10 @@ def _linear_attention_backward_batched_kernel(
 
     scalar_per_head = log_f_cumsum_ref is not None and not f_diagonal and log_f_cumsum_ref.shape[-1] != 1
     if scalar_per_head:
-        log_f_all = log_f_cumsum_.astype(jnp.float32)
+        log_f_all = log_f_cumsum_ref[...].astype(jnp.float32)
     elif log_f_cumsum_ref is not None and not f_diagonal:
         f_ij_scalar, f_scalar, f_last_scalar, f_to_last_scalar = _scalar_decays(
-            log_f_cumsum_[:, 0].astype(jnp.float32)
+            log_f_cumsum_ref[...][:, 0].astype(jnp.float32)
         )
 
     for n in range(0, N, G):
@@ -115,11 +110,8 @@ def _linear_attention_backward_batched_kernel(
             else:
                 if scalar_per_head:
                     f_ij_scalar, f_scalar, f_last_scalar, f_to_last_scalar = _scalar_decays(log_f_all[g])
-                f_to_last_b = f_to_last_scalar
-                f_b = f_scalar
-
-                qf = (q * f_b[..., :, None]).astype(dtype)
-                kf_last = (k * f_to_last_b[..., :, None]).astype(dtype)
+                qf = (q * f_scalar[..., :, None]).astype(dtype)
+                kf_last = (k * f_to_last_scalar[..., :, None]).astype(dtype)
                 kf_inv = None
 
                 qk = jax.lax.dot_general(q, k, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
@@ -158,12 +150,12 @@ def _linear_attention_backward_batched_kernel(
 
             _dq = jax.lax.dot_general(dy, h, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
             if log_f_cumsum_ref is not None:
-                _dq *= f if f_diagonal else f_b[..., :, None]
+                _dq *= f if f_diagonal else f_scalar[..., :, None]
             dq += _dq
 
             _dk = jax.lax.dot_general(v, dh, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
             if log_f_cumsum_ref is not None:
-                _dk *= f_to_last if f_diagonal else f_to_last_b[..., :, None]
+                _dk *= f_to_last if f_diagonal else f_to_last_scalar[..., :, None]
             dk += _dk
 
             if accumulate_df:
@@ -198,8 +190,6 @@ def _linear_attention_backward_batched_kernel(
         if f_diagonal:
             dq_intra *= f
             dk_intra *= f_inv
-
-        if f_diagonal:
             df_last += (k.astype(jnp.float32) * dk).sum(axis=1)
 
         dq += dq_intra
@@ -218,10 +208,8 @@ def _linear_attention_backward_batched_kernel(
 
             if f_diagonal:
                 _store_heads(df_ref, n, K, dlog_f)
-            elif gate_rows:
-                df_ref[g, :] = dlog_f.sum(axis=-1).astype(df_ref.dtype)
             else:
-                df_ref[:, g] = dlog_f.sum(axis=-1).transpose(1, 0).astype(df_ref.dtype)
+                df_ref[g, :] = dlog_f.sum(axis=-1).astype(df_ref.dtype)
 
     @pl.when(S_CELLS_VISITED == NUM_BLOCKS_S - 1)
     def _():
@@ -255,7 +243,6 @@ def _linear_attention_backward_kernel(
     f_diagonal: bool,
     NUM_BLOCKS_V: int,
     NUM_BLOCKS_S: int,
-    fused_scan: bool,
 ) -> None:
     S_CELLS_VISITED = pl.program_id(1)
 
@@ -269,12 +256,8 @@ def _linear_attention_backward_kernel(
     dtype = q_ref.dtype
 
     h_ = h_ref[...].astype(dtype)
-    log_f_cumsum_ = log_f_cumsum_ref
 
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
-
-    if fused_scan:
-        TriL_scan = jnp.tril(jnp.ones((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
 
     for n in range(N):
         q = _head(q_ref, n // Gq, K).astype(dtype)
@@ -293,8 +276,6 @@ def _linear_attention_backward_kernel(
                 log_f = _head(log_f_cumsum_ref, n // Gf, K).astype(jnp.float32)
             else:
                 log_f = log_f_cumsum_ref[:, n // Gf].astype(jnp.float32)
-            if fused_scan:
-                log_f = jax.lax.dot_general(TriL_scan, log_f, (((1,), (0,)), ((), ())))
             log_f_last = log_f[-1]
 
             f = jnp.exp(log_f)
@@ -326,7 +307,7 @@ def _linear_attention_backward_kernel(
         dq = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
         dk = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
 
-        if log_f_cumsum_ is not None:
+        if log_f_cumsum_ref is not None:
             df_last = jnp.zeros((K,), jnp.float32)
 
         for BLOCK_ID_V in range(NUM_BLOCKS_V):
@@ -345,27 +326,25 @@ def _linear_attention_backward_kernel(
             dv_ref[:, n * V + start : n * V + end] = dv.astype(dtype)
 
             _dq = jax.lax.dot_general(dy, h, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-            if log_f_cumsum_ is not None:
+            if log_f_cumsum_ref is not None:
                 _dq *= f if f_diagonal else f[:, None]
             dq += _dq
 
             _dk = jax.lax.dot_general(v, dh, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-            if log_f_cumsum_ is not None:
+            if log_f_cumsum_ref is not None:
                 _dk *= f_to_last if f_diagonal else f_to_last[:, None]
             dk += _dk
 
-            if log_f_cumsum_ is not None:
+            if log_f_cumsum_ref is not None:
                 df_decay = h.astype(jnp.float32) * dh
                 df_last += f_last * df_decay.sum(axis=1)
-
-            if log_f_cumsum_ is not None:
                 dh *= f_last[:, None] if f_diagonal else f_last
             dh += jax.lax.dot_general(qf, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
             dh_scratch[n, :, start:end] = dh
 
             dyv += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
 
-        if log_f_cumsum_ is not None and not f_diagonal:
+        if log_f_cumsum_ref is not None and not f_diagonal:
             dyv *= f_ij
         dyv = jnp.where(causal_mask, dyv, 0)
         dyv = dyv.astype(dtype)
@@ -382,7 +361,7 @@ def _linear_attention_backward_kernel(
             dq_intra *= f
             dk_intra *= f_inv
 
-        if log_f_cumsum_ is not None:
+        if log_f_cumsum_ref is not None:
             df_last += (k.astype(jnp.float32) * dk).sum(axis=0)
 
         dq += dq_intra
@@ -391,7 +370,7 @@ def _linear_attention_backward_kernel(
         dq_ref[:, n * K : (n + 1) * K] = dq.astype(dtype)
         dk_ref[:, n * K : (n + 1) * K] = dk.astype(dtype)
 
-        if log_f_cumsum_ is not None:
+        if log_f_cumsum_ref is not None:
             suffix_sum = jnp.where(_get_causal_mask(BLOCK_SIZE_S, transpose=True), 1.0, 0.0)
 
             df = q.astype(jnp.float32) * dq - k.astype(jnp.float32) * dk
@@ -504,7 +483,6 @@ def _linear_attention_backward_core(
                 if N % _BACKWARD_HEAD_GROUP == 0 and (f_diagonal or log_f_cumsum is None or Nf == 1)
                 else _BATCHED_HEAD_GROUP
             ),
-            gate_rows=gate_rows,
         )
         if batched
         else partial(
@@ -522,7 +500,6 @@ def _linear_attention_backward_core(
             f_diagonal=f_diagonal,
             NUM_BLOCKS_V=NUM_BLOCKS_V,
             NUM_BLOCKS_S=NUM_BLOCKS_S,
-            fused_scan=fused_scan,
         )
     )
 

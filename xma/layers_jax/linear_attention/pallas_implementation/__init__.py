@@ -220,9 +220,7 @@ def _linear_attention_pallas_packed(
     return y, ht
 
 
-def _packed_layout(
-    qkv: jax.Array, log_f: jax.Array | None, num_heads: int
-) -> tuple[tuple[int, int, int, int], bool, bool]:
+def _packed_layout(log_f: jax.Array | None, num_heads: int) -> tuple[tuple[int, int, int, int], bool, bool]:
     # q | k | v packed along the last dim, num_heads each, K == V
     N = num_heads
     heads = (N, N, N, 0 if log_f is None else log_f.shape[2])
@@ -232,7 +230,7 @@ def _packed_layout(
 
 
 def _packed_forward(qkv, log_f, h0, num_heads, attention_multiplier, output_state, BLOCK_SIZE_S):
-    heads, f_diagonal, fused_scan = _packed_layout(qkv, log_f, num_heads)
+    heads, f_diagonal, fused_scan = _packed_layout(log_f, num_heads)
     log_f_cumsum = log_f if fused_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
 
     y, ht = _linear_attention_forward_core(
@@ -275,7 +273,7 @@ def _linear_attention_packed_backward(
     qkv, log_f_cumsum, h0 = residuals
     dy, dht = cotangents
 
-    heads, f_diagonal, fused_scan = _packed_layout(qkv, log_f_cumsum, num_heads)
+    heads, f_diagonal, fused_scan = _packed_layout(log_f_cumsum, num_heads)
     N, Nf = num_heads, heads[3]
     log_f_cumsum_ = _flatten_heads(log_f_cumsum) if f_diagonal else log_f_cumsum
 
