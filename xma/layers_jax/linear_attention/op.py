@@ -217,6 +217,9 @@ def linear_attention_packed_jax(
     lane_count = Accelerator.get_lane_count() if kernel_backend == KernelBackend.pallas else None
     Nf = 0 if log_forget is None else log_forget.shape[2]
 
+    if attention_multiplier is None:
+        attention_multiplier = 1 / math.sqrt(K)
+
     # the fused path: plain multi-head layout that needs no host-side padding or head chunking
     if (
         kernel_backend == KernelBackend.pallas
@@ -225,7 +228,6 @@ def linear_attention_packed_jax(
         and Nq <= _MAX_HEADS_PER_PALLAS_CELL
         and K == V
         and K % lane_count == 0
-        and BLOCK_SIZE_V > 0
         and BLOCK_SIZE_V % lane_count == 0
         and V % BLOCK_SIZE_V == 0
         and S % BLOCK_SIZE_S == 0
@@ -244,7 +246,7 @@ def linear_attention_packed_jax(
             log_forget,
             input_state,
             Nq,
-            1 / math.sqrt(K) if attention_multiplier is None else attention_multiplier,
+            attention_multiplier,
             output_state,
             BLOCK_SIZE_S,
             BLOCK_SIZE_V,
