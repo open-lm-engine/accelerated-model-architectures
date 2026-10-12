@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax
@@ -12,13 +14,16 @@ from .backward import _backward_core
 from .forward import _forward_core
 
 
-def _get_block_size_s(H: int) -> int:
-    # the kernel stack holds several (BLOCK_SIZE_S, H) fp32 tiles and vmem overflows once
-    # BLOCK_SIZE_S * H exceeds 2**19 (measured), so shrink the block for wide H. Narrow H
-    # wants the block as big as possible instead: more rows per program means fewer HBM
-    # round-trips, which is what sets the kernel's bandwidth at small hidden sizes
-    block_size = 1 << ((1 << 19) // H).bit_length() - 1
-    return min(1024, max(8, block_size))
+def _get_block_size_s(H: int, dtype=jnp.float32) -> int:
+    # the kernel stack holds several (BLOCK_SIZE_S, dtype) tiles and vmem overflows once
+    # BLOCK_SIZE_C * H * bytes_per_elem exceeds 2**21 bytes for bf16 / 2**20 bytes for fp32
+    # (measured), so shrink the block for wide H / wider dtypes. Narrow H wants the block as
+    # big as possible instead: more rows per program means fewer HBM round-trips, which is
+    # what sets the kernel's bandwidth at small hidden sizes
+    budget = (1 << 21) if jnp.dtype(dtype).itemsize == 2 else (1 << 20)
+    block_size = 1 << (budget // (H * jnp.dtype(dtype).itemsize)).bit_length() - 1
+    # the backward patches the first and last 16 rows of a block separately, so it needs at least 32 rows
+    return min(1024, max(32, block_size))
 
 
 def _pad_h0(h0: jax.Array, K: int) -> jax.Array:
@@ -45,7 +50,9 @@ def _forward_run(
     # the per-block input states are saved from the forward as vjp residuals (a small
     # (B, ceil(S / BLOCK_SIZE_S), PAD, H) tensor) so the backward can consume them directly
     # instead of re-deriving them with an extra pass over the input
-    y, h = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]), ACTIVATION=ACTIVATION)
+    y, h = _forward_core(
+        x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1], x.dtype), ACTIVATION=ACTIVATION
+    )
 
     if output_state:
         state_size = W.shape[0] - 1
@@ -108,7 +115,7 @@ def _depthwise_causal_convolution_backward(
         h=h_states,
         dy=dy,
         dht=dht,
-        BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]),
+        BLOCK_SIZE_S=_get_block_size_s(x.shape[-1], x.dtype),
         K=K,
         ACTIVATION=ACTIVATION,
     )

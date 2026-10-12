@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import math
 
 import jax
@@ -14,6 +16,7 @@ from .pallas_implementation import (
     _MAX_HEADS_PER_PALLAS_CELL,
     _linear_attention_pallas,
     _linear_attention_pallas_chunked,
+    _linear_attention_pallas_packed,
 )
 
 
@@ -21,6 +24,7 @@ def linear_attention_jax(
     query: jax.Array,
     key: jax.Array,
     value: jax.Array,
+    log_forget: jax.Array | None = None,
     input_state: jax.Array | None = None,
     attention_multiplier: float | None = None,
     output_state: bool = True,
@@ -37,6 +41,14 @@ def linear_attention_jax(
     :type key: jax.Array
     :param value: value tensor of shape (B, S, Nv, V)
     :type value: jax.Array
+    :param log_forget: forget-gate log-decay of shape (B, S, Nf) or (B, S, Nf, K), where Nf = 1 (a
+        single gate shared across heads) or a divisor of the head count; the rank-4 form is a
+        diagonal gate that decays each key head-dim independently. The multiplicative decay per
+        position is exp(log_forget), so values are expected to be <= 0. None disables the gate.
+        The scalar-gated pallas kernels consume the chunk-local cumsum of these values (see
+        _cumulative_log_decay); the batched diagonal path consumes raw values and fuses the
+        chunk-local scan into the kernel via a triangular systolic matmul. Defaults to None.
+    :type log_forget: jax.Array | None
     :param input_state: starting state of shape (B, N, K, V), where N = max{Nq, Nk, Nv}. None means starting
         state is 0 tensor. Defaults to None.
     :type input_state: jax.Array | None
@@ -68,8 +80,14 @@ def linear_attention_jax(
     Nq = query.shape[-2]
     Nk = key.shape[-2]
     Nv = value.shape[-2]
+    Nf = 0 if log_forget is None else log_forget.shape[2]
 
-    N = max(Nq, Nk, Nv)
+    if log_forget is not None:
+        assert log_forget.ndim in (3, 4)
+        assert log_forget.shape[0] == B
+        assert log_forget.shape[1] == S
+
+    N = max(Nq, Nk, Nv, Nf)
 
     assert N % Nq == 0
     assert N % Nk == 0
@@ -78,6 +96,11 @@ def linear_attention_jax(
     assert query.shape == (B, S, Nq, K)
     assert key.shape == (B, S, Nk, K)
     assert value.shape == (B, S, Nv, V)
+
+    if log_forget is not None:
+        assert N % Nf == 0
+        if log_forget.ndim == 4:
+            assert log_forget.shape[-1] == K
 
     if input_state is not None:
         assert input_state.shape == (B, N, K, V)
@@ -93,6 +116,7 @@ def linear_attention_jax(
             q=query,
             k=key,
             v=value,
+            log_f=log_forget,
             h0=input_state,
             attention_multiplier=attention_multiplier,
             output_state=output_state,
@@ -112,9 +136,14 @@ def linear_attention_jax(
         V_pad = ceil_divide(V, BLOCK_SIZE_V) * BLOCK_SIZE_V - V
 
         if S_pad != 0 or K_pad != 0:
-            pad = ((0, 0), (0, S_pad), (0, 0), (0, K_pad))
+            pad = [(0, 0), (0, S_pad), (0, 0), (0, K_pad)]
             query = jnp.pad(query, pad)
             key = jnp.pad(key, pad)
+
+            if log_forget is not None:
+                if log_forget.ndim == 3:
+                    pad = pad[:-1]
+                log_forget = jnp.pad(log_forget, pad)
 
         if S_pad != 0 or V_pad != 0:
             value = jnp.pad(value, ((0, 0), (0, S_pad), (0, 0), (0, V_pad)))
@@ -122,10 +151,13 @@ def linear_attention_jax(
         if input_state is not None and (K_pad != 0 or V_pad != 0):
             input_state = jnp.pad(input_state, ((0, 0), (0, 0), (0, K_pad), (0, V_pad)))
 
-        y, ht = (_linear_attention_pallas if N <= _MAX_HEADS_PER_PALLAS_CELL else _linear_attention_pallas_chunked)(
+        function = _linear_attention_pallas if N <= _MAX_HEADS_PER_PALLAS_CELL else _linear_attention_pallas_chunked
+
+        y, ht = function(
             q=query,
             k=key,
             v=value,
+            log_f=log_forget,
             h0=input_state,
             attention_multiplier=attention_multiplier,
             output_state=output_state,
@@ -141,3 +173,97 @@ def linear_attention_jax(
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
     return y, ht
+
+
+def linear_attention_packed_jax(
+    qkv: jax.Array,
+    num_query_heads: int,
+    num_key_heads: int,
+    num_value_heads: int,
+    key_head_dim: int,
+    value_head_dim: int,
+    log_forget: jax.Array | None = None,
+    input_state: jax.Array | None = None,
+    attention_multiplier: float | None = None,
+    output_state: bool = True,
+    *,
+    BLOCK_SIZE_S: int = 256,
+    BLOCK_SIZE_V: int = 128,
+    kernel_backend: KernelBackend | None = None,
+) -> tuple[jax.Array, jax.Array | None]:
+    """linear attention on a fused projection: same as `linear_attention_jax` applied to the query / key / value that
+    `qkv` holds side by side, but the pallas kernels read them straight out of `qkv` (and produce one fused gradient
+    for it), so the split into query / key / value (and the concatenation of their gradients) is never materialized.
+
+    :param qkv: fused tensor of shape (B, S, Nq * K + Nk * K + Nv * V), holding query | key | value (in that order)
+    :type qkv: jax.Array
+    :param num_query_heads: Nq
+    :param num_key_heads: Nk
+    :param num_value_heads: Nv
+    :param key_head_dim: K
+    :param value_head_dim: V
+    :return: output tensor of shape (B, S, N * V) (heads flattened), and the output state of shape (B, N, K, V) if
+        `output_state` is True else None. See `linear_attention_jax` for the other arguments.
+    :rtype: tuple[jax.Array, jax.Array | None]
+    """
+
+    B, S, _ = qkv.shape
+    Nq, Nk, Nv, K, V = num_query_heads, num_key_heads, num_value_heads, key_head_dim, value_head_dim
+    assert qkv.shape[-1] == Nq * K + Nk * K + Nv * V
+
+    if kernel_backend is None:
+        kernel_backend = Accelerator.get_kernel_backend()
+
+    lane_count = Accelerator.get_lane_count() if kernel_backend == KernelBackend.pallas else None
+    Nf = 0 if log_forget is None else log_forget.shape[2]
+
+    if attention_multiplier is None:
+        attention_multiplier = 1 / math.sqrt(K)
+
+    if (
+        kernel_backend == KernelBackend.pallas
+        and S > 1
+        and Nq == Nk == Nv
+        and Nq <= _MAX_HEADS_PER_PALLAS_CELL
+        and K == V
+        and K % lane_count == 0
+        and BLOCK_SIZE_V % lane_count == 0
+        and V % BLOCK_SIZE_V == 0
+        and S % BLOCK_SIZE_S == 0
+        and (log_forget is None or Nq % Nf == 0)
+    ):
+        if log_forget is not None:
+            assert log_forget.ndim in (3, 4) and log_forget.shape[:2] == (B, S)
+            if log_forget.ndim == 4:
+                assert log_forget.shape[-1] == K
+
+        if input_state is not None:
+            assert input_state.shape == (B, Nq, K, V)
+
+        return _linear_attention_pallas_packed(
+            qkv,
+            log_forget,
+            input_state,
+            Nq,
+            attention_multiplier,
+            output_state,
+            BLOCK_SIZE_S,
+            BLOCK_SIZE_V,
+        )
+
+    query, key, value = jnp.split(qkv, [Nq * K, (Nq + Nk) * K], axis=-1)
+
+    y, ht = linear_attention_jax(
+        query=query.reshape(B, S, Nq, K),
+        key=key.reshape(B, S, Nk, K),
+        value=value.reshape(B, S, Nv, V),
+        log_forget=log_forget,
+        input_state=input_state,
+        attention_multiplier=attention_multiplier,
+        output_state=output_state,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
+        kernel_backend=kernel_backend,
+    )
+
+    return y.reshape(B, S, -1), ht

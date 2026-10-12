@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from functools import partial
 
 import jax
@@ -44,19 +46,28 @@ def _forward_kernel(
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
-    x = jnp.where(MASK_S, x_ref[...], 0).astype(dtype)
+    if S % BLOCK_SIZE_S != 0:
+        x = jnp.where(MASK_S, x_ref[...], 0).astype(dtype)
+    else:
+        x = x_ref[...]
+
     x_f32 = x.astype(jnp.float32)
     b = jnp.zeros((1, H), dtype=jnp.float32) if b_ref is None else b_ref[...].astype(jnp.float32)
-
-    hist_padded = jnp.pad(h_scratch[...].astype(jnp.float32), ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
-
-    taps = [
-        jnp.where(BLOCK_S < shift, pltpu.roll(hist_padded, shift, axis=0), pltpu.roll(x_f32, shift, axis=0))
-        for shift in (K - 1 - k for k in range(K))
-    ]
-
     W = W_ref[...].astype(jnp.float32)
-    y = jnp.sum(jnp.stack(taps, axis=0) * W[:, None, :], axis=0) + b
+
+    # the taps are plain rolls over the whole block, so only the first PAD rows (which wrap around) are wrong;
+    # those are recomputed on a small (2 * PAD, H) tile with the history stacked on top and spliced back in with a
+    # sublane-aligned concatenate, which keeps full-tile selects (and rolls of the history) off the vector units
+    x_head = jnp.concatenate([h_scratch[...].astype(jnp.float32), x_f32[:PAD, :]], axis=0)
+
+    y = b
+    y_head = b
+    for k in range(K):
+        shift = K - 1 - k
+        y = y + W[k][None, :] * (pltpu.roll(x_f32, shift, axis=0) if shift > 0 else x_f32)
+        y_head = y_head + W[k][None, :] * (pltpu.roll(x_head, shift, axis=0) if shift > 0 else x_head)[PAD:, :]
+
+    y = jnp.concatenate([y_head, y[PAD:, :]], axis=0)
 
     if ACTIVATION in ["silu", "swish"]:
         y = y * jax.nn.sigmoid(y)

@@ -13,20 +13,12 @@ from xma import Accelerator, KernelBackend
 from xma.layers import DepthwiseCausalConvolution
 from xma.utils import is_causal_conv1d_available
 
-from ..utils import assert_equal_tensors, skip_if_incompatible_kernel_backend
+from ..utils import skip_if_incompatible_kernel_backend
 
 
 _HIDDEN_SIZE = 8
 _BATCH = 2
 _PREFILL_LEN = 6
-
-
-def _skip_test_if_device_unavailable(device: torch.device) -> None:
-    if isinstance(device, torch.device):
-        device = device.type
-
-    if device == "cuda" and not torch.cuda.is_available():
-        pytest.skip("skipping test because CUDA is unavailable")
 
 
 def _make_conv(
@@ -51,8 +43,8 @@ def test_prefill_shapes(
     short_seq: bool,
     kernel_backend: KernelBackend,
 ) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
-    _skip_test_if_device_unavailable(device)
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
@@ -86,8 +78,8 @@ def test_prefill_shapes(
 def test_generation_shapes(
     kernel_size: int, add_bias: bool, activation: str | None, output_state: bool, kernel_backend: KernelBackend
 ) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
-    _skip_test_if_device_unavailable(device)
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
@@ -122,8 +114,8 @@ def test_generation_shapes(
 def test_zero_state_matches_fresh_prefill(
     kernel_size: int, add_bias: bool, activation: str | None, seq_len: int, kernel_backend: KernelBackend
 ) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
-    _skip_test_if_device_unavailable(device)
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
@@ -164,8 +156,8 @@ def test_consistency(
     short_prefill: bool,
     kernel_backend: KernelBackend,
 ) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
-    _skip_test_if_device_unavailable(device)
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
@@ -245,8 +237,8 @@ def test_consistency(
 @pytest.mark.parametrize("kernel_size", [4])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.torch])
 def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
-    _skip_test_if_device_unavailable(device)
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
@@ -286,8 +278,8 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
 @pytest.mark.parametrize("kernel_size", [4])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
 def test_kernel_vs_fallback(kernel_size: int, activation: str | None) -> None:
+    skip_if_incompatible_kernel_backend(KernelBackend.cuda)
     device = Accelerator.get_current_device()
-    _skip_test_if_device_unavailable(device)
 
     if not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
